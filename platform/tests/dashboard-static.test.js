@@ -5,50 +5,67 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 const { createApp } = require('../server/server');
-const { inlineScriptHashes } = require('../server/dashboard-static');
 
-test('static dashboard supports deep links and narrowly authorizes only its bootstrap scripts', async t => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), '.ains-dashboard-test-'));
-  await fs.mkdir(path.join(root, 'dashboard/projects/demo'), { recursive: true });
-  await fs.mkdir(path.join(root, 'dashboard/_next/static/chunks'), { recursive: true });
-  const html = '<!doctype html><title>Demo dashboard</title><script>self.__next_f=[];</script><script src="/dashboard/_next/static/chunks/app.js"></script>';
-  await fs.writeFile(path.join(root, 'index.html'), '<title>Workspace</title>');
-  await fs.writeFile(path.join(root, 'dashboard/index.html'), html);
-  await fs.writeFile(path.join(root, 'dashboard/projects/demo/index.html'), html);
-  await fs.writeFile(path.join(root, 'dashboard/projects/demo/index.txt'), 'RSC sample');
-  await fs.writeFile(path.join(root, 'dashboard/_next/static/chunks/app.js'), 'console.log("sample")');
+async function fixture(t) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), '.ains-dashboard-redirect-'));
+  await fs.mkdir(path.join(root, 'dashboard/_next/static'), { recursive: true });
+  await fs.writeFile(path.join(root, 'index.html'), '<title>Unified AINS workspace</title>');
+  // Even a stale build's files must not revive the separate dashboard product.
+  await fs.writeFile(path.join(root, 'dashboard/index.html'), '<title>Old example dashboard</title>');
+  await fs.writeFile(path.join(root, 'dashboard/_next/static/app.js'), 'oldDashboard()');
   await fs.writeFile(path.join(root, 'dashboard/.env'), 'do-not-serve');
-  const app = createApp({ pool: { query: async () => { throw new Error('Static routes must not query the database'); } }, staticDir: root, production: true });
+  const app = createApp({ pool: { query: async () => { throw new Error('Redirects must not query the database'); } }, staticDir: root, production: true });
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(async () => { await new Promise(resolve => server.close(resolve)); await fs.rm(root, { recursive: true, force: true }); });
-  const origin = `http://127.0.0.1:${server.address().port}`;
-  for (const url of ['/dashboard', '/dashboard/', '/dashboard/projects/demo/']) {
-    const res = await fetch(origin + url);
-    assert.equal(res.status, 200);
-    assert.match(await res.text(), /Demo dashboard/);
-    const policy = res.headers.get('content-security-policy');
-    assert.ok(policy.includes(inlineScriptHashes(html)[0]));
-    assert.doesNotMatch(policy.match(/script-src[^;]*/)[0], /unsafe-inline/);
+  return `http://127.0.0.1:${server.address().port}`;
+}
+
+test('old dashboard URLs redirect into the unified workflow without mapping example slugs to real projects', async t => {
+  const origin = await fixture(t);
+  const cases = [
+    ['/dashboard', '/?tab=home'], ['/dashboard/', '/?tab=home'],
+    ['/dashboard/alerts', '/?tab=alerts'], ['/dashboard/alerts/', '/?tab=alerts'],
+    ['/dashboard/example', '/?tab=home'], ['/dashboard/example/', '/?tab=home'],
+    ...['seegene', 'a-corp', 'b-corp'].flatMap(slug => [
+      [`/dashboard/projects/${slug}/`, '/?tab=home'],
+      [`/dashboard/projects/${slug}/settings/`, '/?tab=home'],
+    ]),
+    ['/dashboard/?project=existing-project', '/?tab=home&project=existing-project'],
+    ['/dashboard/alerts/?project=existing-project', '/?tab=alerts&project=existing-project'],
+    ['/dashboard/projects/seegene/?project=explicit-project', '/?tab=home&project=explicit-project'],
+    ['/dashboard/?project=', '/?tab=home&project='],
+    ['/dashboard/?project=not-an-accessible-project&tab=settings&redirect=https://example.test', '/?tab=home&project=not-an-accessible-project'],
+    ['/dashboard/?project=https%3A%2F%2Fexample.test%2F%3Ftab%3Dsettings%26project%3Dother', '/?tab=home&project=https%3A%2F%2Fexample.test%2F%3Ftab%3Dsettings%26project%3Dother'],
+  ];
+  for (const [url, target] of cases) {
+    const response = await fetch(origin + url, { redirect: 'manual' });
+    assert.equal(response.status, 302, url);
+    assert.equal(response.headers.get('location'), target, url);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const policy = response.headers.get('content-security-policy');
     assert.match(policy, /frame-ancestors 'none'/);
-    assert.equal(res.headers.get('cache-control'), 'no-cache');
+    assert.doesNotMatch(policy.match(/script-src[^;]*/)[0], /unsafe-inline|sha256-/);
   }
-  const workspace = await fetch(origin + '/preview');
-  assert.equal(workspace.status, 200);
-  assert.match(await workspace.text(), /Workspace/);
-  assert.doesNotMatch(workspace.headers.get('content-security-policy'), /sha256-/);
-  const asset = await fetch(origin + '/dashboard/_next/static/chunks/app.js');
-  assert.equal(asset.status, 200); assert.match(asset.headers.get('cache-control'), /immutable/);
-  assert.equal((await fetch(origin + '/dashboard/projects/demo/index.txt')).status, 200);
-  for (const url of ['/dashboard/unknown/', '/dashboard/.env', '/dashboard/%2e%2e%2findex.html']) {
-    const res = await fetch(origin + url);
-    assert.equal(res.status, 404);
-    assert.doesNotMatch(await res.text(), /Workspace|do-not-serve/);
-  }
+  const head = await fetch(origin + '/dashboard/alerts?project=p', { method: 'HEAD', redirect: 'manual' });
+  assert.equal(head.status, 302);
+  assert.equal(head.headers.get('location'), '/?tab=alerts&project=p');
 });
 
-test('inline hashes exclude external scripts and preserve exact inline bytes', () => {
-  const hashes = inlineScriptHashes('<script src="a.js"></script><script> </script><script>hello();</script><script>hello();</script>');
-  assert.equal(hashes.length, 1);
-  assert.notDeepEqual(hashes, inlineScriptHashes('<script> hello();</script>'));
+test('workspace and workflow guide retain SPA serving and CSP; unknown dashboard paths and old assets are not served', async t => {
+  const origin = await fixture(t);
+  for (const url of ['/', '/?tab=home&project=p', '/?tab=alerts&project=p', '/preview']) {
+    const response = await fetch(origin + url);
+    assert.equal(response.status, 200);
+    assert.match(await response.text(), /Unified AINS workspace/);
+    const policy = response.headers.get('content-security-policy');
+    assert.doesNotMatch(policy, /sha256-/);
+    assert.doesNotMatch(policy.match(/script-src[^;]*/)[0], /unsafe-inline/);
+  }
+  for (const url of ['/dashboard/unknown/', '/dashboard/projects/customer-project/', '/dashboard/projects/seegene/other/', '/dashboard/.env', '/dashboard/%2e%2e%2findex.html', '/dashboard/_next/static/app.js']) {
+    const response = await fetch(origin + url, { redirect: 'manual' });
+    assert.equal(response.status, 404, url);
+    assert.doesNotMatch(await response.text(), /Unified AINS|Old example|do-not-serve|oldDashboard/);
+  }
+  assert.equal((await fetch(origin + '/dashboard/', { method: 'POST', redirect: 'manual' })).status, 404);
 });

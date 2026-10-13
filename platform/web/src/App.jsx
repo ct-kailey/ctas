@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, AlertTriangle, ArrowDownToLine, ArrowRight, ArrowUpRight, CheckCheck, Code2, ChevronDown, ChevronRight, CircleHelp, ClipboardCheck, FilePlus2, Files, FolderKanban, Inbox, LayoutDashboard, LogOut, Menu, Plus, Settings2, ShieldCheck, Sparkles, Upload, X } from 'lucide-react';
 import { api } from './api.js';
-import { dashboardHref, workspaceStorage, rememberWorkspaceReturn, restoreWorkspaceReturn, resolveWorkspaceProject } from './workspace-navigation.mjs';
+import { workspaceStorage, rememberWorkspaceReturn, restoreWorkspaceReturn, resolveWorkspaceProject } from './workspace-navigation.mjs';
+import { WorkspaceShell } from './workspace-shell.jsx';
+import { ProjectHome, AttentionInbox } from './workspace-home.jsx';
+import { WORKSPACE_VIEWS, resolveWorkflowStep } from './workspace-flow.mjs';
 import { Badge, Button, Empty, ErrorNotice, Modal, ROLES, SectionHeading, Spinner, TextLink, Toast, dateTime, projectPath, shortId } from './ui.jsx';
 import { ProjectModal, RevisionModal, RetryModal } from './operations.jsx';
 import { DocumentLibrary, DocumentList, DomainModal, UploadModal } from './records.jsx';
@@ -46,6 +49,10 @@ const initialWorkspaceEntry = restoreWorkspaceReturn(window.location.search, wor
 
 export default function App() {
   const [entry] = useState(initialWorkspaceEntry);
+  const [preferredStep, setPreferredStep] = useState(entry.workflowStep);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [attentionState, setAttentionState] = useState(null), [attentionEpoch, setAttentionEpoch] = useState(0);
+  const refreshAttention = useCallback(() => setAttentionEpoch(value => value + 1), []);
   const [projectsReady, setProjectsReady] = useState(false), [unavailableProject, setUnavailableProject] = useState(false);
   const entryActionHandled = useRef(false);
   const [appearanceOpen, setAppearanceOpen] = useState(() => window.location.pathname === '/ctds');
@@ -54,18 +61,40 @@ export default function App() {
   const projectSelection = useRef(entry.projectId);
   projectSelection.current = projectId;
   const [overview, setOverview] = useState(null), [loading, setLoading] = useState(false), [error, setError] = useState(null);
-  const [tab, setTab] = useState(entry.tab), [reviewId, setReviewId] = useState(null), [modal, setModal] = useState(null), [toast, setToast] = useState(''), [mobileMenu, setMobileMenu] = useState(false);
+  const [tab, setTab] = useState(entry.tab), [reviewId, setReviewId] = useState(null), [modal, setModal] = useState(null), [toast, setToast] = useState('');
   const [navigationTarget, setNavigationTarget] = useState(null);
   const [commercialDirty, setCommercialDirty] = useState(false), [pendingNavigation, setPendingNavigation] = useState(null);
   function guardNavigation(action) { if (commercialDirty) setPendingNavigation(() => action); else action(); }
   useEffect(() => { if (!commercialDirty) return; const warn = (event) => { event.preventDefault(); event.returnValue = ''; }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, [commercialDirty]);
   const requestSeq = useRef(0), bootRequest = useRef({ sequence: 0, controller: null });
+  const projectRequest = useRef({ sequence: 0, controller: null });
+  const authIdentity = useRef({ userId: null, csrfToken: null });
+  const invalidateProjectRequest = useCallback(() => {
+    projectRequest.current.sequence += 1;
+    projectRequest.current.controller?.abort();
+    projectRequest.current.controller = null;
+  }, []);
+  const applySession = useCallback((value) => {
+    // Update the identity synchronously; a previous account's pending response
+    // must not win the gap before React renders the next authenticated session.
+    invalidateProjectRequest();
+    requestSeq.current += 1;
+    authIdentity.current = { userId: value?.user?.id || null, csrfToken: value?.csrfToken || null };
+    setProjectsReady(false); setProjects([]); setProjectId(''); setOverview(null);
+    setSession(value);
+  }, [invalidateProjectRequest]);
   const notify = useCallback((message) => setToast(message), []);
   const closeToast = useCallback(() => setToast(''), []);
   const request = useCallback(async (path, options = {}) => {
     try { return await api(path, { ...options, csrfToken: session?.csrfToken }); }
-    catch (err) { if (err.status === 401) { setSession(null); setProjects([]); setProjectId(''); setOverview(null); setModal(null); setReviewId(null); } throw err; }
-  }, [session?.csrfToken]);
+    catch (err) {
+      const current = authIdentity.current;
+      if (err.status === 401 && !options.signal?.aborted && current.userId === session?.user?.id && current.csrfToken === session?.csrfToken) {
+        applySession(null); setModal(null); setReviewId(null);
+      }
+      throw err;
+    }
+  }, [session?.user?.id, session?.csrfToken, applySession]);
   const bootstrap = useCallback(async () => {
     bootRequest.current.controller?.abort();
     const controller = new AbortController();
@@ -74,26 +103,42 @@ export default function App() {
     setBootError(null); setBooting(true);
     try {
       const data = await api('/api/session', { signal: controller.signal });
-      if (sequence === bootRequest.current.sequence) setSession(data);
+      if (sequence === bootRequest.current.sequence) applySession(data);
     } catch (err) {
       if (sequence === bootRequest.current.sequence && err.name !== 'AbortError') {
-        if (err.status === 401) setSession(null); else setBootError(err);
+        if (err.status === 401) applySession(null); else setBootError(err);
       }
     } finally {
       if (sequence === bootRequest.current.sequence) setBooting(false);
     }
-  }, []);
+  }, [applySession]);
   useEffect(() => {
     bootstrap();
     return () => { bootRequest.current.sequence += 1; bootRequest.current.controller?.abort(); };
   }, [bootstrap]);
   const loadProjects = useCallback(async () => {
-    const result = await request('/api/projects'); setProjects(result.projects);
+    const identity = authIdentity.current;
+    if (!identity.userId || identity.userId !== session?.user?.id || identity.csrfToken !== session?.csrfToken) throw new DOMException('Project loading was superseded.', 'AbortError');
+    invalidateProjectRequest();
+    const controller = new AbortController();
+    const sequence = projectRequest.current.sequence;
+    projectRequest.current.controller = controller;
+    const stale = () => controller.signal.aborted || sequence !== projectRequest.current.sequence || authIdentity.current !== identity;
+    let result;
+    try { result = await request('/api/projects', { signal: controller.signal }); }
+    catch (error) { if (stale()) throw new DOMException('Project loading was superseded.', 'AbortError'); throw error; }
+    if (stale()) throw new DOMException('Project loading was superseded.', 'AbortError');
+    setProjects(result.projects);
     const next = resolveWorkspaceProject(result.projects, projectSelection.current, entry);
     setProjectId(next.projectId); setUnavailableProject(next.unavailable); setProjectsReady(true);
     return result.projects;
-  }, [request, entry]);
-  useEffect(() => { if (!session?.user) return; let active = true; loadProjects().catch((err) => { if (active) setError(err); }); return () => { active = false; }; }, [session?.user?.id, loadProjects]);
+  }, [request, entry, session?.user?.id, session?.csrfToken, invalidateProjectRequest]);
+  useEffect(() => {
+    if (!session?.user) return;
+    let active = true;
+    loadProjects().catch((err) => { if (active && err.name !== 'AbortError') setError(err); });
+    return () => { active = false; invalidateProjectRequest(); };
+  }, [session?.user?.id, loadProjects, invalidateProjectRequest]);
   const refresh = useCallback(async ({ quiet = false } = {}) => {
     if (!projectId || !session?.user || !projectsReady || !projects.some(project => project.id === projectId)) return;
     const sequence = ++requestSeq.current;
@@ -105,8 +150,28 @@ export default function App() {
   useEffect(() => { setNavigationTarget(null); setOverview(null); setReviewId(null); setModal(null); setError(null); refresh(); return () => { requestSeq.current += 1; }; }, [refresh]);
   const hasActiveJobs = (overview?.jobs || []).some((job) => ACTIVE.has(job.status));
   useEffect(() => { if (!projectId || !hasActiveJobs) return; const timer = setInterval(() => { if (!document.hidden) refresh({ quiet: true }); }, 5000); return () => clearInterval(timer); }, [hasActiveJobs, projectId, refresh]);
+  const activeStep = resolveWorkflowStep(tab, preferredStep);
   const project = projects.find((p) => p.id === projectId), role = project?.role;
   const canWrite = ['owner', 'reviewer', 'member'].includes(role), canReview = ['owner', 'reviewer'].includes(role);
+  useEffect(() => {
+    if (!project || !session?.user || !projectsReady) return;
+    const controller = new AbortController();
+    setAttentionState(old => ({projectId, data: old?.projectId === projectId ? old.data : null, error: null, loading: true}));
+    request(`${projectPath(projectId)}/attention`, {signal: controller.signal})
+      .then(data => { if (!controller.signal.aborted) setAttentionState({projectId, data, error: null, loading: false}); })
+      .catch(error => { if (!controller.signal.aborted) setAttentionState({projectId, data: null, error, loading: false}); });
+    return () => controller.abort();
+  }, [projectId, Boolean(project), session?.user?.id, projectsReady, request, attentionEpoch, tab, overview]);
+  useEffect(() => {
+    if (!project || !session?.user) return;
+    const refreshVisible = () => { if (!document.hidden) refreshAttention(); };
+    const timer = setInterval(refreshVisible, 60000);
+    window.addEventListener('focus', refreshVisible);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refreshVisible); };
+  }, [projectId, Boolean(project), session?.user?.id, refreshAttention]);
+  const attention = attentionState?.projectId === projectId ? attentionState.data : null;
+  const attentionError = attentionState?.projectId === projectId ? attentionState.error : null;
+  const attentionLoading = attentionState?.projectId !== projectId || attentionState?.loading;
   useEffect(() => {
     if (!session?.user || !projectsReady || entryActionHandled.current) return;
     if (unavailableProject) { entryActionHandled.current = true; return; }
@@ -121,29 +186,40 @@ export default function App() {
   useEffect(() => {
     if (!session?.user || !projectsReady || !projectId || unavailableProject) return;
     const query = new URLSearchParams({ project: projectId, tab });
+    if (activeStep) query.set('step', activeStep.id);
     window.history.replaceState(null, '', `${window.location.pathname}?${query}`);
-  }, [session?.user, projectsReady, projectId, unavailableProject, tab]);
+  }, [session?.user, projectsReady, projectId, unavailableProject, tab, activeStep?.id]);
 
   const domains = overview?.domains || [], documents = overview?.documents || [], reviews = overview?.reviews || [], jobs = overview?.jobs || [], feed = overview?.feed || [];
   const pending = reviews.filter((review) => REVIEWABLE.has(review.status));
   const failedJobCount = overview?.counts?.failed_jobs ?? jobs.filter((job) => ['failed', 'uncertain'].includes(job.status)).length;
-  function navigate(next, target = null) { guardNavigation(() => { setNavigationTarget(target); setTab(next); setReviewId(null); setMobileMenu(false); }); }
-  function openReview(id) { guardNavigation(() => { setTab('reviews'); setReviewId(id); setMobileMenu(false); }); }
-  async function logout() { setCommercialDirty(false); try { await request('/api/auth/logout', { method: 'POST', body: {} }); setSession(null); setOverview(null); setProjectId(''); setProjects([]); setModal(null); setReviewId(null); } catch (err) { setError(err); } }
+  function navigate(next, target = null) { guardNavigation(() => { setNavigationTarget(target); setPreferredStep(resolveWorkflowStep(next, target?.workflowStep)?.id || null); setTab(next); setReviewId(next === 'reviews' ? target?.reviewId || null : null);
+      const doc = target?.revisionId ? documents.find(item => item.revisions?.some(revision => revision.id === target.revisionId)) : null;
+      setModal(doc ? {type:'revision', doc, revision:{id:target.revisionId}} : null); }); }
+  function selectProject(id) { guardNavigation(() => { setUnavailableProject(false); setProjectId(id); setTab('home'); setPreferredStep(null); setReviewId(null); setModal(null); }); }
+  function openReview(id) { navigate('reviews', {reviewId:id}); }
+  async function logout() {
+    setCommercialDirty(false); invalidateProjectRequest();
+    try { await request('/api/auth/logout', { method: 'POST', body: {} }); applySession(null); setModal(null); setReviewId(null); }
+    catch (err) {
+      // A failed logout keeps the current session; resume a cancelled list load.
+      if (authIdentity.current.userId) await loadProjects().catch(() => {});
+      setError(err);
+    }
+  }
   async function changed(message) { setModal(null); notify(message); await refresh(); }
   if (booting) return <div className="boot-screen"><span className="wordmark">ains<span>●</span></span><Spinner label="작업실을 준비하고 있습니다" /></div>;
   if (bootError) return <div className="boot-screen"><ErrorNotice error={bootError} onRetry={bootstrap} /></div>;
-  if (!session?.user) return <Login onGoogleStart={() => rememberWorkspaceReturn(workspaceStorage(window), entry)} onLogin={(data) => { setError(null); setSession(data); }} />;
+  if (!session?.user) return <Login onGoogleStart={() => rememberWorkspaceReturn(workspaceStorage(window), entry)} onLogin={(data) => { setError(null); applySession(data); }} />;
 
-  return <div className="app-shell"><a href="#workspace" className="skip-link">본문으로 바로가기</a>{mobileMenu ? <button className="sidebar-scrim" onClick={() => setMobileMenu(false)} aria-label="탐색 메뉴 닫기" /> : null}<aside className={`sidebar ${mobileMenu ? 'is-open' : ''}`}><div className="sidebar-brand"><span className="wordmark">ains<span>●</span></span><span className="workspace-label">SI·SM 작업실</span><button className="icon-button mobile-only" onClick={() => setMobileMenu(false)} aria-label="메뉴 닫기"><X size={20} /></button></div><div className="project-switch"><label htmlFor="project-selector">프로젝트</label><div className="select-wrap"><FolderKanban size={17} /><select id="project-selector" value={projectId} onChange={(event) => { const next = event.target.value; guardNavigation(() => { setUnavailableProject(false); setProjectId(next); }); }} aria-label="프로젝트 선택">{!projectId && projects.length ? <option value="">프로젝트 선택</option> : null}{projects.length ? projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>) : <option value="">프로젝트 없음</option>}</select><ChevronDown size={14} /></div><button className="new-project" onClick={() => guardNavigation(() => setModal({ type: 'project' }))}><Plus size={14} />새 프로젝트</button></div><nav className="main-nav" aria-label="작업실 탐색">{NAV.map(({ id, label, icon: Icon }) => <button key={id} aria-current={tab === id ? 'page' : undefined} className={tab === id ? 'active' : ''} onClick={() => navigate(id)}><Icon size={19} strokeWidth={1.7} /><span>{label}</span>{id === 'reviews' && pending.length ? <b>{pending.length}</b> : null}</button>)}</nav><div className="sidebar-bottom"><div className="nora-note"><span className="nora-symbol">n</span><div><strong>Connected with Nora</strong><span>분석은 AI가, 결정은 사람이.</span></div></div><div className="account"><span className="avatar">{(session.user.name || session.user.email || 'A').slice(0, 1).toUpperCase()}</span><div><strong>{session.user.name || session.user.email}</strong><span>{ROLES[role] || '워크스페이스 구성원'}</span></div><button className="icon-button" onClick={() => guardNavigation(logout)} aria-label="로그아웃" title="로그아웃"><LogOut size={17} /></button></div></div></aside>
-    <div className="main-shell"><header className="topbar"><div className="breadcrumb"><button className="icon-button mobile-only" aria-label="탐색 메뉴 열기" onClick={() => setMobileMenu(true)}><Menu size={21} /></button><span>AINS Workspace</span><ChevronRight size={13} /><strong>{NAV.find((item) => item.id === tab)?.label}</strong>{reviewId ? <><ChevronRight size={13} /><span>검토 상세</span></> : null}</div><div className="topbar-meta"><Button type="button" variant="secondary" onClick={() => guardNavigation(() => window.location.assign(dashboardHref(projectId)))}>프로젝트 대시보드</Button><Button type="button" variant="secondary" icon={Sparkles} onClick={() => guardNavigation(() => window.location.assign('/preview'))}>전체 흐름 프리뷰</Button><Button type="button" variant="secondary" className="appearance-trigger" icon={Settings2} onClick={() => setAppearanceOpen(true)}>화면 설정</Button></div></header><main id="workspace" tabIndex={-1} className="workspace"><ErrorNotice error={error} onRetry={() => project && projectsReady ? refresh() : loadProjects().catch(setError)} />
-      {!project ? unavailableProject ? <Empty title="요청한 프로젝트를 열 수 없습니다" action={<a className="button secondary" href="/dashboard/">접근 가능한 프로젝트 확인</a>}>프로젝트가 없거나 접근 권한이 없습니다. 프로젝트 목록에서 다시 선택해 주세요.</Empty> : !projectsReady && error ? <Empty title="프로젝트 목록을 확인할 수 없습니다">위의 다시 시도 버튼으로 목록을 불러와 주세요.</Empty> : !projectsReady || projects.length || loading ? <Spinner /> : <div className="onboarding"><span className="eyebrow">A NEW PLACE TO WORK</span><h1>첫 프로젝트를 시작하세요.</h1><p>문서를 모으고, 변경을 검토하고, 팀이 합의한 기준을 남깁니다.<br />프로젝트별로 접근 권한과 업무 기록을 관리합니다.</p><Button icon={Plus} onClick={() => guardNavigation(() => setModal({ type: 'project' }))}>프로젝트 만들기</Button><div className="onboarding-steps">{[['01', '문서 등록', '원문을 보존하고 내용을 추출합니다.'], ['02', '변경 검토', '이전 기준선과 비교하고 근거를 확인합니다.'], ['03', '기준선 발행', '사람의 결정으로 다음 기준을 확정합니다.']].map(([number, title, body]) => <div key={number}><span>{number}</span><h3>{title}</h3><p>{body}</p></div>)}</div></div> : <>
-        {!reviewId ? <div className="page-heading"><div><div className="page-overline"><span className="eyebrow">PROJECT WORKSPACE</span><span className="domain-tag">{domains.length || 1}개 업무 영역</span></div><h1>{tab === 'overview' ? project.name : NAV.find((item) => item.id === tab)?.label}<span className="title-dot">.</span></h1><p>{({ context: '프로젝트의 근거와 결정, 질문과 변화를 연결하고 검토한 내용을 확정합니다.', commercial: '프로젝트 정보를 정리하고, 제안서·견적서·계약서를 작성해 검토와 고객 합의로 이어갑니다.', overview: '문서의 변화와 팀의 결정을 한곳에서 이어갑니다.', reviews: '바뀐 내용의 근거를 확인하고, 다음 기준을 결정합니다.', documents: '파일과 대화, 업무 결정을 영역별로 보관하고 시간의 흐름을 이어갑니다.', channels: '대화의 원문을 모으고, 사람이 확인한 결정과 맥락을 업무 기록으로 남깁니다.', integrations: '프로젝트별 수집 범위를 지정하고 외부 자료의 변화를 검토함으로 연결합니다.', transcriptions: '회의 녹음을 텍스트로 바꾸고 원문·시간 구간을 대조하여 맥락을 남깁니다.', implementation: '기획 기준선으로 작업을 계획하고, 사람이 승인한 범위의 코드 변경안을 요청합니다.', 'work-items': '승인한 계획을 담당자·기한·진행 상태로 이어가고, QA 결과와 결정 근거를 남깁니다.', settings: '프로젝트의 목표와 구현할 저장소, 기준 브랜치를 관리합니다.', activity: '등록부터 발행까지, 프로젝트의 결정 과정을 기록합니다.' })[tab]}</p></div><Button icon={Upload} onClick={() => setModal({ type: 'upload', returnTab: tab })} disabled={!canWrite} title={!canWrite ? '실무자 이상의 권한이 필요합니다.' : undefined}>문서·기록 등록</Button></div> : null}
-        {loading && !overview ? <Spinner /> : overview ? reviewId ? <ReviewDetail key={`${projectId}:${reviewId}`} project={project} id={reviewId} request={request} canWrite={canWrite} canReview={canReview} onBack={() => setReviewId(null)} onChanged={refresh} notify={notify} onRetry={(job) => setModal({ type: 'retry', job })} /> : tab === 'overview' ? <><div className="workspace-summary"><div className="summary-intro"><span className="eyebrow">AT A GLANCE</span><p>지금 확인할 일</p></div><button onClick={() => navigate('reviews')}><span>검토 대기</span><strong>{pending.length.toString().padStart(2, '0')}</strong><ArrowUpRight size={18} /></button><button onClick={() => navigate('documents')}><span>문서·기록</span><strong>{documents.length.toString().padStart(2, '0')}</strong><ArrowUpRight size={18} /></button><button onClick={() => navigate('documents')}><span>발행된 기준선</span><strong>{documents.filter((doc) => doc.baseline_revision_id).length.toString().padStart(2, '0')}</strong><ArrowUpRight size={18} /></button><div className="summary-running"><span className={hasActiveJobs ? 'pulse-dot' : 'status-dot'} /><span>{hasActiveJobs ? `${jobs.filter((job) => ACTIVE.has(job.status)).length}개 작업 처리 중` : '진행 중인 분석이 없습니다'}</span></div></div>{failedJobCount > 0 ? <div className="notice warning processing-alert" role="status"><AlertTriangle size={18} /><div><strong>확인이 필요한 분석 {failedJobCount}건</strong><p>실행 이력과 오류를 확인한 뒤 검토를 이어가 주세요.</p></div><a href="#analysis-jobs" className="text-button">분석 작업 확인<ArrowRight size={14} /></a></div> : null}<div className="dashboard-columns"><section className="main-column"><SectionHeading eyebrow="REVIEW INBOX" title="결정을 기다리는 변경"><TextLink onClick={() => navigate('reviews')}>모든 검토</TextLink></SectionHeading><ReviewList reviews={pending.slice(0, 5)} failedJobCount={failedJobCount} documents={documents} onOpen={openReview} emptyAction={canWrite ? <Button variant="secondary" icon={FilePlus2} onClick={() => setModal({ type: 'upload', returnTab: tab })}>첫 기록 등록하기</Button> : null} /><div className="section-spacer" /><SectionHeading eyebrow="DOCUMENT LIBRARY" title="프로젝트 문서·기록"><TextLink onClick={() => navigate('documents')}>보관함으로</TextLink></SectionHeading><DocumentList documents={documents.slice(0, 4)} onRevision={(revision, doc) => setModal({ type: 'revision', revision, doc })} onUpload={(doc) => setModal({ type: 'upload', doc })} canWrite={canWrite} compact /></section><aside className="context-column"><div className="workflow-note"><span className="eyebrow">FROM SOURCE TO STANDARD</span><h3>근거가 있는 변경,<br />명확한 다음 기준.</h3><ol><li><span>01</span><div><strong>원문 등록</strong><p>문서와 위치 정보를 함께 보존</p></div></li><li><span>02</span><div><strong>AI 분석 · 사람의 검토</strong><p>차이와 영향, 확인할 질문 정리</p></div></li><li><span>03</span><div><strong>결정 후 기준선 발행</strong><p>승인된 버전을 새 기준으로 반영</p></div></li></ol><p className="workflow-footnote"><ShieldCheck size={15} />AI 결과는 자동으로 승인되지 않습니다.</p></div><SectionHeading eyebrow="RECENT ACTIVITY" title="최근 기록" /><Feed feed={feed.slice(0, 5)} compact /></aside></div><JobList jobs={jobs.filter((job) => ['failed', 'uncertain', 'running', 'queued'].includes(job.status))} role={role} onRetry={(job) => setModal({ type: 'retry', job })} /></> : tab === 'reviews' ? <ReviewsPage reviews={reviews} documents={documents} onOpen={openReview} /> : tab === 'documents' ? <><DocumentLibrary projectId={project.id} documents={documents} domains={domains} onRevision={(revision, doc) => setModal({ type: 'revision', revision, doc })} onUpload={(doc) => setModal({ type: 'upload', doc })} canWrite={canWrite} canReview={canReview} onDomainCreate={() => setModal({ type: 'domain' })} /><JobList jobs={jobs} role={role} onRetry={(job) => setModal({ type: 'retry', job })} /></> : tab === 'context' ? <MainContextWorkspace key={project.id} project={project} domains={domains} request={request} canWrite={canWrite} canReview={canReview} onChanged={refresh} notify={notify} onDirty={setCommercialDirty} onOpenRecord={(ref) => { if (ref.type === 'revision' && ref.document_id) { const doc=documents.find(d => d.id === ref.document_id); if(doc) setModal({type:'revision',revision:{id:ref.id},doc}); } else if(ref.type === 'commercial_revision') navigate('commercial'); else if(ref.type === 'channel_inbox') navigate('channels', { inboxId: ref.id }); else if(ref.type === 'work_item') navigate('work-items'); else if(ref.type === 'transcription') navigate('transcriptions'); else if(ref.type === 'question') navigate('questions', { questionId: ref.id }); else if(ref.type === 'work_artifact') navigate('work-governance'); }} onOpenWorkItem={() => navigate('work-items')} /> : tab === 'integrations' ? <IntegrationsWorkspace key={project.id} project={project} request={request} canReview={canReview} notify={notify} onChanged={refresh} onDirty={setCommercialDirty} /> : tab === 'transcriptions' ? <TranscriptionWorkspace key={project.id} project={project} request={request} canWrite={canWrite} canReview={canReview} notify={notify} onChanged={refresh} onDirty={setCommercialDirty} /> : tab === 'channels' ? <ChannelInbox key={project.id} project={project} domains={domains} request={request} canWrite={canWrite} canReview={canReview} onChanged={refresh} notify={notify} onDirty={setCommercialDirty} guardNavigation={guardNavigation} initialItemId={navigationTarget?.inboxId} onOpenClassification={id => navigate('work-governance', { classificationId: id })} onOpenQuestion={id => navigate('questions', { questionId: id })} onOpenSource={source => setModal({ type: 'source', source })} /> : tab === 'commercial' ? <CommercialWorkspace key={project.id} onDirty={setCommercialDirty} dirty={commercialDirty} guardNavigation={guardNavigation} project={project} documents={documents} request={request} canWrite={canWrite} canReview={canReview} notify={notify} onUpload={() => setModal({ type: 'upload', returnTab: tab })} onSettings={() => navigate('settings')} onChanged={refresh} /> : tab === 'implementation' ? <ImplementationWorkspace key={project.id} project={project} documents={documents} request={request} canWrite={canWrite} canReview={canReview} onSettings={() => navigate('settings')} onWorkItems={() => navigate('work-items')} onGovernance={() => navigate('work-governance')} onDelivery={() => navigate('github-delivery')} notify={notify} /> : tab === 'work-items' ? <WorkItems key={project.id} projectId={project.id} request={request} role={role} userId={session.user.id} notify={notify} onChanged={refresh} onOpenImplementation={() => navigate('implementation')} onOpenGovernance={() => navigate('work-governance')} /> : tab === 'work-governance' ? <WorkGovernancePanel key={project.id} initialClassificationId={navigationTarget?.classificationId} project={project} request={request} canWrite={canWrite} canReview={canReview} onDirtyChange={setCommercialDirty} notify={notify} onOpenQuestions={() => navigate('questions')} onOpenImplementation={() => navigate('implementation')} onOpenWorkItems={() => navigate('work-items')} onOpenSource={source => setModal({type:'source',source})} /> : tab === 'github-delivery' ? <GitHubDeliveryPanel key={project.id} project={project} request={request} canReview={canReview} notify={notify} onDirty={setCommercialDirty} /> : tab === 'questions' ? <QuestionsPanel key={project.id} initialQuestionId={navigationTarget?.questionId} project={project} request={request} canWrite={canWrite} canReview={canReview} notify={notify} onChanged={refresh} onDirty={setCommercialDirty} /> : tab === 'settings' ? <React.Fragment key={project.id}><ProjectSettings project={project} request={request} onImplementation={() => navigate('implementation')} notify={notify} />{role === 'owner' ? <ExecutionQueueSettings project={project} request={request}/> : null}<AIProviderSettings project={project} request={request} notify={notify} onDirty={setCommercialDirty}/></React.Fragment> : <section className="activity-panel"><Feed feed={feed} /></section> : null}
+  return <><WorkspaceShell user={session.user} project={project} projects={projects} tab={tab} activeStep={activeStep} alertCount={attention?.counts?.all} onNavigate={navigate} onProjectSelect={selectProject} onNewProject={() => guardNavigation(() => setModal({type:'project'}))} onUpload={() => guardNavigation(() => setModal({type:'upload',returnTab:tab}))} canWrite={canWrite} onLogout={() => guardNavigation(logout)} onAppearance={() => setAppearanceOpen(true)} onGuide={() => setGuideOpen(true)}><main id="workspace" tabIndex={-1} className="workspace"><ErrorNotice error={error} onRetry={() => project && projectsReady ? refresh() : loadProjects().catch(setError)} />
+      {!project ? unavailableProject ? <Empty title="요청한 프로젝트를 열 수 없습니다" action={<Button variant="secondary" onClick={() => selectProject(projects[0]?.id || '')}>접근 가능한 프로젝트 확인</Button>}>프로젝트가 없거나 접근 권한이 없습니다. 프로젝트 목록에서 다시 선택해 주세요.</Empty> : !projectsReady && error ? <Empty title="프로젝트 목록을 확인할 수 없습니다">위의 다시 시도 버튼으로 목록을 불러와 주세요.</Empty> : !projectsReady || projects.length || loading ? <Spinner /> : <div className="onboarding"><span className="eyebrow">A NEW PLACE TO WORK</span><h1>첫 프로젝트를 시작하세요.</h1><p>문서를 모으고, 변경을 검토하고, 팀이 합의한 기준을 남깁니다.<br />프로젝트별로 접근 권한과 업무 기록을 관리합니다.</p><Button icon={Plus} onClick={() => guardNavigation(() => setModal({ type: 'project' }))}>프로젝트 만들기</Button><div className="onboarding-steps">{[['01', '문서 등록', '원문을 보존하고 내용을 추출합니다.'], ['02', '변경 검토', '이전 기준선과 비교하고 근거를 확인합니다.'], ['03', '기준선 발행', '사람의 결정으로 다음 기준을 확정합니다.']].map(([number, title, body]) => <div key={number}><span>{number}</span><h3>{title}</h3><p>{body}</p></div>)}</div></div> : <>
+        {!reviewId ? <div className="page-heading"><div><h1>{tab === 'home' ? project.name : activeStep?.id === 'knowledge' && tab === 'context' ? '지식 보관함' : WORKSPACE_VIEWS[tab]?.label}</h1><p>{WORKSPACE_VIEWS[tab]?.description}</p></div></div> : null}
+        {loading && !overview ? <Spinner /> : overview ? reviewId ? <ReviewDetail key={`${projectId}:${reviewId}`} project={project} id={reviewId} request={request} canWrite={canWrite} canReview={canReview} onBack={() => setReviewId(null)} onChanged={refresh} notify={notify} onRetry={(job) => setModal({ type: 'retry', job })} /> : tab === 'home' ? <ProjectHome project={project} projects={projects} overview={overview} onNavigate={navigate} onProjectSelect={selectProject} onUpload={canWrite ? () => setModal({type:'upload',returnTab:tab}) : undefined} onNewProject={() => setModal({type:'project'})} attention={attention} attentionError={attentionError} attentionLoading={attentionLoading} onRefreshAttention={refreshAttention} /> : tab === 'alerts' ? <AttentionInbox attention={attention} attentionError={attentionError} attentionLoading={attentionLoading} onRefreshAttention={refreshAttention} onNavigate={navigate} /> : tab === 'overview' ? <><div className="workspace-summary"><div className="summary-intro"><span className="eyebrow">AT A GLANCE</span><p>지금 확인할 일</p></div><button onClick={() => navigate('reviews')}><span>검토 대기</span><strong>{pending.length.toString().padStart(2, '0')}</strong><ArrowUpRight size={18} /></button><button onClick={() => navigate('documents')}><span>문서·기록</span><strong>{documents.length.toString().padStart(2, '0')}</strong><ArrowUpRight size={18} /></button><button onClick={() => navigate('documents')}><span>발행된 기준선</span><strong>{documents.filter((doc) => doc.baseline_revision_id).length.toString().padStart(2, '0')}</strong><ArrowUpRight size={18} /></button><div className="summary-running"><span className={hasActiveJobs ? 'pulse-dot' : 'status-dot'} /><span>{hasActiveJobs ? `${jobs.filter((job) => ACTIVE.has(job.status)).length}개 작업 처리 중` : '진행 중인 분석이 없습니다'}</span></div></div>{failedJobCount > 0 ? <div className="notice warning processing-alert" role="status"><AlertTriangle size={18} /><div><strong>확인이 필요한 분석 {failedJobCount}건</strong><p>실행 이력과 오류를 확인한 뒤 검토를 이어가 주세요.</p></div><a href="#analysis-jobs" className="text-button">분석 작업 확인<ArrowRight size={14} /></a></div> : null}<div className="dashboard-columns"><section className="main-column"><SectionHeading eyebrow="REVIEW INBOX" title="결정을 기다리는 변경"><TextLink onClick={() => navigate('reviews')}>모든 검토</TextLink></SectionHeading><ReviewList reviews={pending.slice(0, 5)} failedJobCount={failedJobCount} documents={documents} onOpen={openReview} emptyAction={canWrite ? <Button variant="secondary" icon={FilePlus2} onClick={() => setModal({ type: 'upload', returnTab: tab })}>첫 기록 등록하기</Button> : null} /><div className="section-spacer" /><SectionHeading eyebrow="DOCUMENT LIBRARY" title="프로젝트 문서·기록"><TextLink onClick={() => navigate('documents')}>보관함으로</TextLink></SectionHeading><DocumentList documents={documents.slice(0, 4)} onRevision={(revision, doc) => setModal({ type: 'revision', revision, doc })} onUpload={(doc) => setModal({ type: 'upload', doc })} canWrite={canWrite} compact /></section><aside className="context-column"><div className="workflow-note"><span className="eyebrow">FROM SOURCE TO STANDARD</span><h3>근거가 있는 변경,<br />명확한 다음 기준.</h3><ol><li><span>01</span><div><strong>원문 등록</strong><p>문서와 위치 정보를 함께 보존</p></div></li><li><span>02</span><div><strong>AI 분석 · 사람의 검토</strong><p>차이와 영향, 확인할 질문 정리</p></div></li><li><span>03</span><div><strong>결정 후 기준선 발행</strong><p>승인된 버전을 새 기준으로 반영</p></div></li></ol><p className="workflow-footnote"><ShieldCheck size={15} />AI 결과는 자동으로 승인되지 않습니다.</p></div><SectionHeading eyebrow="RECENT ACTIVITY" title="최근 기록" /><Feed feed={feed.slice(0, 5)} compact /></aside></div><JobList jobs={jobs.filter((job) => ['failed', 'uncertain', 'running', 'queued'].includes(job.status))} role={role} onRetry={(job) => setModal({ type: 'retry', job })} /></> : tab === 'reviews' ? <ReviewsPage reviews={reviews} documents={documents} onOpen={openReview} /> : tab === 'documents' ? <><DocumentLibrary projectId={project.id} documents={documents} domains={domains} onRevision={(revision, doc) => setModal({ type: 'revision', revision, doc })} onUpload={(doc) => setModal({ type: 'upload', doc })} canWrite={canWrite} canReview={canReview} onDomainCreate={() => setModal({ type: 'domain' })} /><JobList jobs={jobs} role={role} onRetry={(job) => setModal({ type: 'retry', job })} /></> : tab === 'context' ? <MainContextWorkspace key={`${project.id}:${activeStep?.id}:${navigationTarget?.candidateId || ''}`} initialView={activeStep?.id === 'knowledge' ? 'knowledge' : navigationTarget?.candidateId ? 'review' : 'context'} initialCandidateId={navigationTarget?.candidateId} project={project} domains={domains} request={request} canWrite={canWrite} canReview={canReview} onChanged={refresh} notify={notify} onDirty={setCommercialDirty} onOpenRecord={(ref) => { if (ref.type === 'revision' && ref.document_id) { const doc=documents.find(d => d.id === ref.document_id); if(doc) setModal({type:'revision',revision:{id:ref.id},doc}); } else if(ref.type === 'commercial_revision') navigate('commercial'); else if(ref.type === 'channel_inbox') navigate('channels', { inboxId: ref.id }); else if(ref.type === 'work_item') navigate('work-items'); else if(ref.type === 'transcription') navigate('transcriptions'); else if(ref.type === 'question') navigate('questions', { questionId: ref.id }); else if(ref.type === 'work_artifact') navigate('work-governance'); }} onOpenWorkItem={() => navigate('work-items')} /> : tab === 'integrations' ? <IntegrationsWorkspace key={project.id} project={project} request={request} canReview={canReview} notify={notify} onChanged={refresh} onDirty={setCommercialDirty} /> : tab === 'transcriptions' ? <TranscriptionWorkspace key={project.id} project={project} request={request} canWrite={canWrite} canReview={canReview} notify={notify} onChanged={refresh} onDirty={setCommercialDirty} /> : tab === 'channels' ? <ChannelInbox key={project.id} project={project} domains={domains} request={request} canWrite={canWrite} canReview={canReview} onChanged={refresh} notify={notify} onDirty={setCommercialDirty} guardNavigation={guardNavigation} initialItemId={navigationTarget?.inboxId} onOpenClassification={id => navigate('work-governance', { classificationId: id })} onOpenQuestion={id => navigate('questions', { questionId: id })} onOpenSource={source => setModal({ type: 'source', source })} /> : tab === 'commercial' ? <CommercialWorkspace key={project.id} onDirty={setCommercialDirty} dirty={commercialDirty} guardNavigation={guardNavigation} project={project} documents={documents} request={request} canWrite={canWrite} canReview={canReview} notify={notify} onUpload={() => setModal({ type: 'upload', returnTab: tab })} onSettings={() => navigate('settings')} onChanged={refresh} /> : tab === 'implementation' ? <ImplementationWorkspace key={project.id} project={project} documents={documents} request={request} canWrite={canWrite} canReview={canReview} onSettings={() => navigate('settings')} onWorkItems={() => navigate('work-items')} onGovernance={() => navigate('work-governance')} onDelivery={() => navigate('github-delivery')} notify={notify} /> : tab === 'work-items' ? <WorkItems key={`${project.id}:${navigationTarget?.workItemId || ''}`} initialItemId={navigationTarget?.workItemId} projectId={project.id} request={request} role={role} userId={session.user.id} notify={notify} onChanged={refresh} onOpenImplementation={() => navigate('implementation')} onOpenGovernance={() => navigate('work-governance')} /> : tab === 'work-governance' ? <WorkGovernancePanel key={project.id} initialClassificationId={navigationTarget?.classificationId} project={project} request={request} canWrite={canWrite} canReview={canReview} onDirtyChange={setCommercialDirty} notify={notify} onOpenQuestions={() => navigate('questions')} onOpenImplementation={() => navigate('implementation')} onOpenWorkItems={() => navigate('work-items')} onOpenSource={source => setModal({type:'source',source})} /> : tab === 'github-delivery' ? <GitHubDeliveryPanel key={project.id} project={project} request={request} canReview={canReview} notify={notify} onDirty={setCommercialDirty} /> : tab === 'questions' ? <QuestionsPanel key={project.id} initialQuestionId={navigationTarget?.questionId} project={project} request={request} canWrite={canWrite} canReview={canReview} notify={notify} onChanged={refresh} onDirty={setCommercialDirty} /> : tab === 'settings' ? <React.Fragment key={project.id}><ProjectSettings project={project} request={request} onImplementation={() => navigate('implementation')} notify={notify} />{role === 'owner' ? <ExecutionQueueSettings project={project} request={request}/> : null}<AIProviderSettings project={project} request={request} notify={notify} onDirty={setCommercialDirty}/></React.Fragment> : <section className="activity-panel"><Feed feed={feed} /></section> : null}
         {role === 'viewer' ? <div className="role-note"><ShieldCheck size={15} />현재 열람 권한으로 접속했습니다. 등록·답변·결정은 프로젝트 담당자에게 요청해 주세요.</div> : null}
       </>}
-      <footer className="workspace-footer"><span>AINS SI·SM WORKSPACE</span><span>원문에서 결정까지, 모든 맥락을 함께.</span></footer>
-    </main></div>
+      <footer className="workspace-footer"><span>AINS · 프로젝트의 맥락을 업무로</span><button type="button" onClick={() => setGuideOpen(true)}>사용 안내</button></footer>
+    </main></WorkspaceShell>
     {pendingNavigation ? <Modal title="저장하지 않은 내용이 있습니다" onClose={() => setPendingNavigation(null)}><div className="modal-body"><p className="form-intro">이동하면 현재 편집 내용이 사라집니다. 계속 작성하여 저장하거나, 변경을 버리고 이동하세요.</p></div><footer className="modal-actions"><Button variant="secondary" onClick={() => setPendingNavigation(null)}>계속 작성</Button><Button onClick={() => { const action = pendingNavigation; setPendingNavigation(null); setCommercialDirty(false); action(); }}>변경 버리고 이동</Button></footer></Modal> : null}
     {modal?.type === 'source' && project ? <ContextSourceDetail route={`${projectPath(project.id)}/context`} request={request} sourceRef={modal.source} onClose={() => setModal(null)} /> : null}
     {modal?.type === 'project' ? <ProjectModal request={request} onClose={() => setModal(null)} onCreated={async (newProject) => { await loadProjects(); setUnavailableProject(false); setProjectId(newProject.id); setTab('commercial'); setModal(null); notify('새 프로젝트가 준비되었습니다.'); }} /> : null}
@@ -153,7 +229,8 @@ export default function App() {
     {modal?.type === 'retry' && project ? <RetryModal project={project} job={modal.job} request={request} onClose={() => setModal(null)} onDone={() => changed('작업을 다시 대기열에 넣었습니다.')} /> : null}
     {appearanceOpen ? <AppearanceSettings onClose={() => { setAppearanceOpen(false); if (window.location.pathname === '/ctds') window.history.replaceState(null, '', '/'); }} /> : null}
     {toast ? <Toast message={toast} onClose={closeToast} /> : null}
-  </div>;
+    {guideOpen ? <Modal title="AINS 사용 안내" onClose={() => setGuideOpen(false)}><div className="unified-help"><p>프로젝트의 자료와 결정 근거를 모으고, 사람이 확인한 범위에서 Nora가 업무를 진행합니다.</p><ol><li>프로젝트를 만들고 계약·기획 정보를 정리합니다.</li><li>문서·대화·회의를 수집하고 Context와 변경사항을 검토합니다.</li><li>영향 범위와 작업 계획을 승인한 뒤 구현과 검수를 진행합니다.</li><li>작업 결과와 판단 근거를 지식으로 남겨 다음 업무에 활용합니다.</li></ol><p>알림은 원본 업무 상태를 기준으로 표시됩니다. 실제 검토나 조치가 끝나면 자동으로 목록에서 제외됩니다.</p><Button type="button" variant="secondary" onClick={() => guardNavigation(() => window.location.assign('/preview'))}>예시로 업무 흐름 살펴보기</Button><small>사용 안내용 예시입니다. 실제 프로젝트를 변경하지 않습니다.</small></div></Modal> : null}
+  </>;
 }
 
 function ReviewList({ reviews, documents, onOpen, emptyAction, failedJobCount = 0 }) {

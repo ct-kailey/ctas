@@ -1,0 +1,50 @@
+/* Vara's compact Sidebar/Topbar pattern applied to the single AINS workflow host. */
+.unified-shell { min-height: 100svh; background: var(--bg); }
+.unified-rail { position: fixed; inset: 0 auto 0 0; width: var(--sidebar-w); display: flex; background: var(--bg); border-right: var(--hairline) solid var(--border); z-index: var(--z-sticky); }
+.unified-sidebar { height: 100%; }
+.unified-main { margin-left: var(--sidebar-w); min-width: 0; }
+.unified-brand { display: flex; align-items: center; gap: var(--space-2); color: var(--fg); min-height: var(--control-h-md); }
+.unified-brand svg { width: var(--space-6); height: var(--space-6); }
+.unified-brand strong { font-size: var(--text-base); font-weight: var(--font-weight-medium); }
+.unified-step-number { width: var(--space-4); color: var(--fg-muted); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; }
+.unified-account { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; }
+.unified-account > div { flex: 1; min-width: 0; }
+.unified-account strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+.unified-account small { display: block; color: var(--fg-muted); font-size: var(--text-xs); }
+.unified-shell .unified-topbar { border-bottom: var(--hairline) solid var(--border); }
+.unified-breadcrumb { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); min-width: 0; }
+.unified-breadcrumb button { border: 0; background: transparent; padding: 0; color: var(--fg-muted); }
+.unified-breadcrumb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unified-breadcrumb strong { color: var(--fg); font-weight: var(--font-weight-medium); white-space: nowrap; }
+.unified-mobile-menu { display: none; }
+.unified-project-bar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); border-bottom: var(--hairline) solid var(--border); font-size: var(--text-xs); }
+.unified-project-bar label, .unified-project-bar > span, .unified-project-bar p { color: var(--fg-muted); }
+.unified-project-bar select { max-width: var(--ains-panel-sm); font-size: var(--text-xs); padding: var(--space-1_5) var(--space-2); }
+.unified-project-bar p { margin-left: auto; }
+.unified-view-tabs { display: flex; gap: var(--space-4); padding: 0 var(--space-5); border-bottom: var(--hairline) solid var(--border); overflow-x: auto; }
+.unified-view-tabs button { border: 0; border-bottom: var(--space-0_5) solid transparent; background: transparent; padding: var(--space-3) 0; color: var(--fg-muted); font-size: var(--text-sm); white-space: nowrap; }
+.unified-view-tabs button[aria-current="page"] { color: var(--fg); border-bottom-color: var(--primary); font-weight: var(--font-weight-medium); }
+.unified-shell .workspace { padding: var(--space-5); min-height: calc(100svh - calc(var(--space-16) * 2)); }
+.unified-shell .page-heading { margin: 0 0 var(--space-5); gap: var(--space-3); }
+.unified-shell .page-heading h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-medium); letter-spacing: var(--tracking-normal); line-height: var(--lh-tight); }
+.unified-shell .page-heading p { font-size: var(--text-sm); margin-top: var(--space-2); }
+.unified-shell .workspace-footer { padding-top: var(--space-8); }
+.unified-shell .workspace-footer button { border: 0; background: transparent; padding: 0; color: var(--fg-muted); }
+.unified-mobile-navigation { height: 70svh; min-height: 0; display: flex; }
+.unified-mobile-navigation .unified-sidebar { width: 100%; }
+.unified-help { display: grid; gap: var(--space-4); padding: var(--space-5); }
+.unified-help ol { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-5); }
+.unified-help p, .unified-help li { color: var(--fg-muted); font-size: var(--text-sm); }
+@media (max-width: 900px) {
+  .unified-rail { display: none; }
+  .unified-main { margin-left: 0; }
+  .unified-mobile-menu { display: inline-flex; }
+  .unified-project-bar p { display: none; }
+}
+@media (max-width: 540px) {
+  .unified-shell .workspace { padding: var(--space-4); }
+  .unified-breadcrumb > button, .unified-breadcrumb > svg:first-of-type { display: none; }
+  .unified-project-bar { padding-inline: var(--space-4); }
+  .unified-project-bar select { min-width: 0; flex: 1; }
+  .unified-view-tabs { padding-inline: var(--space-4); gap: var(--space-3); }
+}

@@ -2,11 +2,8 @@ FROM node:22-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci --include=dev --no-audit --no-fund
-COPY ains-dashboard/package.json ains-dashboard/package-lock.json ./ains-dashboard/
-RUN npm ci --prefix ains-dashboard --include=dev --no-audit --no-fund
 COPY vite.config.mjs ctds.config.json ./
 COPY scripts/build-web.cjs ./scripts/
-COPY ains-dashboard ./ains-dashboard
 COPY platform/web ./platform/web
 RUN npm run build
 RUN npm prune --omit=dev --no-audit --no-fund

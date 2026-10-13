@@ -17,9 +17,7 @@
     "ctds:check-update": "node scripts/ctds-sync.cjs --check-latest",
     "ctds:sync": "node scripts/ctds-sync.cjs",
     "check:ctds": "node scripts/check-ctds-tokens.cjs",
-    "build:workspace": "node node_modules/vite/bin/vite.js build",
-    "build:dashboard": "npm --prefix ains-dashboard run build",
-    "dev:dashboard": "npm --prefix ains-dashboard run dev -- --port 3001"
+    "build:workspace": "node node_modules/vite/bin/vite.js build"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.2.0",

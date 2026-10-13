@@ -85,8 +85,6 @@ export function Login({ onLogin, onGoogleStart }) {
         <Button busy={busy} disabled={redirecting} type="submit" icon={ArrowRight}>이메일로 로그인</Button>
       </form>
       <div className="login-access"><ShieldCheck size={17} /><p>프로젝트 구성원에게만 문서와 검토 기록이 공개됩니다.<br />계정이 없다면 워크스페이스 관리자에게 요청해 주세요.</p></div>
-      <a className="text-button" href="/dashboard/">프로젝트 대시보드 <ArrowRight size={14} /></a>
-      <a className="text-button" href="/preview">예시 데이터로 전체 흐름 체험하기 <ArrowRight size={14} /></a>
     </div><span className="login-copyright">AINS SI·SM WORKSPACE</span></section>
   </main>;
 }

@@ -72,3 +72,7 @@ CTDS Input은 ref를 컨테이너에 연결하며 일부 이벤트·접근성 �
 | `--ains-primary-text` | 일반 표면 위 링크·브랜드 텍스트. primary가 bg·bg-subtle·bg-muted 모두와 일반 텍스트 최소 대비를 만족하면 primary, 그렇지 않으면 fg |
 
 이 토큰은 `appearance.css`에 기본 정의하고 테마 적용 시 앱 루트에 계산한 참조를 지정한다. 각 화면은 글자색에 primary 채움 토큰을 직접 사용하지 않고 primary-text 역할을 사용한다. 배경·테두리·선택 표시의 primary 색은 변경하지 않는다. 캔버스 접근이 차단되거나 토큰이 아직 로드되지 않았다면 측정을 생략하고 기본 참조를 유지한다. 색상 대비 수학은 알려진 기준색·경계 회색·전체 색역 표본으로 검증한다.
+
+## 통합 탐색
+
+vara의 Sidebar·Topbar·MenuItem·Tabs를 Vite 업무 화면에서 재사용한다. Shortcut의 키 아이콘도 AINS 고정 아이콘 계열인 Lucide로 연결해 별도 Phosphor 런타임이 필요하지 않다. 원본 크기·키 매핑·접근성 동작은 유지한다.

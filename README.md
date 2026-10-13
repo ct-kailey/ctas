@@ -2,23 +2,23 @@
 
 문서·대화·결정 근거를 Main Context에 연결하고, Nora 분석과 사람의 검토를 거쳐 작업 계획·범위·실행·검수·지식 재사용으로 이어지는 SI/SM 플랫폼입니다.
 
-`ctas`의 `vara` 대시보드와 기존 AINS 작업실을 통합했습니다. `/dashboard/`는 기존 계정과 프로젝트의 실제 업무 현황을 조회하고, 선택한 프로젝트의 작업실로 연결합니다. 기존 API·DB·워크플로우 프리뷰를 유지하며, vara의 예시 화면은 `/dashboard/example/`에서 별도로 체험합니다.
+`ctas`의 `vara` 화면 구성과 알림 표현을 기존 AINS의 전체 업무 흐름 안에 반영합니다. 로그인·프로젝트·자료·계약·Main Context·AI 작업은 하나의 작업실에서 처리하며, 기존 PostgreSQL과 API를 그대로 사용합니다. 별도 예시 앱을 운영 서비스로 배포하지 않습니다.
 
 ## 화면과 데이터 범위
 
 | 경로 | 화면 | 동작 범위 |
 | --- | --- | --- |
-| `/` | 기존 AINS 작업실 | 로그인과 프로젝트 권한 적용, PostgreSQL·Nora·설정한 커넥터 사용 |
-| `/preview` | 8단계 전체 워크플로우 | 프로젝트 준비부터 AI 실행·검수·지식 재사용까지 예시 체험 |
-| `/dashboard/` | 실제 업무 대시보드 | 기존 로그인·프로젝트 권한으로 문서·Context·검토·작업·질문·활동 조회, 같은 프로젝트의 업무로 이동 |
-| `/dashboard/example/` | vara 예시 대시보드 | 예시 알림함·자료 넣기·프로젝트 상세·설정 체험 |
-| `/ctds` | 기존 작업실 화면 설정 | 해당 브라우저의 테마 설정 |
+| `/`, `/?tab=home` | 프로젝트 업무 홈 | 기존 계정과 프로젝트의 실제 현황, 업무 단계별 진입 |
+| `/?tab=alerts` | 알림함 | 프로젝트의 검토·대기·처리 상태 확인 |
+| `/?project=<ID>&tab=<탭>` | 프로젝트 업무 화면 | 계약·기획, 문서, Context, 작업·실행·검수 등 기존 기능 |
+| `/preview` | 전체 워크플로우 안내 | 준비된 예시 데이터로 업무 흐름 체험 |
+| `/ctds` | 화면 설정 | 해당 브라우저의 테마 설정 |
 
-실제 대시보드는 `GET /api/projects/:p/dashboard`를 통해 기존 PostgreSQL 원장의 요약을 읽습니다. 전체 개수와 항목별 최근 6개를 표시하며, 자료 등록·계약 문서 작성·검토·AI 구현 등은 같은 프로젝트가 선택된 작업실에서 이어집니다. 이 연결에 DB 스키마 변경이나 기존 자료 재등록은 필요하지 않습니다.
+업무 홈은 기존 `/api/projects/:p/overview`의 실제 자료·활동과 `/api/projects/:p/attention`의 우선순위 알림을 읽습니다. 자료 등록·계약 작성·검토·AI 구현은 같은 프로젝트와 로그인 세션 안에서 이어집니다. 이 연결에 DB 스키마 변경이나 기존 자료 재등록은 필요하지 않습니다. 조회 실패를 예시 데이터로 대체하지 않습니다.
 
-`/preview`와 `/dashboard/example/`에서 이어지는 예시 화면은 준비된 데이터와 브라우저 메모리로 동작합니다. 실제 메일 발송·Gmail 동기화·자료 저장·AI 실행을 하지 않으며, 새로고침하면 예시 업무 상태가 초기화됩니다. 실제 대시보드의 조회 실패를 예시 데이터로 대신 표시하지 않습니다.
+이전 `/dashboard/` 북마크는 `/?tab=home`으로, `/dashboard/alerts/`는 `/?tab=alerts`로 이동합니다. 명시된 `project` 쿼리는 유지합니다. 예시 프로젝트 경로는 실제 프로젝트 ID로 바꾸지 않고 홈으로 이동하며, 정의되지 않은 대시보드 경로와 예전 Next 자산은 404로 응답합니다.
 
-작업실 링크는 `?project=...&tab=...`으로 프로젝트와 업무 화면을 유지합니다. Google 로그인 전의 목적지는 같은 브라우저 탭에 최대 15분간 보관해 한 번 복구합니다. 접근 권한이 없는 프로젝트는 다른 프로젝트로 자동 전환하지 않습니다.
+`/preview`는 실제 자료 저장·메시지 발송·AI 실행을 하지 않는 업무 안내입니다. 작업실 링크는 `?project=...&tab=...`으로 프로젝트와 업무 화면을 유지합니다. Google 로그인 전의 목적지는 같은 브라우저 탭에 최대 15분간 보관해 한 번 복구합니다. 접근 권한이 없는 프로젝트는 다른 프로젝트로 자동 전환하지 않습니다.
 
 ## 로컬 실행
 
@@ -26,7 +26,6 @@ Node 22.12 이상, Python 3.10 이상, Docker가 필요합니다.
 
 ```sh
 npm ci
-npm ci --prefix ains-dashboard
 docker compose -p ains-sism up -d db
 cp .env.example .env
 python3 -m venv nora/adapter/.venv
@@ -36,9 +35,9 @@ npm run build
 npm run dev
 ```
 
-`http://127.0.0.1:3100/`에서 작업실·실제 대시보드·예시 화면을 함께 확인합니다. `npm run build`는 Vite 작업실과 Next.js 정적 대시보드를 빌드해 `dist/`에 모읍니다. Next.js 서버를 운영에서 추가 실행하지 않습니다.
+`http://127.0.0.1:3100/`에서 통합 작업실을 확인합니다. `npm run build`는 Vite 앱 하나를 `dist/`에 빌드합니다. 보존된 `ains-dashboard/`의 Next 의존성 설치나 빌드는 필요하지 않습니다.
 
-개발 중에는 API용 `npm run dev`, Vite용 `npm run dev:web`, 대시보드용 `npm run dev:dashboard`를 각각 실행합니다. Vite의 5173 포트는 `/api`를 3100, `/dashboard`를 3001로 전달합니다. 작업실만 빌드할 때는 `npm run build:workspace`를 사용합니다.
+개발 중에는 API용 `npm run dev`, Vite용 `npm run dev:web`를 실행합니다. Vite의 5173 포트는 `/api`, `/healthz`, 이전 `/dashboard` 호환 경로를 3100의 기존 서버로 전달합니다.
 
 ## 검증
 
@@ -55,7 +54,7 @@ DB 테스트에는 로컬 테스트 DB만 지정합니다. 각 테스트가 임�
 ## 구성
 
 - `platform/web/`: React/Vite 작업실, 워크플로우 프리뷰와 CTDS 테마
-- `ains-dashboard/`: 실제 업무 요약과 vara 예시 화면을 제공하는 Next.js 대시보드, `/dashboard` 정적 내보내기
+- `ains-dashboard/`: vara 원본과 이전 통합 시도의 Next 소스 보존. 운영 빌드·배포에서는 제외
 - `platform/server/`: Express API, 인증·권한, 작업자, DB 마이그레이션 001–026
 - `nora/`: 문서 추출, AI 입력·출력 스키마, 프롬프트, 클라이언트와 검증 fixture
 - `scripts/`: 빌드, 사용자 생성, 로컬 실행기, 수집 도구와 배포 준비
@@ -65,7 +64,7 @@ DB 테스트에는 로컬 테스트 DB만 지정합니다. 각 테스트가 임�
 
 ## Railway
 
-루트 `Dockerfile`로 웹/API/작업자를 함께 배포하고 별도 PostgreSQL을 연결합니다. 대시보드도 동일 이미지의 정적 파일로 제공됩니다. `.railway/railway.ts`는 기존 AINS 환경의 앱 서비스만 관리하는 부분 구성입니다. DB·볼륨을 전체 적용 대상으로 확대하지 않습니다.
+루트 `Dockerfile`로 웹/API/작업자를 함께 배포하고 별도 PostgreSQL을 연결합니다. 업무 홈과 알림도 같은 Vite 앱에 포함되며 별도 Next 앱은 제공하지 않습니다. `.railway/railway.ts`는 기존 AINS 환경의 앱 서비스만 관리하는 부분 구성입니다. DB·볼륨을 전체 적용 대상으로 확대하지 않습니다.
 
 `DATABASE_URL`, HTTPS `APP_ORIGIN`, Nora 토큰과 초기 관리자 설정 등은 Railway 서비스 변수에 주입합니다. 실제 환경 파일·토큰·고객 원문·운영 검증 결과는 저장소에 포함하지 않습니다. 자세한 변수와 복구 절차는 [운영 안내](platform/docs/OPERATIONS.md)를 참고하세요.
 

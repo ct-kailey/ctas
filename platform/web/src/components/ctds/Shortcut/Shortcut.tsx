@@ -1,18 +1,18 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
 import {
   Command as PhCommand,
-  ArrowFatUp as PhShift,
+  ArrowBigUp as PhShift,
   Option as PhOption,
-  Control as PhControl,
-  ArrowElbowDownLeft as PhReturn,
-  Backspace as PhBackspace,
-  ArrowElbowDownRight as PhTab,
+  ChevronUp as PhControl,
+  CornerDownLeft as PhReturn,
+  Delete as PhBackspace,
+  CornerDownRight as PhTab,
   ArrowUp as PhArrowUp,
   ArrowDown as PhArrowDown,
   ArrowLeft as PhArrowLeft,
   ArrowRight as PhArrowRight,
-  type Icon as PhIcon,
-} from "@phosphor-icons/react";
+  type LucideIcon as PhIcon,
+} from "lucide-react";
 
 import styles from "./Shortcut.module.css";
 
@@ -20,7 +20,7 @@ export type ShortcutSize = "sm" | "md";
 
 /**
  * 각 키 토큰. 문자열이면 아래 규칙으로 렌더:
- *   - 심볼 매핑에 걸리면 phosphor 아이콘
+ *   - 심볼 매핑에 걸리면 Lucide 아이콘
  *   - 다글자 이름("cmd", "shift", "enter", "esc", "space" 등)도 매핑에 걸리면 아이콘
  *   - 그 외(단일 알파벳/숫자/문장부호/미매핑)는 텍스트 그대로
  * 완전 자유가 필요하면 ReactNode 전달.
@@ -45,8 +45,8 @@ const sizeClass: Record<ShortcutSize, string> = {
   md: styles.md,
 };
 
-/* 심볼/별칭 → phosphor 아이콘.
-   Icon axis와 무관하게 phosphor로 고정 (한 페이지 = 한 family 원칙의 예외 —
+/* 심볼/별칭 → Lucide 아이콘.
+   Icon axis와 무관하게 Lucide로 고정 (한 페이지 = 한 family 원칙의 예외 —
    단축키는 시스템 관례 심볼이라 라이브러리 스왑 대상이 아님). */
 const iconMap: Record<string, PhIcon> = {
   // Command

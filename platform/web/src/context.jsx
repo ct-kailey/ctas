@@ -57,11 +57,11 @@ function SourceLink({ source, onOpenRecord, onOpenWorkItem, children }) {
   return <span className="ctx-source-label"><FileText size={13} />{children || SOURCE_TYPES[ref.type] || '프로젝트 기록'}</span>;
 }
 
-export function MainContextWorkspace({ project, domains = EMPTY, request, canWrite, canReview, onChanged, notify, onOpenRecord, onOpenWorkItem, onDirty }) {
+export function MainContextWorkspace({ project, domains = EMPTY, request, canWrite, canReview, onChanged, notify, onOpenRecord, onOpenWorkItem, onDirty, initialView = 'context', initialCandidateId }) {
   const route = `${projectPath(project.id)}/context`;
   const [aiDirty, setAiDirty] = useState(false), [insightDirty, setInsightDirty] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false), [knowledgeDraft, setKnowledgeDraft] = useState(null);
-  const [revision, setRevision] = useState(0), [tab, setTab] = useState('context'), [domain, setDomain] = useState(''), [kind, setKind] = useState(''), [certainty, setCertainty] = useState(''), [scope, setScope] = useState('');
+  const [revision, setRevision] = useState(0), [tab, setTab] = useState(initialView), [domain, setDomain] = useState(''), [kind, setKind] = useState(''), [certainty, setCertainty] = useState(''), [scope, setScope] = useState('');
   const [queryInput, setQueryInput] = useState(''), [query, setQuery] = useState(''), [includeUnapproved, setIncludeUnapproved] = useState(false), [offset, setOffset] = useState(0);
   const [reportDate, setReportDate] = useState(latestReportDay), [timelineOffset, setTimelineOffset] = useState(0);
   const [evidenceError, setEvidenceError] = useState(null), evidenceSequence = useRef(0);
@@ -102,6 +102,14 @@ export function MainContextWorkspace({ project, domains = EMPTY, request, canWri
       } else onOpenRecord?.(ref);
     } catch (error) { if (sequence === evidenceSequence.current) setEvidenceError(error); }
   }
+  useEffect(() => {
+    if (!initialCandidateId) return;
+    const controller = new AbortController();
+    request(`${route}/candidates/${encodeURIComponent(initialCandidateId)}`, { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setSelected({type:'candidate', item:result.candidate}); })
+      .catch(error => { if (!controller.signal.aborted) setEvidenceError(error); });
+    return () => controller.abort();
+  }, [route, initialCandidateId, request]);
   const sourceProps = { onOpenRecord: openEvidence, onOpenWorkItem };
   return <section className="ctx-workspace">
     <div className="ctx-intro"><div><span className="eyebrow">PROJECT MAIN CONTEXT</span><h2>흩어진 기록을, 하나의 판단 근거로.</h2><p>자료와 원문은 바로 찾고, 검토한 요구사항·결정·작업 맥락을 프로젝트 기준으로 연결합니다.</p></div><div className="ctx-intro-actions"><Button icon={Plus} onClick={() => openEditor()} disabled={!canWrite || !data}>{isDraftDirty(draft) ? '작성 중인 기록 이어쓰기' : '회의·작업 맥락 기록'}</Button><span>프로젝트 기준 v{data?.version ?? '—'}</span></div></div>

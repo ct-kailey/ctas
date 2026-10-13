@@ -3,5 +3,5 @@ export default defineConfig({
   root: 'platform/web',
   oxc: { jsx: { runtime: 'automatic' } },
   build: { outDir: '../../dist', emptyOutDir: true },
-  server: { port: 5173, proxy: { '/dashboard': 'http://127.0.0.1:3001', '/api': 'http://127.0.0.1:3100', '/healthz': 'http://127.0.0.1:3100' } }
+  server: { port: 5173, proxy: { '/dashboard': 'http://127.0.0.1:3100', '/api': 'http://127.0.0.1:3100', '/healthz': 'http://127.0.0.1:3100' } }
 });

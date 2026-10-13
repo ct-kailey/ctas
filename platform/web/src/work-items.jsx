@@ -11,11 +11,11 @@ const overdue = (item, date) => item.status !== 'done' && item.due_on && item.du
 const initialForm = item => ({ status: item.status, assignee_id: item.assignee_id || '', due_on: item.due_on || '', blocker: item.blocker || '', note: '', qa_evidence: '' });
 function StateBadge({ status }) { return <Badge tone={STATES[status]?.[1]}>{STATES[status]?.[0] || status}</Badge>; }
 
-export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance }) {
+export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId }) {
   const route = projectPath(projectId), canReview = REVIEWERS.includes(role);
   const [data, setData] = useState(null), [plans, setPlans] = useState([]), [error, setError] = useState(null), [busy, setBusy] = useState(false);
-  const [filter, setFilter] = useState('all'), [query, setQuery] = useState(''), [selected, setSelected] = useState(null), [importing, setImporting] = useState(false), [opening, setOpening] = useState(false);
-  const alive = useRef(true), controller = useRef(null), detailController = useRef(null);
+  const [filter, setFilter] = useState('all'), [query, setQuery] = useState(''), [selected, setSelected] = useState(null), [importing, setImporting] = useState(false), [opening, setOpening] = useState(false), [detailError, setDetailError] = useState(null);
+  const alive = useRef(true), controller = useRef(null), detailController = useRef(null), initialDetail = useRef(null);
   const load = useCallback(async () => {
     controller.current?.abort(); const c = new AbortController(); controller.current = c; setBusy(true);
     try {
@@ -25,12 +25,21 @@ export function WorkItems({ projectId, request, role, userId, notify, onChanged,
     finally { if (alive.current && !c.signal.aborted) setBusy(false); }
   }, [route, request]);
   useEffect(() => { alive.current = true; load(); return () => { alive.current = false; controller.current?.abort(); detailController.current?.abort(); }; }, [load]);
-  async function open(item) {
-    detailController.current?.abort(); const c = new AbortController(); detailController.current = c; setOpening(true);
-    try { const result = await request(`${route}/work-items/${item.id}`, { signal: c.signal }); if (alive.current && !c.signal.aborted) setSelected(result.item); }
-    catch (err) { if (alive.current && err.name !== 'AbortError') setError(err); }
+  const open = useCallback(async (item) => {
+    detailController.current?.abort(); const c = new AbortController(); detailController.current = c; setOpening(true); setDetailError(null);
+    try { const result = await request(`${route}/work-items/${encodeURIComponent(item.id)}`, { signal: c.signal }); if (alive.current && !c.signal.aborted) setSelected(result.item); }
+    catch (err) { if (alive.current && !c.signal.aborted && err.name !== 'AbortError') setDetailError({ error: err, id: item.id }); }
     finally { if (alive.current && !c.signal.aborted) setOpening(false); }
-  }
+  }, [route, request]);
+  useEffect(() => {
+    if (!data || selected || importing || typeof initialItemId !== 'string' || !initialItemId) return;
+    const key = `${route}:${initialItemId}`;
+    if (initialDetail.current === key) return;
+    // Wait for member metadata, and never replace an open editor with an incoming link.
+    // Consume once so closing the detail does not reopen it on the same page.
+    initialDetail.current = key;
+    open({ id: initialItemId });
+  }, [data, importing, initialItemId, open, route, selected]);
   async function saved(message) { if (!alive.current) return; notify?.(message); await load(); if (alive.current) await onChanged?.({ quiet: true }); }
   const items = data?.items || [], date = today(), imported = new Set(items.map(item => item.plan_id));
   const filters = [['all', '전체', items.length], ['mine', '내 작업', items.filter(i => i.assignee_id === userId && i.status !== 'done').length], ['unassigned', '미배정', items.filter(i => !i.assignee_id && i.status !== 'done').length], ['overdue', '기한 초과', items.filter(i => overdue(i, date)).length], ['qa', 'QA 대기', items.filter(i => i.status === 'qa').length], ['blocked', '차단됨', items.filter(i => i.status === 'blocked').length]];
@@ -41,6 +50,8 @@ export function WorkItems({ projectId, request, role, userId, notify, onChanged,
   return <section className="work-board" aria-label="기능별 작업 관리">
     <div className="work-board-intro"><div><span className="eyebrow">FROM PLAN TO DELIVERY</span><h2>계획을 팀의 작업으로.</h2><p>담당자와 기한을 정하고, 완료 기준과 검토 근거를 이어갑니다.</p></div><div className="inline-actions">{onOpenGovernance ? <Button variant="secondary" onClick={onOpenGovernance}>사전 검증·범위 승인</Button> : null}<Button variant="secondary" icon={RefreshCw} busy={busy} onClick={load}>새로고침</Button>{canReview ? <Button icon={Plus} onClick={() => setImporting(true)} disabled={!data}>승인 계획 가져오기</Button> : null}</div></div>
     <ErrorNotice error={error} onRetry={load} />
+    <ErrorNotice error={detailError?.error} onRetry={detailError ? () => open({ id: detailError.id }) : undefined} />
+    {opening ? <p className="work-helper" role="status">선택한 작업을 불러오고 있습니다.</p> : null}
     {!data ? busy ? <Spinner /> : null : <>
       <div className="work-board-filters" aria-label="작업 필터">{filters.map(([id, label, count]) => <button key={id} type="button" aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}<b>{count}</b></button>)}</div>
       <div className="work-board-toolbar"><label className="work-search"><Search size={16} /><input aria-label="작업 검색" placeholder="작업명·담당자·계획 검색" value={query} onChange={e => setQuery(e.target.value)} /></label><span>{filtered.length}개 작업 · 기한은 한국 시간 기준</span></div>
