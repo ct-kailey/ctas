@@ -1,0 +1,153 @@
+/*
+ * MetricCard — 전부 CTDS 토큰 경유.
+ * variant:
+ *   line  — border만 (조밀한 그리드, 기본)
+ *   soft  — bg-subtle 표면 (경계 대신 톤)
+ *   bare  — border·bg·padding 모두 제거. pure 좌표 전용.
+ *           부모 container가 hairline/톤으로 분리를 담당하는 자리에서만 쓴다.
+ * 그림자 금지. interactive: href 있을 때만 hover/focus ring.
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+/* line/soft는 자체 chrome(padding+radius+bg/border)을 가진다. */
+.line,
+.soft {
+  padding: var(--space-5) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+}
+
+.line {
+  border: 1px solid var(--border);
+}
+
+.soft {
+  border: 1px solid transparent;
+  background: var(--bg-subtle);
+}
+
+/* bare — 가두는 장치 없음. padding·radius·bg·border 모두 없음.
+   부모가 hairline/톤 교대로 분리를 담당하는 pure 좌표에서만 사용.
+   interactive라도 bg 교체 없이 fg 톤 변화만. */
+.bare {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.interactive {
+  cursor: pointer;
+  transition: var(--transition-colors), var(--transition-ring);
+}
+
+.line.interactive:hover {
+  background: var(--hover);
+}
+
+.soft.interactive:hover {
+  background: var(--bg-subtle-hover, var(--hover));
+}
+
+.bare.interactive:hover {
+  color: var(--fg-strong, var(--fg));
+}
+
+.interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* head: 아이콘 + 라벨 */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+.label {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* value row: 큰 숫자 + delta */
+.valueRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.value {
+  font-size: var(--text-2xl);
+  line-height: var(--lh-tight);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+  min-width: 0;
+}
+
+/* delta: inline 텍스트 + 아이콘. Badge pill 금지, 더 가볍게. */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-unit) * 1);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+}
+
+.delta[data-trend="up"] {
+  color: var(--success);
+}
+
+.delta[data-trend="down"] {
+  color: var(--destructive);
+}
+
+.delta[data-trend="flat"] {
+  color: var(--fg-muted);
+}
+
+.deltaIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+/* description: value 아래 */
+.description {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-muted);
+}

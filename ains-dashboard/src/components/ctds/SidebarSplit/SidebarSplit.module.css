@@ -1,0 +1,126 @@
+/* Root ─────────────────────────────────────────────────
+   rail · panel 모두 세로 전체를 차지하고,
+   내부에서 Header(sticky top) · Body(scroll) · Footer(sticky bottom) 3영역으로 나뉨. */
+.root {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Rail (좁은 좌측) ──────────────────────────────────────
+   3영역: Brand(top) · Items(scroll) · Footer(bottom). */
+.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: calc(var(--control-h-lg) + var(--space-3) * 2);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-2);
+  height: 100%;
+  min-height: 0;
+  border-right: var(--hairline) solid var(--border);
+}
+
+.railBrand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h-lg);
+  max-height: var(--sidebar-brand-symbol-max);
+  padding-bottom: var(--space-3);
+  flex: 0 0 auto;
+}
+
+.railBrand > * {
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+
+.railItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  width: 100%;
+  align-items: center;
+}
+
+.railFooter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+  padding-top: var(--space-3);
+  flex: 0 0 auto;
+}
+
+/* Panel (넓은 우측) ────────────────────────────────────
+   3영역: Header(sticky top) · Body(scroll) · Footer(sticky bottom). */
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--sidebar-w);
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-3);
+  gap: var(--space-3);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
+  flex: 0 0 auto;
+}
+
+.panelTitle {
+  font-family: var(--font-normal);
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fg);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panelBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex: 1 1 0;
+}
+
+.panelFooter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: var(--hairline) solid var(--border);
+  flex: 0 0 auto;
+}
+
+/* Section ──────────────────────────────────────────── */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sectionItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+}

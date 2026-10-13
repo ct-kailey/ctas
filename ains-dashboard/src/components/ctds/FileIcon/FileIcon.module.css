@@ -1,0 +1,66 @@
+/* FileIcon — 확장자별 색/라벨/아이콘을 담는 둥근 사각 뱃지.
+   비율:
+     radius: Shape 축 반응. sm(16px)만 --radius-checkbox로 캡해 원 방지.
+             md(24) → --radius-xs, lg(32) → --radius-sm
+     label font / size = 0.53     — semibold
+     glyph / size = 0.60          — 브랜드 아이콘 자산 가독성
+   사이즈 리터럴은 FileIcon 고유 치수라 전역 토큰 없음 — 라인별 ignore. */
+
+.root {
+  --fi-size: 24px; /* lint-hardcoded: ignore */
+  --fi-radius: var(--radius-xs);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--fi-size);
+  height: var(--fi-size);
+  border-radius: var(--fi-radius);
+  flex: 0 0 auto;
+  overflow: hidden;
+  user-select: none;
+  transition: var(--transition-colors);
+}
+
+/* 사이즈 — Shape 축 반응하되 soft 과도 방지로 한 단계 내려 사용.
+   sm/md: --radius-checkbox (soft에서 6px로 캡)
+   lg:    --radius-xs */
+.sizeSm {
+  --fi-size: 16px; /* lint-hardcoded: ignore */
+  --fi-radius: var(--radius-checkbox);
+}
+.sizeMd {
+  --fi-size: 24px; /* lint-hardcoded: ignore */
+  --fi-radius: var(--radius-checkbox);
+}
+.sizeLg {
+  --fi-size: 32px; /* lint-hardcoded: ignore */
+  --fi-radius: var(--radius-xs);
+}
+
+/* 브랜드 라벨 — "Ai"/"Ps"/"X"/… 2글자 */
+.label {
+  font-size: calc(var(--fi-size) * 0.53);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  font-family: var(--font-sans);
+  /* 2글자 뭉침 방지용 negative tracking. uppercase 아님 — 혼합 대소문자 원본 유지. */
+  letter-spacing: -0.02em; /* lint-hardcoded: ignore */
+}
+
+/* 제너릭 glyph (phosphor) — size × 0.60 */
+.glyph {
+  width: calc(var(--fi-size) * 0.60);
+  height: calc(var(--fi-size) * 0.60);
+}
+
+/* 제너릭 L/D 자동 전환 — CSS 변수를 Mode 축에서 선택 */
+.generic {
+  background: var(--fi-bg-light);
+  color: var(--fi-fg-light);
+}
+
+:global([data-mode="dark"]) .generic {
+  background: var(--fi-bg-dark);
+  color: var(--fi-fg-dark);
+}

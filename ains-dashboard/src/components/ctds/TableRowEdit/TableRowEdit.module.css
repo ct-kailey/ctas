@@ -1,0 +1,142 @@
+/* TableRowEdit
+   ───────────────────────────────────────────────────────────────
+   edit 모드 전용 CSS. 레이아웃은 TableRow.module.css를 부분 상속하되
+   .line 클래스는 쓰지 않고 edit 전용 외곽을 여기서 그린다.
+
+   원칙
+   - 세로 구분선 강제: 엑셀/Notion 톤의 "셀 그리드" 신호.
+   - 셀 자체가 입력 영역: 활성 셀 안에 editor가 바로 들어감.
+   - selected 행은 primary-subtle.
+*/
+
+/* ── Row 외곽 ─────────────────────────────────────────────
+   TableRow .line 클래스를 쓰지 않는 이유: .line .cell { padding-inline: 0 }
+   cascade가 edit 모드 셀 좌우 패딩을 지워버림. 하단 hairline과 column-gap은
+   여기서 직접. */
+.edit {
+  cursor: default;
+  border-bottom: var(--hairline) solid var(--border);
+  /* column-gap 없음 — 셀 자체 padding-inline이 간격 담당. TableHeader/TableRow
+     line과 동일 공식으로 통일(gap 쓰면 셀 폭이 오른쪽으로 갈수록 어긋남). */
+}
+
+/* ── Size ─────────────────────────────────────────────────
+   edit 전용 2단계. 스프레드시트 톤이라 조밀한 2단만.
+   sm=36(control-h-md), md=40(control-h-lg). TableRow sizeMd(48)보다 작다. */
+.sizeSm { min-height: var(--control-h-md); }
+.sizeMd { min-height: var(--control-h-lg); }
+
+.edit:last-child {
+  border-bottom: none;
+}
+
+/* ── 공통 셀 (edit/readonly) ──────────────────────────────
+   TableRow .cell의 overflow: hidden / mask-image / padding-inline:0 를 전부
+   edit 모드용으로 재설정. mask는 흰 그라데이션 노이즈, padding 0은 글자가
+   세로선에 붙어 보이는 원인. */
+.editCell,
+.readonlyCell {
+  padding-inline: var(--space-2);
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+/* 첫/마지막 셀 가장자리 padding만 0 — 테이블 좌/우 끝과 콘텐츠 바짝 붙게. */
+.edit > :first-child .editCell,
+.edit > :first-child .readonlyCell {
+  padding-inline-start: 0;
+}
+.edit > :last-child .editCell,
+.edit > :last-child .readonlyCell {
+  padding-inline-end: 0;
+}
+
+/* ── 세로 구분선 ────────────────────────────────────────── */
+.editCell[data-divider]::before,
+.readonlyCell[data-divider]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: var(--hairline);
+  background: var(--border);
+  pointer-events: none;
+}
+
+
+/* ── Edit cell ────────────────────────────────────────────
+   클릭/포커스 타겟. 활성 상태엔 input/select가 셀을 꽉 채움. */
+.editCell {
+  position: relative;
+  cursor: text;
+  transition: var(--transition-colors);
+  outline: none;
+}
+
+
+.edit .editCell:hover {
+  background: var(--hover);
+}
+
+/* ── Read-only cell ────────────────────────────────────── */
+.readonlyCell {
+  cursor: default;
+}
+
+/* ── Active cell ─────────────────────────────────────────
+   active 상태 셀 자체는 톤 변화 없이 그대로. overflow visible로 editor의
+   shadow·multiline 확장이 셀 밖으로 번지도록. z-raised로 세로선/다른 행
+   위에 올라오게 — 헤더(z-sticky)보다는 아래라 아래 방향 확장만 안전. */
+.cellActive {
+  overflow: visible;
+  z-index: var(--z-raised);
+}
+
+/* ── Floating editor host ────────────────────────────────
+   active 셀 위에 떠있는 editor 컨테이너. 톤 변화는 border/shadow만 —
+   포인트 컬러 없이 중성 hairline으로. 셀 bounding box에 정확히 얹혀
+   폭·좌우 origin이 셀과 완전 일치해야 헤더나 옆 셀 아래로 안 들어감.
+   top만 아래로 확장되도록 inset-block-end: auto. */
+.editorHost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* 1줄 상태엔 셀 높이에 딱 맞도록 min-height: 100%. textarea autosize가
+     여러 줄로 늘어나면 host 자체가 scroll 컨테이너가 되고(max-height 도달 시),
+     textarea 전체(자기 padding 포함)가 host 안에서 위로 올라감 → 상·하 padding이
+     scroll content의 일부라 host border에서 자연스레 clip, 안쪽 여백 항상 보존.
+     scroll.md "textarea 특수 패턴" 규약. padding은 textarea가 책임. */
+  min-height: 100%;
+  /* 3.5줄 × line-height + 상·하 padding(space-2 각각) — 그 이상은 host가 scroll. */
+  max-height: calc(var(--lh-sm) * 3.5 + var(--space-2) * 2);
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+  overflow-y: auto;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+
+/* editor(input/select)는 popover 폭을 꽉 채움. */
+.editorHost > * {
+  width: 100%;
+}
+
+/* ── 키보드 포커스 (활성 전) ───────────────────────────── */
+.editCell:focus-visible:not([data-active]) {
+  box-shadow: var(--ring-shadow);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Selected 행 ───────────────────────────────────────── */
+.selected {
+  background: var(--primary-subtle);
+  color: var(--selected-fg);
+}
+
+.selected:hover {
+  background: var(--primary-subtle) !important;
+}

@@ -1,0 +1,102 @@
+/* ContextMenu — Radix ContextMenu 위에 얹은 시각 레이어.
+   시각 규칙은 여기 · 상태·슬롯은 MenuItem이 이미 처리.
+
+   ▸ 이 파일은 "메뉴 팝오버 표면"의 원본(single source of truth).
+     Select · DropdownMenu 등 다른 메뉴형 팝오버는 아래 클래스들을
+     `composes: <name> from "../ContextMenu/ContextMenu.module.css"` 로 재사용한다.
+     시각 규칙을 두 갈래로 갈리지 않게 하려는 규약. */
+
+/* Surface ─────────────────────────────────────────────────
+   부양된 팝오버 표면. bg/border/radius/shadow/padding/outline만 담당.
+   width/min-width/max-width, transform-origin, z-index, animation은
+   각 파생 컴포넌트가 자기 primitive의 CSS 변수(--radix-*-content-*)에 맞춰 지정.
+   → primitive마다 다른 값이라 여기서 뭉치면 안 된다. */
+.surface {
+  padding: var(--space-1);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+
+/* Content panel ─────────────────────────────────────────────
+   ContextMenu 전용 폭·transform-origin·애니메이션.
+   표준 폭(--context-menu-w = 28×space-2 = 224px)을 기본으로 잡되,
+   라벨이 표준 폭을 넘길 땐 한 스텝(space-2*6 = 48px)까지만 확장.
+   그 이상은 label에서 ellipsis 처리 — 두 줄로 감싸는 대신 시각 리듬을 지킨다.
+   프롬프트에서 라벨을 짧게 쓰도록 강제하는 게 원칙, CSS는 백업일 뿐.
+   .panel은 문서·프리뷰용으로 같은 시각을 재활용하기 위한 별칭. */
+.content,
+.panel {
+  composes: surface;
+  --context-menu-w: calc(var(--space-2) * 28);
+  /* 표준 폭 224 = min-width. 콘텐츠가 넘칠 땐 max-content로 딱 필요한 만큼만 커진다.
+     상한은 표준 + 한 스텝(48). 뷰포트가 좁으면 뷰포트에 맞춰 축소. */
+  width: max-content;
+  min-width: var(--context-menu-w);
+  max-width: min(
+    calc(var(--context-menu-w) + var(--space-2) * 6),
+    calc(100vw - var(--space-6))
+  );
+}
+.content {
+  z-index: var(--z-popover);
+  /* Radix가 계산한 원점에서 자라나도록 */
+  transform-origin: var(--radix-context-menu-content-transform-origin);
+}
+
+/* SubContent도 같은 표면. transform-origin만 사이드 계산이 달라 다른 변수 사용. */
+.content[data-radix-context-menu-sub-content] {
+  transform-origin: var(--radix-context-menu-sub-content-transform-origin);
+}
+
+/* In · Out 애니메이션은 전역 유틸 `.m-float`가 담당한다. 컴포넌트 tsx에서 Content의
+   className에 "m-float"을 추가해 발동. 여기서는 애니메이션 규칙을 재정의하지 않는다.
+   자세한 방향/시간/곡선 규칙은 globals.css의 .m-float 정의 참고. */
+
+/* Label은 MenuItem variant="section"으로 위임. 별도 스타일 없음. */
+
+/* Separator ────────────────────────────────────────────────
+   1px hairline. Border 시스템 규칙(굵기 --hairline 고정) 준수.
+   좌우 여백은 content padding(space-1) 위에 space-2를 더 얹어 아이템 텍스트 라인보다
+   안쪽으로 들여 시각 리듬을 잡는다. 위·아래는 space-0_5로 얇게 숨쉴 자리만. */
+.separator {
+  height: var(--hairline);
+  margin: var(--space-1) var(--space-2);
+  background: var(--border);
+}
+
+/* CheckboxItem · RadioItem indicators ─────────────────────────
+   Checkbox / Radio 컴포넌트의 시각 인디케이터를 그대로 재사용한다
+   (composes). Radix가 이미 CheckboxItem/RadioItem의 상태·포커스·
+   키보드를 관리하므로 여기서는 시각만 필요 — Checkbox/Radio 컴포넌트가
+   가진 <label><input> 접근성 구조는 중첩되면 오히려 방해가 된다.
+
+   상태 반응 트리거
+   - Checkbox: `data-checked` 속성을 어댑터에서 직접 세팅.
+   - Radio: Radix가 부모 MenuItem(asChild) 에 부여하는 `data-state="checked"`를
+           CSS 컨텍스트 셀렉터로 잡아 자손 indicator에 전파. */
+
+.checkIndicator {
+  composes: indicator from "../Checkbox/Checkbox.module.css";
+  /* 메뉴 컨텍스트에선 leading 슬롯 사이즈 토큰(--menu-icon-size)에 맞춰 정렬.
+     Checkbox 컴포넌트 기본은 16px(--space-4)라 sm 메뉴(14)에서만 살짝 축소됨. */
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+}
+
+.radioIndicator {
+  composes: indicator from "../Radio/Radio.module.css";
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+}
+
+/* Radix RadioItem이 선택되면 asChild 대상(MenuItem root)에 data-state="checked"가 붙는다.
+   그 컨텍스트에서 자손 radioIndicator에 Radio 컴포넌트의 checked 시각을 그대로 적용. */
+:global([data-state="checked"]) .radioIndicator {
+  box-shadow: inset 0 0 0 1px var(--selected-fg);
+  background:
+    radial-gradient(circle at center, var(--selected-fg) 0, var(--selected-fg) 30%, transparent 31%),
+    var(--bg);
+}

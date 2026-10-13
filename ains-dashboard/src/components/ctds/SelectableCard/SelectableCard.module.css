@@ -1,0 +1,177 @@
+/* SelectableCard ────────────────────────────────────────────────
+   카드 전체가 선택 타겟. native <input type="radio|checkbox">를 안에 숨기고,
+   label로 감싸 네이티브 시맨틱과 폼 전송을 그대로 받는다.
+   좌측 leading 슬롯: mode=radio→dot, checkbox→check, icon→Icon.
+
+   레이어 구조:
+   .surface = 배경·경계·hover tint (position: absolute · inset:0 · pointer-events: none)
+   .content = 실제 콘텐츠 (leading + text)
+   surface를 따로 두면 border-width 변경 없이도 이중 링 추가 시 layout jitter 방지.
+
+   Accent 색은 전역 --selected-fg 토큰 (mono=fg, standard/colorful=primary). */
+.root {
+  position: relative;
+  display: block;
+  cursor: pointer;
+  user-select: none;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors), var(--transition-press);
+  /* Hover 시 translateY(-1px)로 뜨기 때문에 상단이 잘리지 않도록 hairline 여백 확보.
+     부모 컨테이너가 overflow:hidden이거나 정확히 top:0에 붙어있어도 안전. */
+  margin-top: var(--hairline);
+}
+.root[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Surface — 카드 경계만. 배경은 투명(부모 표면 그대로 노출).
+   hover에서 border 승격, checked에서 accent 경계로 전환. */
+.surface {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  transition: var(--transition-colors), var(--transition-ring);
+  pointer-events: none;
+}
+
+/* Content — leading + text.
+   line-height 시각 보정: 상단은 title text의 line-height 여백이 포함되므로 한 단계 축소. */
+.content {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+/* Leading — mode별 시각 요소 컨테이너. title 첫 줄 baseline과 맞추기 위해 lh-base 높이. */
+.leading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: var(--lh-base);
+}
+
+/* Radio dot — 선택 전 배경 없음(부모 표면 노출). */
+.radioDot {
+  display: inline-block;
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  background: transparent;
+  transition:
+    box-shadow var(--duration-slow) var(--ease-out),
+    background var(--duration-slow) var(--ease-out);
+}
+
+/* Checkbox — 선택 전 배경 없음(부모 표면 노출). */
+.checkBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: transparent;
+  transition: var(--transition-colors);
+}
+.checkBox > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Icon (mode="icon") */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  transition: var(--transition-colors);
+}
+.icon > svg {
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+}
+
+/* Text block */
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+  min-width: 0;
+  flex: 1;
+}
+.title {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+}
+.description {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-muted);
+}
+
+/* ── States ────────────────────────────────────────────────── */
+
+/* Hover — 배경/경계 손대지 않고 카드가 살짝 뜨는 움직임 + shadow로만 표현.
+   상태(active/checked)와 겹쳐도 signal을 덮지 않는 속성만 사용. */
+.root:hover:not([data-disabled="true"]) {
+  transform: translateY(-1px);
+}
+.root:hover:not([data-disabled="true"]) .surface {
+  box-shadow: var(--shadow-sm);
+}
+.root:active:not([data-disabled="true"]) {
+  transform: translateY(0);
+}
+
+/* Focus — input 포커스가 surface에 ring으로 반영 */
+.input:focus-visible ~ .surface {
+  box-shadow: var(--ring-shadow);
+}
+
+/* Checked — 경계 색만 accent로 승격. stroke 굵기 1px 유지 (Shape 축 영향 없음).
+   배경은 유지 — 색공간 오염 방지. */
+.input:checked ~ .surface {
+  border-color: var(--selected-fg);
+}
+.input:checked:focus-visible ~ .surface {
+  box-shadow: var(--ring-shadow);
+}
+
+/* Radio dot — checked 시 안쪽 도트를 accent 색으로. stroke는 항상 1px.
+   바깥은 투명(부모 표면 노출). */
+.input:checked ~ .content .radioDot {
+  box-shadow: inset 0 0 0 1px var(--selected-fg);
+  background: radial-gradient(
+    circle at center,
+    var(--selected-fg) 0,
+    var(--selected-fg) 30%,
+    transparent 31%
+  );
+}
+
+/* Checkbox — checked 시 배경/경계/체크 색이 accent로 반전. */
+.input:checked ~ .content .checkBox {
+  background: var(--selected-fg);
+  border-color: var(--selected-fg);
+  color: var(--bg);
+}
+
+/* Icon (mode="icon") — checked 시 accent 색으로 승격 */
+.input:checked ~ .content .icon {
+  color: var(--selected-fg);
+}
+

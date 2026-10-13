@@ -1,0 +1,29 @@
+/* MessageQuote — AIMessage 안 인용 블록. plain(그냥 글) / blockquote(왼쪽 bar 리더). */
+
+.root {
+  margin: 0;
+  color: var(--fg);
+  font-size: var(--text-base);
+  line-height: 2;
+}
+
+.plain {
+  /* 그냥 글 — bar 없음 */
+}
+
+.blockquote {
+  position: relative;
+  padding-left: var(--space-4);
+  color: var(--fg-muted);
+}
+/* bar를 pseudo로 — 상·하에서 살짝 들어가 짧은 느낌 */
+.blockquote::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-1);
+  bottom: var(--space-1);
+  width: var(--space-0_5);
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}

@@ -1,0 +1,317 @@
+/* Trigger ─────────────────────────────────────────────────── */
+/* Input의 시각 토큰(.root/variant/size)을 재사용한다. 여기서는 세그먼트 전용 override. */
+.trigger {
+  cursor: text;
+}
+
+.trigger[data-disabled] {
+  cursor: not-allowed;
+}
+
+/* 세그먼트 공통 — 숫자 2자리/AM-PM 토글. 포커스 시 배경만 바뀌고 border/outline 없음. */
+.segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2ch;
+  padding-inline: var(--space-0_5);
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-xs);
+  cursor: text;
+  outline: none;
+  transition: background var(--duration-fast) var(--ease-out);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.segment:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.segment:focus-visible,
+.segment[data-focused="true"] {
+  background: var(--bg-muted);
+  color: var(--fg-strong);
+}
+
+.segmentPlaceholder {
+  color: var(--fg-subtle);
+}
+
+.separator {
+  color: var(--fg-muted);
+  padding-inline: var(--space-0);
+  user-select: none;
+}
+
+/* 트리거 끝 clock 버튼 — Input의 iconBtn 자리에 들어감. */
+.triggerIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin-inline-start: var(--space-1);
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+  transition: color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.triggerIconBtn:hover:not(:disabled) {
+  color: var(--fg);
+  background: var(--hover);
+}
+
+.triggerIconBtn:focus-visible {
+  outline: var(--ring-width) solid var(--ring);
+  outline-offset: 1px;
+}
+
+/* 아이콘 크기 — Input의 .icon > svg 정책과 동일. trigger의 data-size로 분기. */
+.trigger[data-size="sm"] .triggerIconBtn > svg { width: var(--icon-size-xs); height: var(--icon-size-xs); }
+.trigger[data-size="md"] .triggerIconBtn > svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
+.trigger[data-size="lg"] .triggerIconBtn > svg { width: var(--icon-size-md); height: var(--icon-size-md); }
+
+/* 세그먼트 트랙 — flex row로 세그먼트 나열. */
+.segments {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+/* AM/PM 세그먼트는 글자 2개라 min-width 넓게. */
+.segmentMeridiem {
+  min-width: 2.5ch;
+  margin-inline-start: var(--space-1);
+  text-transform: lowercase;
+  letter-spacing: 0;
+}
+
+/* Popover / inline panel ──────────────────────────────────── */
+.popoverContent {
+  z-index: var(--z-popover);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transform-origin: var(--radix-popover-content-transform-origin);
+}
+
+.inlineWrap {
+  display: inline-block;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+/* Panel — 세로 스크롤 2열(시 | 분). 스크롤 두-레이어 규약:
+   panel/column엔 padding 없음, 안쪽 track이 padding 담당. */
+.panel {
+  display: flex;
+  min-height: 0;
+  /* 리스트 7~8줄 보이는 높이. */
+  max-height: calc(var(--control-h-sm) * 9);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 0 0 auto;
+}
+
+.column + .column {
+  border-left: var(--hairline) solid var(--border);
+}
+
+.columnLabel {
+  padding: var(--space-2) var(--space-3) var(--space-0_5);
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  letter-spacing: 0;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.column[data-focus="true"] .columnLabel {
+  color: var(--fg);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 세로 스크롤 레인 */
+.lane {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.laneTrack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+
+/* 셀 — 리스트 아이템 느낌으로 가로 꽉 채움. */
+.cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: calc(var(--control-h-sm) * 1.75);
+  height: var(--control-h-sm);
+  padding-inline: var(--space-3);
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-normal);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.cell:hover:not(:disabled):not([data-selected]) {
+  background: var(--hover);
+}
+
+.cell:focus-visible {
+  outline: var(--ring-width) solid var(--ring);
+  outline-offset: calc(-1 * var(--ring-width));
+}
+
+.cell:disabled {
+  cursor: not-allowed;
+  color: var(--fg-disabled);
+}
+
+.cell[data-selected] {
+  background: var(--primary);
+  color: var(--bg);
+}
+
+.cell[data-selected]:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+/* AM/PM 열 — 시 열 다음에 짧게 */
+.meridiemColumn .laneTrack {
+  padding-top: var(--space-1);
+}
+
+/* Quick chip row (optional) ────────────────────────────── */
+.quickRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+/* Grid panel — 48개(또는 step별) 버튼을 격자로 깔아놓는 variant.
+   예약 슬롯 그리드 느낌. 트리거 없이 인라인 전제. */
+.gridWrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.gridSection + .gridSection {
+  border-top: var(--hairline) solid var(--border);
+}
+
+/* 섹션은 라벨 + 그리드를 세로로 담되, 사이에 추가 padding 금지.
+   라벨 자체 line-box만 공간을 차지하고, 섹션 전체는 한 덩어리 padding으로 통일. */
+.gridSection {
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.gridSectionLabel {
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-muted);
+  letter-spacing: 0;
+}
+
+.gridPanel {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-3);
+}
+
+/* split 모드: 섹션 안에서는 섹션이 padding을 담당하므로 그리드 자체 padding 제거 */
+.gridSection .gridPanel {
+  padding: 0;
+}
+
+.gridPanel[data-cols="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.gridPanel[data-cols="6"] { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.gridPanel[data-cols="8"] { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+
+/* 그리드 셀 — outline 버튼 느낌으로 각 셀이 독립. */
+.gridCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h-sm);
+  padding-inline: var(--space-2);
+  border: var(--hairline) solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-normal);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.gridCell:hover:not(:disabled):not([data-selected]) {
+  background: var(--hover);
+  border-color: var(--border-strong);
+}
+
+.gridCell:focus-visible {
+  outline: var(--ring-width) solid var(--ring);
+  outline-offset: 1px;
+}
+
+.gridCell:disabled {
+  cursor: not-allowed;
+  color: var(--fg-disabled);
+  background: var(--bg-subtle);
+}
+
+.gridCell[data-selected] {
+  background: var(--primary);
+  color: var(--bg);
+  border-color: var(--primary);
+}
+
+.gridCell[data-selected]:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}

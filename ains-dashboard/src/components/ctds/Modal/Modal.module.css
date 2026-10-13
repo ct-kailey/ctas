@@ -1,0 +1,175 @@
+/* Modal ─────────────────────────────────────────────────────────
+   흐름을 끊는 중앙 다이얼로그. 결정·입력·확인의 자리.
+   구조: [header: title · close] · [body: 자유 children] · [footer: actions]
+   원사이즈(560) · dismiss는 X + ESC만 (오버레이 클릭 ❌). */
+
+/* Overlay ───────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--scrim);
+  animation: modal-overlay-in var(--duration-base) var(--ease-out);
+}
+
+.overlay[data-state="closed"] {
+  animation: modal-overlay-out var(--duration-fast) var(--ease-in);
+}
+
+/* Content ───────────────────────────────────────────────────── */
+.content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  /* 440 = space-2(8) * 55. 모달은 좁고 집중된 자리 — 긴 폼은 페이지 자리. */
+  width: calc(100vw - var(--space-8));
+  max-width: calc(var(--space-2) * 55);
+  /* 세로는 뷰포트 - 좌우 여백과 동일 비율로 캡. body 스크롤 가능. */
+  max-height: calc(100vh - var(--space-8));
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  font-family: var(--font-sans);
+  color: var(--fg);
+  outline: none;
+  overflow: hidden;
+  animation: modal-content-in var(--duration-slow) var(--ease-out);
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+}
+
+.content[data-state="closed"] {
+  animation: modal-content-out var(--duration-base) var(--ease-in);
+}
+
+/* Header ────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  /* 상단은 넉넉히, header 자체 bottom은 0 — description↔footer 간격은 footer top padding으로 분담. */
+  padding: var(--space-5) var(--space-5) 0;
+}
+
+/* title + description을 하나의 묶음으로 감싸 좌측 flex 열에 둠. */
+.headerText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* description은 title에 바짝 — 둘은 하나의 "소개" 묶음. */
+  gap: var(--space-1);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  letter-spacing: var(--type-sm-tracking);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fg);
+}
+
+.description {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-muted);
+}
+
+.close {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+  /* title 첫 줄 line-height 중앙에 X 중심 맞춤 (Toast/Callout과 동일 패턴). */
+  margin-top: calc((var(--lh-sm) - var(--iconbtn-h-md)) / 2);
+}
+
+/* Body ──────────────────────────────────────────────────────── */
+/* 스크롤 컨테이너와 콘텐츠 트랙을 2단으로 분리 —
+   바깥(.body)은 overflow만 담당, 안쪽(.bodyInner)이 좌우 padding을 깐다.
+   스크롤바가 콘텐츠를 가리지 않고, 트랙 여백 규칙(bodyInner padding) 유지. */
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.bodyInner {
+  /* children은 "description과 분리된 자유 콘텐츠 영역" — 여유 간격. */
+  padding: var(--space-4) var(--space-5) 0;
+  color: var(--fg);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* footer가 없을 땐 body에 하단 여백을 돌려줌. */
+.body:last-child .bodyInner {
+  padding-bottom: var(--space-5);
+}
+
+/* Footer ────────────────────────────────────────────────────── */
+/* 액션 Button은 우측으로 몰린다 — justify가 아니라 첫 자식 margin-left:auto로 밀어
+   스크롤 컨테이너 아니지만 코드 일관성 위해 우측 정렬은 margin 패턴 사용. */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  /* header bottom이 0이므로 footer top이 header↔footer 전체 간격을 담당. */
+  padding: var(--space-5) var(--space-5) var(--space-5);
+}
+
+.footer > :first-child {
+  margin-left: auto;
+}
+
+/* Animations ────────────────────────────────────────────────── */
+@keyframes modal-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modal-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes modal-content-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(var(--modal-scale-from, 0.96));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes modal-content-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(var(--modal-scale-from, 0.96));
+  }
+}
+
+/* Motion 축 스왑 — scale 프리미티브 스펙(0.94/0.96/0.98) 참조. */
+:root[data-motion="bouncy"]   .content { --modal-scale-from: 0.94; }
+:root[data-motion="standard"] .content { --modal-scale-from: 0.96; }
+:root[data-motion="calm"]     .content { --modal-scale-from: 0.98; }
+:root[data-motion="none"]     .content { --modal-scale-from: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .overlay[data-state="closed"],
+  .content,
+  .content[data-state="closed"] {
+    animation: none;
+  }
+}

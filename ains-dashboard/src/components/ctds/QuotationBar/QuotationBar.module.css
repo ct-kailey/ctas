@@ -1,0 +1,61 @@
+/* QuotationBar — ChatInput 상단에 붙는 인용 바.
+   ↳ icon + 1줄 ellipsis + X 레이아웃. hairline border, radius-md. */
+
+.root {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  background: var(--bg-subtle);
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  transition: var(--transition-colors);
+}
+
+.leadIcon {
+  width: var(--space-4);
+  height: var(--space-4);
+  color: var(--fg-muted);
+  flex: 0 0 auto;
+}
+
+.text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-muted);
+  line-height: 1.3;
+}
+
+.removeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  width: var(--space-5);
+  height: var(--space-5);
+  flex: 0 0 auto;
+}
+.removeBtn:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.removeBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.removeIcon {
+  width: 70%;
+  height: 70%;
+}

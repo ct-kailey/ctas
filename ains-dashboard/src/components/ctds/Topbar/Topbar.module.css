@@ -1,0 +1,26 @@
+/* Root ─────────────────────────────────────────────────
+   투명. 배경·보더·그림자 없음. children 자유 배치.
+   size는 높이만 결정 — padding/gap은 동일. */
+.root {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--topbar-h);
+  padding-inline: var(--space-5);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.root[data-size="sm"] {
+  height: var(--topbar-h-sm);
+}
+
+.root[data-size="md"] {
+  height: var(--topbar-h-md);
+}
+
+/* Spacer ───────────────────────────────────────────── */
+.spacer {
+  flex: 1 1 auto;
+}

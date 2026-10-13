@@ -1,0 +1,119 @@
+/* IdentityButton — 식별 가능한 대상(워크스페이스·프로필·프로젝트·조직 등)을
+   "현재 선택 상태"로 보여주면서 전환 가능함을 암시하는 가로 행.
+   Avatar/leading + 2줄 라벨(name + sub) + trailing(caret/IconButton) 구조. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: start;
+  font-family: var(--label-font);
+  border-radius: var(--radius-sm);
+  transition: var(--transition-colors);
+}
+
+.root:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* size — control-h 토큰에 space-1(4px)만큼 숨돌림 추가.
+   Avatar + 2줄 라벨이 상하에 꽉 차 보이지 않도록 아주 살짝 여유. Density scale은 그대로 따라감. */
+.size-sm { min-height: calc(var(--control-h-sm) + var(--space-1)); }
+.size-md { min-height: calc(var(--control-h-md) + var(--space-1)); }
+.size-lg { min-height: calc(var(--control-h-lg) + var(--space-1)); }
+
+/* 1줄 모드(sub 없음) — 2줄 기준 min-height가 과하게 보이지 않고
+   오히려 라벨이 가운데 떠서 상하 여백이 부족해 보이는 걸 방지. padding-block으로 숨돌림. */
+.root[data-single-line] {
+  padding-block: var(--space-2);
+}
+
+/* variant — 기본은 ghost(투명 bg, hover만). muted는 항상 subtle bg. */
+.variant-ghost {
+  background: transparent;
+}
+.variant-ghost:hover:not(:disabled) {
+  background: var(--hover);
+}
+.variant-ghost:focus-visible {
+  outline: none;
+  background: var(--hover);
+}
+
+.variant-muted {
+  background: var(--hover);
+}
+.variant-muted:hover:not(:disabled) {
+  background: var(--bg-muted);
+}
+.variant-muted:focus-visible {
+  outline: none;
+  background: var(--bg-muted);
+}
+
+/* active — 현재 선택 (스위처 리스트에서). hover가 덮지 않도록 bg 우선. */
+.root[data-active] {
+  background: var(--bg-muted);
+}
+.root[data-active] .name {
+  color: var(--fg-strong);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ── 슬롯 ───────────────────────────────────────────── */
+.leading {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.labels {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.name {
+  font-size: var(--label-sm-size);
+  letter-spacing: var(--label-tracking);
+  line-height: var(--lh-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sub {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  color: var(--fg-muted);
+}
+
+/* ── collapsed — leading 하나만 ─────────────────────── */
+.root[data-collapsed] {
+  justify-content: center;
+  gap: 0;
+  padding-inline: var(--space-1);
+}

@@ -1,0 +1,322 @@
+/* TableHeader
+   ───────────────────────────────────────────────────────────────
+   두 개 variant × resizable × reorderable 조합 = 8가지.
+   구조는 항상 flex + order (columns 순서는 @dnd-kit이 관리).
+
+   시각 원칙
+   - line : 페이지에 얹힌 얇은 눈금자. bg=--bg, 하단 hairline border.
+   - plate: 라운드 컨테이너. bg=--bg-subtle(연하게), 안쪽 padding, radius-lg.
+   - hover: reorderable=on일 때만 셀 hover 배경 노출.
+   - resize handle:
+     · line  → 셀 좌측 tick (눈금자 느낌). 첫 셀엔 안 붙음.
+     · plate → 셀 우측 세로선 (hover 시 opacity 상승).
+   - sort arrow: --fg-subtle → active 시 --fg-strong.
+
+   토큰만 사용 — 색/여백/시간/폰트 리터럴 금지.
+*/
+
+.root {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-docked);
+  display: flex;
+  align-items: stretch;
+  /* 총 컬럼 폭 합보다 컨테이너가 좁으면 셀이 겹치지 않고 밀리도록.
+     상위에 overflow-x: auto를 두면 가로 스크롤이 생김. */
+  width: max-content;
+  min-width: 100%;
+  font-family: var(--label-font);
+  /* 헤더는 regular로 담담하게. 강조(medium)는 데이터 셀의 'strong' 톤에만 쓴다.
+     weight 두 단계(regular/medium)만 사용 — 세 단계 이상은 위계가 모호해짐. */
+  font-weight: var(--font-weight-regular);
+  letter-spacing: var(--label-tracking);
+  font-size: var(--label-sm-size);
+  line-height: var(--label-sm-line-height);
+  color: var(--fg);
+  user-select: none;
+}
+
+/* variant: line ────────────────────────────────────────────── */
+/* 페이지 표면에 얹히는 얇은 헤더. sticky 시 아래 데이터 위로 자연스럽게 흐르게
+   bg를 채우고 하단만 hairline. */
+.line {
+  background: var(--bg);
+  border-bottom: var(--hairline) solid var(--border);
+  /* padding-block을 넣지 않음 — bar 세로를 cell(min-height)이 결정해
+     reorder hover 배경이 bar 전체 세로를 자연스레 커버하도록. */
+  color: var(--fg-muted);
+  min-height: var(--control-h-md);
+}
+
+/* line variant 셀 좌우 패딩 — TableRow.line과 짝. 콘텐츠가 셀 경계에서 떨어짐. */
+.line .cell {
+  padding-inline: var(--space-2);
+}
+
+/* 첫/마지막 셀의 가장자리 padding만 0 — 테이블 좌/우 끝과 콘텐츠 바짝 붙게. */
+.line .cellSlot:first-child .cell {
+  padding-inline-start: 0;
+}
+.line .cellSlot:last-child .cell {
+  padding-inline-end: 0;
+}
+
+/* 셀 간 column-gap 없음 — 셀 자체 padding이 간격 담당. */
+
+/* variant: plate ─────────────────────────────────────────────
+   pill 형태. 컨테이너 자체에 radius + padding, 셀 hover 배경이 라운드 안쪽에서 발생.
+   min-height으로 시각 무게 유지. */
+.plate {
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-1);
+  min-height: var(--control-h-lg);
+  color: var(--fg-strong);
+}
+
+/* Cell slot — dnd 위치 계산은 slot이 담당, 시각(padding/hover/border)은 안쪽 .cell.
+   slot에 width/order를 얹지 않는 이유: @dnd-kit이 transform으로 위치를 옮길 때
+   슬롯 폭 자체는 columns 순서대로 유지돼야 flex가 흔들리지 않음.
+   flex-shrink: 0 — 셀이 min-width 밑으로 줄어들며 겹치지 않도록 방지. */
+.cellSlot {
+  display: flex;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* ── Pinned cellSlot ───────────────────────────────────
+   position: sticky는 inline style로 걸림. CSS는 배경(스크롤되는 셀이 비치지
+   않도록)과 가장자리 shadow만 담당. 왼쪽 pinned → 오른쪽 가장자리 shadow,
+   오른쪽 pinned → 왼쪽 가장자리 shadow로 "떠있음" 신호. */
+.cellSlot[data-pinned] {
+  background: var(--bg);
+}
+
+/* pinned 경계 — hairline으로 "고정 영역" 분리. TableRow와 짝.
+   border 대신 inset box-shadow로 그어 sticky 레이어 subpixel 겹침(두 줄처럼
+   보이는 Chrome 렌더 현상) 회피 + 셀 폭에 영향 안 줌. */
+.cellSlot[data-pinned="left"] {
+  box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--border);
+}
+.cellSlot[data-pinned="right"] {
+  box-shadow: inset var(--hairline) 0 0 var(--border);
+}
+
+.selectCell {
+  box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--border);
+}
+
+/* Cell (columnheader) ─────────────────────────────────────── */
+/* width:100%로 슬롯 폭을 그대로 채워 라벨/tick/handle 정렬이 슬롯 경계에 맞춰 계산됨.
+   padding-inline은 hover/drag hit 영역이 콘텐츠에 바짝 붙지 않도록 필수.
+   reorder hover 배경과 셀 간 간격감이 이 패딩에서 나온다. */
+.cell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding-inline: var(--space-2);
+  height: 100%;
+  color: inherit;
+  transition: var(--transition-colors);
+}
+
+/* reorderable=on: 전 셀을 grab 커서 + hover 배경.
+   hover/drag 배경은 ::before pseudo로 cell 세로의 ~95%만 덮어 bar top/bottom에
+   살짝 숨구멍이 남게 — bar 전체 꽉 차면 과도해 보임. */
+.reorderable {
+  cursor: grab;
+}
+
+.reorderable::before {
+  content: "";
+  position: absolute;
+  inset-block: 7.5%;
+  inset-inline: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  transition: var(--transition-colors);
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+
+.reorderable:hover::before,
+.dragging::before {
+  background: var(--hover);
+}
+
+/* 라벨/아이콘은 ::before 위에 올라와야 — cell 안의 콘텐츠는 position relative 상속. */
+.reorderable > * {
+  position: relative;
+  z-index: var(--z-raise);
+}
+
+/* 드래그 중 셀: grabbing. 배경은 위 ::before 규칙으로. */
+.dragging {
+  cursor: grabbing;
+  z-index: var(--z-raised);
+}
+
+/* Label ───────────────────────────────────────────────────── */
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* sortable 셀에서 라벨을 클릭 대상으로. reorder 리스너는 셀 전체에 걸려 있어
+     8px threshold 안에서의 클릭은 sort로 취급됨. */
+  pointer-events: auto;
+}
+
+.sortable .label {
+  cursor: pointer;
+}
+
+/* Sort icon ──────────────────────────────────────────────
+   arrows-down-up 커스텀 아이콘(위↓ · 아래↑ 두 path 분리형). 모양은 상태와
+   무관하게 고정이고, 상태 표시는 각 path의 fill 톤 교체로만 처리. */
+.sortIcon {
+  flex-shrink: 0;
+}
+
+.sortPath {
+  fill: var(--fg-subtle);
+  transition: var(--transition-colors);
+}
+
+.sortPathActive {
+  fill: var(--fg-strong);
+}
+
+/* Line variant: 좌측 tick (눈금자 스타일) ─────────────────
+   첫 셀엔 안 붙게 :first-of-type의 슬롯 안쪽 tick을 숨김.
+   선 굵기 1px 고정(border 규칙과 정합). 색은 border 톤. */
+.tick {
+  position: absolute;
+  left: 0;
+  top: 25%;
+  bottom: 25%;
+  width: var(--hairline);
+  background: var(--border);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* 헤더 첫 셀엔 tick 표시하지 않음 — 컨테이너 좌측 라인과 겹치는 인상 방지.
+   selectable 셀이 있으면 그건 selectCell(별도 slot)이라 첫 cellSlot에 해당. */
+.cellSlot:first-child .tick {
+  display: none;
+}
+
+/* pinned 경계 hairline과 tick(cellSlot 좌측 세로선) 겹침 방지.
+   - pinned-left 셀의 바로 다음 cellSlot: pinned의 border-right와 다음 셀의
+     tick이 바로 붙어 두 줄처럼 보이는 현상 제거.
+   - pinned-right 셀 자신: border-left와 자기 tick이 같은 지점에 겹침. */
+.cellSlot[data-pinned="left"] + .cellSlot .tick,
+.cellSlot[data-pinned="right"] .tick {
+  display: none;
+}
+
+/* Resize handle ──────────────────────────────────────────────
+   히트 영역은 셀 우측 경계에 걸쳐 있는 투명 버튼. 시각 세로선은 안쪽 .resizeLine이
+   담당하고, 라인은 handle 폭 안에서 "우측 끝"이 아니라 "중앙"에 위치 →
+   시각적으로 셀 경계에 딱 붙는다. 사용자가 잡기 좋게 좌우로 넉넉한 hover 영역 유지. */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  /* handle 중심을 셀 우측 경계(= 데이터 row의 세로 구분선)에 정확히 맞춤.
+     TableRow는 cellSlot 사이 column-gap을 쓰지 않으므로 추가 보정 없음.
+     right = -(handleWidth/2). */
+  right: calc(var(--space-3) * -0.5);
+  bottom: 0;
+  width: var(--space-3);
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  cursor: col-resize;
+  z-index: var(--z-raise);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resizeHandle:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+  border-radius: var(--radius-xs);
+}
+
+/* 둥근 pill 핸들 — 선이 아니라 떠있는 그립 느낌.
+   흰(bg) 캡슐에 연한 hairline + 연한 그림자로 "집어들 수 있는" 어포던스.
+   hover 전엔 숨겨두고, 셀 hover 때 opacity로 올려 보여줌. */
+.resizeLine {
+  display: block;
+  width: calc(var(--space-1) * 1.25);
+  height: 48%;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-full);
+  opacity: 0;
+  box-shadow: var(--shadow-xs);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    height var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+/* 셀 전체 hover: pill 연하게 노출. */
+.cell:hover .resizeLine {
+  opacity: 0.7;
+}
+
+/* handle hover/active: 또렷하게 + 길어지고 그림자 깊어짐 — "집은 상태".
+   색/스트로크는 유지, 변하는 건 opacity·height·shadow 뿐. */
+.resizeHandle:hover .resizeLine,
+.resizeHandle:active .resizeLine {
+  opacity: 1;
+  height: 64%;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Select-all cell (leading checkbox) ─────────────────────
+   line variant: 좌측 정렬. plate variant: 가운데 정렬. TableRow와 짝 맞춤.
+   position: sticky — TableRow.selectCell과 짝. 좌측 고정으로 가로스크롤에도 유지. */
+.selectCell {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-raise);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: var(--iconbtn-h-lg);
+  background: var(--bg);
+}
+
+.plate .selectCell {
+  justify-content: center;
+  width: var(--control-h-sm);
+  background: var(--bg-subtle);
+}
+
+/* Column manager cell (trailing IconButton) ────────────── */
+.managerCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-inline: var(--space-1);
+  margin-inline-start: auto;
+  color: var(--fg-subtle);
+}
+
+/* Resize 중 body에 얹히는 클래스. TSX가 styles.bodyResizing으로 접근. */
+.bodyResizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}

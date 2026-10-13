@@ -1,0 +1,65 @@
+/* Bubble — 메시지 말풍선 primitive.
+   Shape (4) × Fill (4) 조합. Shape 축에 반응하되 circular/square는 강조 모양으로 수치 고정. */
+
+.root {
+  display: inline-block;
+  max-width: 100%;
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  transition: var(--transition-colors);
+}
+
+/* Size — md 기본, lg는 패딩·폰트 둘 다 넉넉 */
+.sizeMd {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-base);
+}
+.sizeLg {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-base);
+}
+
+/* Shape */
+.shapeRounded {
+  border-radius: var(--radius-md);
+}
+.shapeSquare {
+  border-radius: var(--radius-sm);
+}
+.shapeCircular {
+  border-radius: var(--radius-full);
+}
+/* circular-drop — 세 코너는 radius-xl, tail 방향 한 코너만 radius-sm.
+   data-tail="end" → 오른쪽 상단만 각짐 (user 메시지, 오른쪽 정렬 꼬리). 기본.
+   data-tail="start" → 왼쪽 상단만 각짐 (assistant 메시지, 왼쪽 정렬 꼬리). */
+.shapeCircularDrop {
+  border-radius: var(--radius-md);
+}
+.shapeCircularDrop[data-tail="end"] {
+  border-top-right-radius: 0;
+}
+.shapeCircularDrop[data-tail="start"] {
+  border-top-left-radius: 0;
+}
+
+/* Fill */
+.fillNone {
+  background: transparent;
+  color: var(--fg-strong);
+  padding-left: 0;
+  padding-right: 0;
+}
+.fillSolid {
+  background: var(--primary);
+  color: var(--bg);
+}
+.fillTranslucent {
+  background: var(--primary-subtle);
+  color: var(--fg-strong);
+}
+.fillOutline {
+  background: var(--bg);
+  color: var(--fg-strong);
+  border: var(--hairline) solid var(--border);
+}

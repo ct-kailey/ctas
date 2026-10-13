@@ -1,0 +1,66 @@
+/* Checkbox ─────────────────────────────────────────────────────
+   폼 · 필터에서 다중 선택을 표시하는 컨트롤.
+   시각 요소 = .indicator, 접근성 = 실제 <input type="checkbox"> (.visually-hidden).
+   FilterButton type="checkbox"도 indicator를 재사용한다. */
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+  color: var(--fg);
+  font-family: var(--label-font);
+  font-size: var(--label-md-size);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-tracking);
+  line-height: var(--lh-tight);
+}
+.root[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Indicator — 단독 사용도 가능. FilterButton 안에서도 재사용. */
+.indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-checkbox);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: transparent;
+  transition: var(--transition-colors), var(--transition-ring);
+}
+.indicator > svg {
+  width: 80%;
+  height: 80%;
+  display: block;
+}
+
+/* Focus — input이 포커스일 때 indicator에 ring */
+.input:focus-visible + .indicator {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* Hover — 보더만 selected-fg로 은은하게 물듦 (checked면 이미 채워져 있어 무시) */
+.root:hover:not([data-disabled="true"]) .input:not(:checked) + .indicator {
+  border-color: var(--selected-fg);
+}
+
+/* Checked — 배경/글자 반전. 색은 Accent 축에 따라 mono=fg, 나머지=primary */
+.input:checked + .indicator {
+  background: var(--selected-fg);
+  border-color: var(--selected-fg);
+  color: var(--bg);
+}
+
+/* Standalone indicator (FilterButton 내부 사용) — checked 상태를 data-*로 표현 */
+.indicator[data-checked="true"] {
+  background: var(--selected-fg);
+  border-color: var(--selected-fg);
+  color: var(--bg);
+}

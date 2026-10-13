@@ -1,0 +1,178 @@
+/* Drawer ────────────────────────────────────────────────────────
+   화면 좌/우 가장자리에서 밀고 들어오는 세로 full-height 패널.
+   흐름을 끊지 않고 상세·편집·설정을 띄울 때.
+   구조: [header: title · close] · [body: 자유 children] · [footer: actions]
+   방향(side: right/left) × 사이즈(size: 뷰포트 폭 비율) × backdrop 정책이 variant 축. */
+
+/* Overlay ───────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--scrim);
+  animation: drawer-overlay-in var(--duration-base) var(--ease-out);
+}
+
+.overlay[data-state="closed"] {
+  animation: drawer-overlay-out var(--duration-fast) var(--ease-in);
+}
+
+/* Content ───────────────────────────────────────────────────── */
+.content {
+  position: fixed;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  box-shadow: var(--shadow-xl);
+  font-family: var(--font-sans);
+  color: var(--fg);
+  outline: none;
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+/* side별 자리·테두리 — 가장자리에 붙는 패널이라 radius 없음(각진 모서리).
+   공통: 세로 full-height. 폭은 size로 결정. */
+.content[data-side="right"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-right: 0;
+  animation: drawer-in-right var(--duration-slow) var(--ease-emphasized);
+}
+.content[data-side="right"][data-state="closed"] {
+  animation: drawer-out-right var(--duration-base) var(--ease-in);
+}
+
+.content[data-side="left"] {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-left: 0;
+  animation: drawer-in-left var(--duration-slow) var(--ease-emphasized);
+}
+.content[data-side="left"][data-state="closed"] {
+  animation: drawer-out-left var(--duration-base) var(--ease-in);
+}
+
+/* size — 뷰포트 폭 비율. md가 기본 50%, 좌우로 좁게/넓게.
+   좁은 화면에선 max-width로 가장자리 여백 보장. */
+.content[data-size="sm"] { width: 33vw; }
+.content[data-size="md"] { width: 50vw; }
+.content[data-size="lg"] { width: 67vw; }
+
+.content {
+  min-width: calc(var(--space-2) * 40);
+  max-width: calc(100vw - var(--space-8));
+}
+
+/* Header ────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-5) 0;
+}
+
+.headerText {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  letter-spacing: var(--type-sm-tracking);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fg);
+}
+
+.description {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-muted);
+}
+
+.close {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+  /* title 첫 줄 line-height 중앙에 X 중심 맞춤. */
+  margin-top: calc((var(--lh-sm) - var(--iconbtn-h-md)) / 2);
+}
+
+/* Body ──────────────────────────────────────────────────────── */
+/* 바깥(.body)은 overflow만, 안쪽(.bodyInner)이 좌우 padding을 깐다. */
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.bodyInner {
+  padding: var(--space-4) var(--space-5) 0;
+  color: var(--fg);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.body:last-child .bodyInner {
+  padding-bottom: var(--space-5);
+}
+
+/* Footer ────────────────────────────────────────────────────── */
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-5) var(--space-5) var(--space-5);
+}
+
+.footer > :first-child {
+  margin-left: auto;
+}
+
+/* Animations ────────────────────────────────────────────────── */
+/* 이동 거리: 기본은 100% translate(완전히 밖으로) + 추가 여유 --space-6.
+   Motion 축의 --motion-distance-scale(1.1 / 1 / 0.9 / 0)이 추가 여유를 스왑. */
+@keyframes drawer-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes drawer-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes drawer-in-right {
+  from { opacity: 0; transform: translateX(calc(var(--space-6) * var(--motion-distance-scale, 1) + 100%)); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes drawer-out-right {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(calc(var(--space-6) * var(--motion-distance-scale, 1) + 100%)); }
+}
+
+@keyframes drawer-in-left {
+  from { opacity: 0; transform: translateX(calc(-1 * var(--space-6) * var(--motion-distance-scale, 1) - 100%)); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes drawer-out-left {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(calc(-1 * var(--space-6) * var(--motion-distance-scale, 1) - 100%)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .overlay[data-state="closed"],
+  .content,
+  .content[data-state="closed"] {
+    animation: none;
+  }
+}

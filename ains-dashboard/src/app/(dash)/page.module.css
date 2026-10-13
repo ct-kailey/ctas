@@ -1,0 +1,365 @@
+/*
+ * AINS 대시보드 공용 페이지 레이아웃 — 앱·대시보드 리듬([[tokens/spacing]]).
+ * 값은 전부 CTDS 토큰 경유. 좌우 padding은 Topbar(space-5)와 맞춘다.
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+/* 페이지 머리 — 제목 + 보조 설명 */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.headRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-2xl);
+  line-height: var(--lh-tight);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--type-2xl-tracking);
+  color: var(--fg-strong);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-muted);
+}
+
+/* 섹션 — 라벨 헤더 + 바디 */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-muted);
+}
+
+/* 닫힌 박스 — 상하좌우 균일 padding */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 0;
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-strong);
+}
+
+/* 그리드 — 가로/세로 gap 동일 */
+.grid2,
+.grid3,
+.grid4 {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.grid2 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--input-w-lg)), 1fr));
+}
+
+/* 카드 최소 폭은 spacing 스케일 배수로 — 넓은 화면 3열/4열, 좁으면 자동 줄바꿈 */
+.grid3 {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--space-16) * 4.5)), 1fr));
+}
+
+.grid4 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--space-16) * 3)), 1fr));
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.bullets {
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg);
+}
+
+.muted {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-muted);
+}
+
+.meta {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-subtle);
+}
+
+.body {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg);
+}
+
+/* 프로젝트 카드 (홈) — 카드 전체가 링크 */
+.projectCard {
+  composes: panel;
+  text-decoration: none;
+  color: inherit;
+  transition: var(--transition-colors), var(--transition-ring);
+}
+
+.projectCard:hover {
+  background: var(--hover);
+}
+
+.projectCard:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* 결정 기록 한 건 */
+.decision {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-4);
+  border-block-end: var(--hairline) solid var(--border);
+}
+
+.decision:last-child {
+  border-block-end: 0;
+}
+
+.decisionDate {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.decisionMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.dl dt {
+  color: var(--fg-muted);
+}
+
+.dl dd {
+  margin: 0;
+  color: var(--fg);
+}
+
+.flush {
+  composes: panel;
+  padding: 0;
+  gap: 0;
+}
+
+/* ListItem은 chrome이 없으므로 부모 row가 좌우 padding·구분선을 담당 */
+.listRow {
+  padding: var(--space-3) var(--space-4);
+  border-block-end: var(--hairline) solid var(--border);
+}
+
+.listRow:last-child {
+  border-block-end: 0;
+}
+
+/* 알림 한 줄 — 등급 · 내용 · 행동. 모바일은 행동 버튼이 아래 줄 */
+.alertRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-3);
+}
+
+/* 등급 열 폭을 맞춰 제목 시작점이 줄마다 같게 */
+.alertGrade {
+  margin-block-start: var(--space-1);
+  min-width: var(--space-16);
+  justify-content: center;
+}
+
+.alertMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.alertActions {
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* md(768px) 이상 — 행동 버튼을 오른쪽 열로 */
+@media (min-width: 768px) {
+  .alertRow {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .alertActions {
+    grid-column: auto;
+    justify-content: flex-end;
+  }
+}
+
+/* 라디오 묶음 — 라벨 + 선택지 */
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.choices {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  flex-wrap: wrap;
+}
+
+.legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+}
+
+/* 자료 넣기 결과 — 처리한 일 목록 */
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg);
+}
+
+.checklist li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checklist li svg {
+  color: var(--success);
+  flex: none;
+}
+
+/* 할 일 — 끝낸 항목 */
+.done {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-subtle);
+  text-decoration: line-through;
+}
+
+/* 설정 — 입력 + 추가 버튼 */
+.addField {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.addField > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 설정 — 고객 담당자 한 줄: 사진 · 이름/메일 · 직급 입력 · 빼기 */
+.contactRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) calc(var(--space-16) * 2) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.contactMain {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 설정 — 고객 담당자 추가: 좁으면 두 줄, md 이상 한 줄 */
+.addContact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+@media (min-width: 768px) {
+  .addContact {
+    grid-template-columns: 1fr 1fr 1.4fr auto;
+  }
+}

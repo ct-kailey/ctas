@@ -1,0 +1,47 @@
+/* UserMessage — Bubble + MessageActions. 오른쪽 정렬. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+/* Bubble 가로 상한 — 채팅 트랙 폭 전체를 쓰지 않도록 "말풍선" 리듬 유지.
+   토큰 `--user-message-max`는 content-max의 ~70% (iMessage/ChatGPT/Claude 표준). */
+.bubble {
+  max-width: var(--user-message-max);
+}
+
+/* 첨부·인용 등 bubble 위에 올리는 영역. bubble과 동일한 가로 상한. */
+.before {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  max-width: var(--user-message-max);
+}
+
+.actions {
+  display: flex;
+}
+
+/* actions-visibility=show: 상시 노출 */
+.root[data-actions-visibility="show"] .actions {
+  opacity: 1;
+}
+
+/* actions-visibility=hover: hover/focus-within에서만. 부드러운 fade + slight translate. */
+.root[data-actions-visibility="hover"] .actions {
+  opacity: 0;
+  transform: translateY(calc(var(--space-0_5) * -1));
+  transition:
+    opacity var(--duration-slow) var(--ease-out),
+    transform var(--duration-slow) var(--ease-out);
+}
+.root[data-actions-visibility="hover"]:hover .actions,
+.root[data-actions-visibility="hover"]:focus-within .actions {
+  opacity: 1;
+  transform: translateY(0);
+}

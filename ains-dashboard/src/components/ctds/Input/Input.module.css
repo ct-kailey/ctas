@@ -1,0 +1,341 @@
+/* Root container ────────────────────────────────────────── */
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-normal);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: text;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  min-width: 0;
+}
+
+.root:hover:not([data-disabled]):not([data-readonly]),
+.root:focus-visible,
+.root:has(:focus-visible) {
+  border-color: var(--border-strong);
+}
+
+.root:focus-visible,
+.root:has(:focus-visible) {
+  outline: none;
+}
+
+/* Variants ──────────────────────────────────────────────── */
+.outline {
+  background: transparent;
+}
+
+.filled {
+  background: var(--bg-subtle);
+  border-color: transparent;
+}
+
+.filled:hover:not([data-disabled]):not([data-readonly]),
+.filled:focus-visible,
+.filled:has(:focus-visible) {
+  border-color: transparent;
+}
+
+/* line — 아래 선만 (Material 스타일). sizes 뒤에 정의해 radius/padding override. */
+.root.line {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--border);
+  border-radius: 0;
+  padding-inline: 0;
+}
+
+.root.line:hover:not([data-disabled]):not([data-readonly]),
+.root.line:focus-visible,
+.root.line:has(:focus-visible) {
+  border-color: transparent;
+  border-bottom-color: var(--border-strong);
+}
+
+.root.line[data-invalid],
+.root.line[data-invalid]:hover:not([data-disabled]):not([data-readonly]),
+.root.line[data-invalid]:focus-visible,
+.root.line[data-invalid]:has(:focus-visible) {
+  border-color: transparent;
+  border-bottom-color: var(--destructive);
+}
+
+/* States ────────────────────────────────────────────────── */
+.root[data-invalid] {
+  border-color: var(--destructive);
+}
+
+.root[data-invalid]:hover:not([data-disabled]):not([data-readonly]),
+.root[data-invalid]:focus-visible,
+.root[data-invalid]:has(:focus-visible) {
+  border-color: var(--destructive);
+}
+
+.root[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.root[data-readonly] {
+  background: var(--bg-subtle);
+  cursor: default;
+}
+
+.root[data-readonly].filled {
+  background: var(--bg-muted);
+}
+
+/* Width fill ────────────────────────────────────────────
+   width="fill" 정책 — 부모 폭을 채운다. 폼 필드 실전 기본.
+   width="md"/"lg"/number는 컴포넌트에서 inline style로 지정. */
+.fill {
+  width: 100%;
+}
+
+/* Sizes ─────────────────────────────────────────────────── */
+.sizeSm {
+  height: var(--control-h-sm);
+  padding-inline: var(--space-2);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-xs);
+}
+
+.sizeMd {
+  height: var(--control-h-md);
+  padding-inline: var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+}
+
+.sizeLg {
+  height: var(--control-h-lg);
+  padding-inline: var(--space-3);
+  font-size: var(--text-base);
+  border-radius: var(--radius-md);
+}
+
+/* Inner input ───────────────────────────────────────────── */
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: var(--lh-sm);
+  /* 전역 tight 자간(-0.02em)을 상속하면 password dot(●)이 너무 벌어져 보이고
+     placeholder도 느슨해 보임. 폼 필드는 자간 조이지 않는다. */
+  letter-spacing: var(--tracking-normal);
+  outline: none;
+  /* type="button" 등 non-text input의 기본 center 정렬 무력화. */
+  text-align: start;
+}
+
+.input::placeholder {
+  color: var(--fg-subtle);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+/* WebKit autofill — 기본 파란/노란 배경 대신 컨테이너 배경이 보이도록.
+   background-color는 직접 못 바꾸니 긴 inset shadow로 덮고, text는 --fg 유지. */
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus,
+.input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--fg);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--fg);
+}
+
+/* filled variant는 컨테이너 배경이 --bg-subtle. */
+.filled .input:-webkit-autofill,
+.filled .input:-webkit-autofill:hover,
+.filled .input:-webkit-autofill:focus,
+.filled .input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-subtle) inset;
+}
+
+/* Slots ─────────────────────────────────────────────────── */
+.icon,
+.iconBtn,
+.prefix,
+.suffix,
+.actionSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--fg);
+}
+
+/* leftIcon/rightIcon slot 색은 placeholder와 **동일한** 톤으로.
+   값이 있든 없든, 포커스 상태든 상관없이 아이콘은 그대로 유지 —
+   placeholder와 색이 어긋나면 "둘 중 뭐가 primary 정보인지" 혼란. */
+.icon {
+  color: var(--fg-subtle);
+}
+
+/* Icon svg를 사이즈별로 직접 제어 — Icon 컴포넌트가 svg에 하드코딩한 width/height(em)를 덮어씀. */
+.sizeSm .icon > svg { width: var(--icon-size-xs); height: var(--icon-size-xs); }
+.sizeMd .icon > svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
+.sizeLg .icon > svg { width: var(--icon-size-md); height: var(--icon-size-md); }
+
+
+.prefix,
+.suffix {
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  user-select: none;
+}
+
+.iconBtn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.iconBtn:hover {
+  color: var(--fg);
+}
+
+.iconBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+.actionSlot {
+  color: inherit;
+}
+
+/* trailing IconButton — 상하/좌우 여백을 모두 --space-1로 통일.
+   버튼 크기 = Input height - space-1 * 2 → 각 사이즈 24/28/32px. */
+.root .trailingBtn {
+  flex: 0 0 auto;
+  width: calc(var(--control-h-sm) - var(--space-2));
+  height: calc(var(--control-h-sm) - var(--space-2));
+  border-radius: var(--radius-xs);
+}
+.root.sizeMd .trailingBtn {
+  width: calc(var(--control-h-md) - var(--space-2));
+  height: calc(var(--control-h-md) - var(--space-2));
+}
+.root.sizeLg .trailingBtn {
+  width: calc(var(--control-h-lg) - var(--space-2));
+  height: calc(var(--control-h-lg) - var(--space-2));
+  border-radius: var(--radius-sm);
+}
+/* trailing IconButton이 있을 때 우측 padding을 좁혀 버튼 상하 여백과 대칭. */
+.sizeSm:has(> .trailingBtn) { padding-inline-end: var(--space-0_5); }
+.sizeMd:has(> .trailingBtn) { padding-inline-end: var(--space-1); }
+.sizeLg:has(> .trailingBtn) { padding-inline-end: var(--space-1); }
+
+/* Clear 버튼 enter/exit ─────────────────────────────────────
+   wrapper에 opacity·scale, 내부 IconButton엔 press 비활성 — 두 transform이
+   같은 요소에 걸리면 서로 덮기 때문에 레이어 분리. duration/easing은
+   fast + ease-out micro-interaction 패턴. */
+.clearBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+.clearBtn[data-visible] {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+/* wrapper 안쪽 IconButton의 press translate 제거 — 눌릴 때 아래로 내려가는
+   피드백이 미세한 X 버튼엔 과하다. opacity/scale enter·exit만 유지. */
+.clearBtn > button:active:not(:disabled) {
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .clearBtn,
+  .clearBtn[data-visible] {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* FormField wrapper ─────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1_5);
+  min-width: 0;
+}
+
+/* line variant는 좌우 padding이 없어 라벨이 더 가까이 붙어야 자연스러움. */
+.field:has(> .root.line) {
+  gap: 0;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-normal);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-muted);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.labelSm { font-size: var(--text-xs); }
+.labelMd,
+.labelLg { font-size: var(--text-sm); }
+
+.field:focus-within .label {
+  color: var(--fg);
+}
+
+.requiredMark {
+  color: var(--destructive);
+  font-weight: var(--font-weight-medium);
+}
+
+.description,
+.errorText {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.description {
+  color: var(--fg-subtle);
+}
+
+.errorText {
+  color: var(--destructive);
+}
+
+.messageIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

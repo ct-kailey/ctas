@@ -1,0 +1,502 @@
+/* Base ─────────────────────────────────────────────────────── */
+/* MenuItem은 "메뉴/리스트 안 개별 행"의 최소 단위.
+   Dropdown · Context Menu · Sidebar · Command Palette · List 아이템이 이 컴포넌트를 공유한다.
+   root는 <div role="menuitem"> — 자식으로 <button>(IconButton 등)을 자유롭게 넣기 위해서
+   nested button 금지를 피한 것. Enter/Space 키보드 핸들링은 컴포넌트가 직접 처리.
+
+   ▸ 색상 훅 (부모 컨테이너에서 오버라이드 가능)
+     --menu-fg            : 기본 라벨 색 (default: --fg)
+     --menu-active-bg     : active 상태 배경 (default: --hover, fill 스타일에만 적용)
+     --menu-active-fg     : active 상태 라벨·아이콘 색 (default: --fg-strong)
+
+     예) 사이드바 전체를 연한 라벨 + primary active로 만들려면
+         .my-nav { --menu-fg: var(--fg-muted); --menu-active-bg: var(--primary); --menu-active-fg: var(--bg); } */
+.root {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  width: 100%;
+  gap: var(--space-2);
+  font-family: var(--label-font);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--label-tracking);
+  color: var(--menu-fg, var(--fg));
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  text-align: start;
+  white-space: nowrap;
+  transition: var(--transition-colors), var(--transition-ring);
+}
+
+/* leading 슬롯이 없을 땐 그리드를 2열로 축소 — 라벨이 왼쪽 끝까지 흐름 */
+.root:not(.hasLeading) {
+  grid-template-columns: 1fr auto;
+}
+
+/* Collapsed (icon-only 정사각) ─────────────────────────────
+   Sidebar rail 등에서 접힐 때. leading 아이콘 하나만 남기고 정사각 히트박스로 축소.
+   - grid → inline-flex center: 라벨/trailing이 사라진 상태에서 아이콘 정중앙 정렬
+   - width = min-height: 완전한 정사각. 시각 폭이 rail 폭과 정합.
+   - padding-inline·gap 제거: 정사각 안에 아이콘 하나만 놓이도록.
+   - transition: width는 부모(Sidebar) 애니메이션과 짝지어져 자연스럽게. */
+.root[data-collapsed] {
+  display: inline-flex;
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0;
+  width: var(--menu-item-h-md);
+}
+.sm.root[data-collapsed] {
+  width: var(--menu-item-h-sm);
+}
+
+/* 첫 글자 fallback — 아이콘이 없을 때 라벨 첫 글자를 아이콘 크기 자리에 얹는다.
+   폰트 굵기·크기를 라벨 톤 그대로 유지(uppercase 금지 규약). */
+.collapsedChar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+  font-size: var(--menu-icon-size);
+  line-height: 1;
+  font-weight: var(--font-weight-medium);
+}
+
+/* focus/hover: 키보드 이동(:focus-visible) + Radix [data-highlighted] + 마우스 hover 모두 커버 */
+.root:focus-visible,
+.root[data-highlighted]:not([data-disabled]) {
+  outline: none;
+  background: var(--hover);
+  color: var(--fg-strong);
+}
+
+.root:hover:not([aria-disabled="true"]) {
+  background: var(--hover);
+  color: var(--fg-strong);
+}
+
+.root:active:not([aria-disabled="true"]) {
+  background: var(--hover);
+}
+
+.root[aria-disabled="true"] {
+  cursor: not-allowed;
+  color: var(--fg-disabled);
+}
+
+/* Sizes ──────────────────────────────────────────────────────── */
+/* size별로 4개 변수 정의:
+   --menu-icon-size    : 아이콘 표시 크기 (Icon만 있을 때의 시각 폭)
+   --menu-hitbox-size  : IconButton의 정사각 크기. IconButton 기본 size와 무관하게
+                         MenuItem 안에선 이 값으로 강제 (아이콘 폭 + 약간의 hover 여유).
+                         hover 배경이 라벨 라인을 크게 벗어나지 않도록 좁게 유지.
+   --menu-slot-gap     : leading/trailing 슬롯 내부 아이템 간 간격
+   --menu-hover-ease   : hover-only 액션 등장 트랜지션 duration */
+.sm {
+  min-height: var(--menu-item-h-sm);
+  padding-inline: var(--space-2);
+  gap: var(--space-1_5);
+  font-size: var(--label-sm-size);
+  letter-spacing: var(--label-tracking);
+  font-weight: var(--font-weight-regular);
+  border-radius: var(--radius-xs);
+  --menu-icon-size: 14px;
+  --menu-hitbox-size: var(--control-h-xs);
+  --menu-slot-gap: var(--space-1_5);
+}
+.md {
+  min-height: var(--menu-item-h-md);
+  padding-inline: var(--space-2);
+  gap: var(--space-2);
+  font-size: var(--label-md-size);
+  letter-spacing: var(--label-tracking);
+  border-radius: var(--radius-sm);
+  --menu-icon-size: 16px;
+  --menu-hitbox-size: var(--control-h-xs);
+  --menu-slot-gap: var(--space-1_5);
+}
+
+/* Slots ──────────────────────────────────────────────────────── */
+/* leading/trailing 컨테이너: 개별 아이템의 margin-inline-start로 간격 관리.
+   gap을 쓰지 않는 이유는 hover-only 아이템의 width 전환 시 gap이 collapse되지 않아
+   자연스럽지 않기 때문. */
+.leading,
+.trailing {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.leading {
+  color: var(--fg-muted);
+}
+.trailing {
+  color: var(--fg-subtle);
+  /* trailing 자체는 라벨과 자연스러운 여백을 두되, 내부 첫 아이템은 margin 없음 */
+  margin-inline-start: var(--space-4);
+  min-width: 0;
+}
+
+/* 슬롯 아이템 기본: 콘텐츠 크기 그대로 (배지·메타 텍스트·kbd 등 자유 콘텐츠 대응).
+   아이콘·IconButton만 정사각 정렬 필요 → 아래 :has() 규칙으로 강제. */
+.leadingItem,
+.trailingItem {
+  --half-overflow: calc((var(--menu-hitbox-size) - var(--menu-icon-size)) / 2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* 시각 자리(svg · img · picture · IconButton)가 들어온 슬롯은 --menu-icon-size 정사각으로
+   수렴시킨다. 이렇게 해야 사용자가 Icon 외에 커스텀 svg · 브랜드 로고 PNG · Avatar 등
+   무엇을 넣어도 라인 높이와 좌측 정렬이 어긋나지 않는다 — 슬롯의 계약은 "아이콘 자리".
+   내부 콘텐츠는 아래 object-fit 규칙으로 비율 유지된 채 슬롯에 꽉 채워진다. */
+.leadingItem:has(> svg),
+.trailingItem:has(> svg),
+.leadingItem:has(> img),
+.trailingItem:has(> img),
+.leadingItem:has(> picture),
+.trailingItem:has(> picture),
+.leadingItem:has(> button),
+.trailingItem:has(> button) {
+  width: var(--menu-icon-size);
+  height: var(--menu-icon-size);
+}
+
+/* img · picture · 그리고 그 내부 img 는 슬롯에 꽉 채우되 비율 보존.
+   svg는 Icon 컴포넌트가 자체 width/height를 가지므로 손대지 않는다 — 손대면
+   stroke 두께가 틀어진다. */
+.leadingItem > img,
+.trailingItem > img,
+.leadingItem > picture,
+.trailingItem > picture,
+.leadingItem > picture > img,
+.trailingItem > picture > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* IconButton(button)은 --menu-hitbox-size 크기로 삐져나가되 negative margin으로
+   부모 슬롯의 시각 폭은 --menu-icon-size로 유지, hitbox만 되찾음.
+   IconButton 자체가 --control-h-sm(28) 크기로 오는 걸 MenuItem 안에선 hitbox 토큰으로
+   조여준다 — hover 배경이 라벨 라인을 너무 벗어나지 않도록. */
+.leadingItem > button,
+.trailingItem > button {
+  width: var(--menu-hitbox-size);
+  height: var(--menu-hitbox-size);
+  margin: calc(var(--half-overflow) * -1);
+}
+
+/* 아이템 사이 간격 — 두 번째 아이템부터 적용.
+   IconButton hitbox가 이웃과 겹치지 않도록 gap은 half-overflow 이상으로 확장. */
+.leadingItem + .leadingItem,
+.trailingItem + .trailingItem {
+  margin-inline-start: max(var(--menu-slot-gap), var(--half-overflow));
+}
+
+/* label */
+.label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 2줄 레이아웃 — description prop이 있을 때만 활성.
+   title + description을 하나의 flex column으로 묶어 그리드의 가운데 열에 자리잡는다.
+   줄바꿈을 허용(white-space normal)해 긴 설명도 자연스럽게 흐르도록. */
+.labelStack {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--space-0_5);
+  white-space: normal;
+  overflow: hidden;
+}
+
+.labelStack .label {
+  color: inherit;
+}
+
+.description {
+  color: var(--fg-subtle);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--label-tracking);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 2줄 모드: leading/trailing 슬롯은 첫 줄(title) 베이스라인에 맞춰 상단 정렬.
+   root가 grid라 align-items: start로 바꾸면 전체 열이 모두 상단 정렬되고,
+   label 묶음은 column이라 자연히 위에서부터 쌓이므로 title과 아이콘이 수평 정렬된다.
+   trailing(shortcut 등)도 title 라인에 같이 올라붙어 2줄 중 어느 쪽도 아닌 이상한 중앙에
+   걸리지 않는다. */
+.root.hasDescription {
+  align-items: start;
+}
+
+/* 아이콘·IconButton이 title 라인에 정확히 정렬되도록 슬롯 높이를 title 라인 높이에 맞춘다.
+   label은 inline-flex라 자체 line-box를 가진다 — 그 라인에 아이콘 중심을 맞추기 위해
+   슬롯 자체는 그대로 두되 align-items 변화로 상단 기준이 되므로 자연스럽게 맞음.
+   추가로 수직 패딩을 살짝 얹어 2줄 블록이 너무 빡빡해 보이지 않게 한다. */
+.root.hasDescription {
+  padding-block: var(--space-1_5);
+}
+
+/* Shortcut ────────────────────────────────────────────────────
+   trailing 슬롯에 shortcut prop이 넘어오면 별도 Shortcut 컴포넌트가 렌더링됨.
+   슬롯 정사각 규칙(.trailingItem:has(> svg | > button))에 걸리지 않으므로
+   Shortcut의 콘텐츠 폭 그대로 자연스럽게 배치. */
+
+/* hoverOnly ─────────────────────────────────────────────────── */
+/* 기본 상태: width 0 + margin 0 + opacity 0 → 자리를 아예 안 차지.
+   MenuItem hover/focus/focus-within 시 width가 --menu-icon-size로 열리며 밀려나옴.
+   width 트랜지션이 자연스러움을 담당하고, opacity가 페이드 인 담당.
+
+   ⚠️ specificity 주의: `.leadingItem:has(> button)` 같은 형제 규칙(0,2,0)이 width를
+   --menu-icon-size로 강제하려 하므로, hoverOnly 규칙도 같은 specificity 이상이 되도록
+   `.leadingItem.hoverOnly` / `.trailingItem.hoverOnly` 조합 셀렉터로 작성 (0,2,0). */
+.leadingItem.hoverOnly,
+.trailingItem.hoverOnly {
+  width: 0;
+  margin-inline-start: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition:
+    width var(--duration-fast) var(--ease-out),
+    margin-inline-start var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+.root:hover .leadingItem.hoverOnly,
+.root:hover .trailingItem.hoverOnly,
+.root:focus-visible .leadingItem.hoverOnly,
+.root:focus-visible .trailingItem.hoverOnly,
+.root:focus-within .leadingItem.hoverOnly,
+.root:focus-within .trailingItem.hoverOnly {
+  width: var(--menu-icon-size);
+  margin-inline-start: max(var(--menu-slot-gap), var(--half-overflow));
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 슬롯 안 첫 번째 hoverOnly 아이템은 이웃과의 gap이 없어야 하므로 margin 초기화 대상.
+   .leadingItem + .leadingItem 규칙이 이미 첫 아이템은 제외하지만,
+   두 번째 이상의 아이템이 hoverOnly일 때는 hover 시 margin이 살아나야 함.
+   위 :hover 셀렉터가 이걸 처리. */
+
+/* 터치 디바이스: hover 없음 → 항상 노출 (접근성 폴백) */
+@media (hover: none) {
+  .leadingItem.hoverOnly,
+  .trailingItem.hoverOnly {
+    width: var(--menu-icon-size);
+    margin-inline-start: max(var(--menu-slot-gap), var(--half-overflow));
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Variants ───────────────────────────────────────────────────── */
+.default {
+  /* no-op — base가 곧 default */
+}
+
+/* destructive — 평상시 fg (위험을 감추다가) hover 시 빨강 톤.
+   Button의 destructive-ghost와 같은 원리. */
+.destructive .leading,
+.destructive .trailing {
+  color: var(--fg-muted);
+}
+.destructive:hover:not([aria-disabled="true"]),
+.destructive:focus-visible,
+.destructive[data-highlighted]:not([data-disabled]) {
+  background: var(--destructive-subtle);
+  color: var(--destructive);
+}
+.destructive:hover:not([aria-disabled="true"]) .leading,
+.destructive:hover:not([aria-disabled="true"]) .trailing,
+.destructive:focus-visible .leading,
+.destructive:focus-visible .trailing,
+.destructive[data-highlighted]:not([data-disabled]) .leading,
+.destructive[data-highlighted]:not([data-disabled]) .trailing {
+  color: var(--destructive);
+}
+
+/* section — 그룹 헤더 라벨. 본문 아이템보다 한 단계 작고 더 연하게.
+   사이드바·컨텍스트 메뉴·드롭다운의 섹션 제목 자리에 공통.
+   role="button"(collapsible)인 경우엔 hover/press가 살아난다.
+
+   - font-size: sm→--text-xs(13), md→--text-sm(14). 각 사이즈에서 본문 대비 한 스텝 아래.
+   - color: --fg-subtle (본문 --fg 대비 뒤로 물러남).
+   - margin: 위 space-2, 아래 space-0_5 — 다음 아이템과 살짝만 떨어져 그룹 결속 유지. */
+.section {
+  cursor: default;
+  background: transparent;
+  color: var(--fg-subtle);
+  font-weight: var(--font-weight-medium);
+  min-height: 0;
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-1);
+  user-select: none;
+}
+
+/* first-child가 아닐 때는 이전 아이템과의 시각 분리를 위해 상단 마진을 +space-0_5(2px) 더 얹는다.
+   섹션 헤더가 리스트 첫 자리면 컨테이너 padding으로 충분하므로 기본값(space-2) 유지. */
+.section:not(:first-child) {
+  margin-top: calc(var(--space-2) + var(--space-0_5));
+}
+
+/* size별 폰트 사이즈 override — .sm/.md 규칙보다 뒤에 오므로 특수성 동일에서 승리.
+   .sm.section / .md.section 조합으로 명시성을 한 단계 올려 안정성 확보. */
+.sm.section {
+  font-size: var(--text-xs);
+}
+.md.section {
+  font-size: var(--label-sm-size);
+  letter-spacing: var(--label-tracking);
+}
+
+/* 정적(presentation) 섹션: hover/focus에서도 변화 없음.
+   base .section의 color 값과 완전히 동일해야 hover 시 톤이 진해지지 않음. */
+.section[role="presentation"]:hover,
+.section[role="presentation"]:focus-visible {
+  background: transparent;
+  color: var(--fg-subtle);
+  cursor: default;
+}
+
+/* Collapsible 섹션: role="button". 배경/링 효과 없이 텍스트 색만 한 단계 진해진다 —
+   섹션 헤더는 계층 라벨이라 아이템처럼 표면(배경/보더)이 들어오면 시각이 과해진다.
+   base .root:hover의 background/color도 여기서 덮어 무효화. */
+.section[role="button"] {
+  cursor: pointer;
+}
+
+.section[role="button"]:hover:not([aria-disabled="true"]),
+.section[role="button"]:focus-visible,
+.section[role="button"]:active:not([aria-disabled="true"]) {
+  background: transparent;
+  color: var(--fg);
+}
+
+/* caret 회전 — open 상태면 down(0deg), 닫힌 상태면 -90deg.
+   label 텍스트 바로 오른쪽에 인라인으로 붙는다.
+   duration은 자식 패널과 동일한 --duration-base로 맞춰 caret과 콘텐츠가 한 몸으로 움직인다. */
+.sectionCaret {
+  margin-inline-start: var(--space-1);
+  transition: transform var(--duration-base) var(--ease-emphasized);
+  transform: rotate(-90deg);
+  flex-shrink: 0;
+}
+
+.sectionCaret[data-open] {
+  transform: rotate(0deg);
+}
+
+/* Section panel ─────────────────────────────────────────
+   MenuItem.Section이 감싸는 자식 컨테이너. grid-template-rows 0fr↔1fr 트릭으로
+   height:auto를 애니메이션한다 (JS 높이 측정 불필요).
+   - 바깥(.sectionPanel): grid + overflow hidden + rows 트랜지션 담당.
+   - 안쪽(.sectionPanelInner): min-height 0으로 grid row에 갇혀 실제 높이를 결정.
+   opacity는 짧은 fade로 콘텐츠 등장/사라짐을 부드럽게. reduced-motion은
+   globals.css에서 transition-duration을 강제로 지워 즉시 상태 전환. */
+.sectionPanel {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-emphasized),
+    opacity var(--duration-fast) var(--ease-out);
+  opacity: 0;
+}
+
+.sectionPanel[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.sectionPanelInner {
+  min-height: 0;
+}
+
+/* Active — Sidebar 등에서 현재 페이지/선택 아이템.
+   두 가지 강조 스타일 지원 (Shell 프리셋 축):
+     - fill (기본): --menu-active-bg 배경 + --menu-active-fg 텍스트. Notion·Docs.
+     - accent-bar: 배경 투명 + 좌측 세로 바(--menu-active-fg) + --menu-active-fg 텍스트. Linear·Slack.
+   결정 우선순위: MenuItem의 activeStyle prop > 부모 컨테이너의 --menu-active-style > fill.
+   컨테이너 단위 통일이 원칙이라 대부분 부모에서 --menu-active-style만 지정해도 충분.
+   accent-bar 스타일은 원래 primary가 기본이었으므로 --menu-active-fg가 없으면 --primary로 폴백. */
+
+/* 공통: strong text + medium weight */
+.active,
+.root[data-active] {
+  color: var(--menu-active-fg, var(--fg-strong));
+  font-weight: var(--font-weight-medium);
+  position: relative;
+}
+.active .leading,
+.root[data-active] .leading {
+  color: var(--menu-active-fg, var(--fg-strong));
+}
+
+/* FILL 스타일 — 기본 (아이템에 activeStyle 미지정 + 컨테이너에도 지정 없음) */
+.root[data-active]:not([data-active-style]),
+.root[data-active][data-active-style="fill"] {
+  background: var(--menu-active-bg, var(--hover));
+}
+
+/* ACCENT-BAR 스타일 — 좌측 세로 바(primary) + 강조 텍스트.
+   ::before로 바를 그린다. border-radius가 있는 부모라 overflow 잘림 방지 위해
+   바가 아이템 padding 안쪽에 붙되 살짝 튀어나오게 좌측 좌표를 음수로.
+   accent-bar 기본 강조색은 primary (fill과 폴백 값이 다름). */
+.root[data-active][data-active-style="accent-bar"] {
+  background: transparent;
+  color: var(--menu-active-fg, var(--primary));
+}
+.root[data-active][data-active-style="accent-bar"] .leading {
+  color: var(--menu-active-fg, var(--primary));
+}
+.root[data-active][data-active-style="accent-bar"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--space-0_5);
+  height: 60%;
+  background: var(--menu-active-fg, var(--primary));
+  border-radius: var(--radius-full);
+}
+
+/* Checked (Radix CheckboxItem / RadioItem 대응) ────────────── */
+/* leading 자리 맨 앞에 checkmark가 이미 삽입되어 있으므로 색만 강조. */
+.root[data-checked] .leading {
+  color: var(--menu-active-fg, var(--fg-strong));
+}
+
+/* Selected (Radix Select.Item) ────────────────────────────────
+   Radix Select.Item이 선택된 상태에 data-state="checked"를 부여 → asChild로 MenuItem
+   루트에 전파. Select는 아이템 안에 checkmark를 얹지 않고 배경 하이라이트로만
+   선택을 표시하는 규약이라, data-active(fill 스타일)와 동일한 시각을 재사용.
+   role="option"으로 스코프해 ContextMenu의 CheckboxItem/RadioItem(role="menuitemcheckbox"/
+   "menuitemradio") 시각과 섞이지 않게 한다 — 그쪽은 checkmark/dot으로 이미 선택을 표시하니
+   추가 배경이 얹히면 시각이 과해진다. */
+.root[role="option"][data-state="checked"] {
+  background: var(--menu-active-bg, var(--hover));
+  color: var(--menu-active-fg, var(--fg-strong));
+  font-weight: var(--font-weight-medium);
+}
+.root[role="option"][data-state="checked"] .leading {
+  color: var(--menu-active-fg, var(--fg-strong));
+}

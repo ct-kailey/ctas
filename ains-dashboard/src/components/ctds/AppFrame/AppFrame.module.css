@@ -1,0 +1,183 @@
+/* Root ─────────────────────────────────────────────────
+   3영역 grid. layout이 구조, variant가 표현을 담당.
+   app-scroll 패러다임: AppFrame이 뷰포트 높이(100dvh)를 꽉 채우고, 바깥 html/body는
+   스크롤하지 않는다. topbar/sidebar는 각자 grid cell로 자리만 잡으면 되고(sticky·
+   측정·오프셋 전부 불필요), 콘텐츠는 .contentSlot 자체에서 세로 스크롤. */
+.root {
+  display: grid;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* sidebar-first — 사이드바가 세로 전체, 탑바는 오른쪽 영역 위.
+   Linear · Slack · Notion 패턴. */
+.root[data-layout="sidebar-first"] {
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "sidebar topbar"
+    "sidebar content";
+}
+
+.root[data-layout="sidebar-first"][data-has-tabs] {
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "sidebar topbar"
+    "sidebar tabs"
+    "sidebar content";
+}
+
+/* topbar-first — 탑바가 가로 전체, 사이드바는 아래 왼쪽.
+   Jira · Vercel · Figma 홈 패턴. */
+.root[data-layout="topbar-first"] {
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "topbar  topbar"
+    "sidebar content";
+}
+
+.root[data-layout="topbar-first"][data-has-tabs] {
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "topbar  topbar"
+    "tabs    tabs"
+    "sidebar content";
+}
+
+/* 슬롯 생략 분기 ───────────────────────────────────────
+   사이드바만 / 탑바만 / 콘텐츠만 — content가 남는 공간 전체를 먹도록. */
+
+/* 탑바만 */
+.root:not([data-has-sidebar]):not([data-has-topbar]) {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "content";
+}
+
+.root[data-has-topbar]:not([data-has-sidebar]) {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "topbar"
+    "content";
+}
+
+.root[data-has-topbar][data-has-tabs]:not([data-has-sidebar]) {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas:
+    "topbar"
+    "tabs"
+    "content";
+}
+
+.root[data-has-sidebar]:not([data-has-topbar]) {
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr;
+  grid-template-areas: "sidebar content";
+}
+
+.sidebarSlot {
+  grid-area: sidebar;
+  display: flex;
+  min-height: 0;
+  /* 사이드바 영역은 자기 cell 높이 안에 자식(Sidebar)을 가둔다. 자식 콘텐츠가
+     길어지면 자식 내부 Body가 스크롤로 해결 — 영역 밖으로 삐져나오지 않도록. */
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.topbarSlot {
+  grid-area: topbar;
+  display: flex;
+  min-width: 0;
+  background: var(--bg);
+}
+
+.tabsSlot {
+  grid-area: tabs;
+  display: flex;
+  min-width: 0;
+}
+
+/* 콘텐츠 cell이 유일한 세로 스크롤 컨테이너. topbar/sidebar는 그대로 자리에 있고
+   이 안쪽만 스크롤 — body-scroll + sticky 조합의 jank(측정 지연, 사이드바 흔들림)
+   가 발생하지 않는다. */
+.contentSlot {
+  grid-area: content;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* outlined ────────────────────────────────────────────
+   표현은 topbar 아래 hairline 한 줄만. 전체 테두리·radius·그림자 없음.
+   사이드바 좌측도 동일하게 hairline 한 줄만 — 바깥 카드 느낌이 생기지 않도록.
+   tabs가 있으면 topbar와 tabs 사이는 선 없이 붙고, tabs 아래에 hairline을 둠. */
+.root[data-variant="outlined"] .topbarSlot {
+  border-block-end: var(--hairline) solid var(--border);
+}
+
+.root[data-variant="outlined"][data-has-tabs] .topbarSlot {
+  border-block-end: none;
+}
+
+.root[data-variant="outlined"] .tabsSlot {
+  border-block-end: var(--hairline) solid var(--border);
+}
+
+.root[data-variant="outlined"] .sidebarSlot {
+  border-inline-end: var(--hairline) solid var(--border);
+}
+
+/* opt-out: 소비처가 data-sidebar-border="none"을 걸면 사이드바 오른쪽 hairline을 숨김.
+   docs처럼 사이드바가 bg·padding만으로 자체 영역을 표현할 때 사용. */
+.root[data-sidebar-border="none"] .sidebarSlot {
+  border-inline-end: none;
+}
+
+/* floating ────────────────────────────────────────────
+   sidebar/topbar/content가 각각 카드로 떠 있음. */
+.root[data-variant="floating"] {
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-subtle);
+}
+
+.root[data-variant="floating"] .sidebarSlot,
+.root[data-variant="floating"] .topbarSlot,
+.root[data-variant="floating"] .tabsSlot,
+.root[data-variant="floating"] .contentSlot {
+  background: var(--bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* flat ────────────────────────────────────────────────
+   표현 없음. grid만. */
+
+/* 좁은 뷰포트 ─────────────────────────────────────────
+   900px 이하: 사이드바 영역 숨김. grid-template을 1열로 override해서
+   content가 전폭을 받도록. layout(sidebar-first/topbar-first) 양쪽 모두 커버. */
+@media (max-width: 900px) {
+  .root[data-has-sidebar] .sidebarSlot {
+    display: none;
+  }
+  .root[data-has-sidebar][data-layout="sidebar-first"],
+  .root[data-has-sidebar][data-layout="topbar-first"] {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "content";
+  }
+  .root[data-has-sidebar][data-has-tabs][data-layout="sidebar-first"],
+  .root[data-has-sidebar][data-has-tabs][data-layout="topbar-first"] {
+    grid-template-areas:
+      "topbar"
+      "tabs"
+      "content";
+  }
+}

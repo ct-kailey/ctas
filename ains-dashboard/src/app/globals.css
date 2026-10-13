@@ -1,0 +1,4 @@
+@import "../components/ctds/tokens.css";
+@import "../components/ctds/reset.css";
+
+/* 색·폰트·간격은 전부 CTDS tokens.css가 담당한다. 여기서 덮어쓰지 않는다. */

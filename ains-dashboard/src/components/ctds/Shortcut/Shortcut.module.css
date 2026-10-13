@@ -1,0 +1,56 @@
+/* Shortcut ─────────────────────────────────────────────────────
+   키보드 단축키 표시 전용. MenuItem trailing, Tooltip 안, Command Palette 힌트에
+   모두 공유되는 최소 컴포넌트. 인터랙션·상태 없음 — 순수 시각 라벨.
+
+   미니멀 정책: 표면·테두리 없음. 색·간격만으로 심볼 그룹 인상. */
+.root {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  font-family: var(--font-code);
+  font-weight: var(--font-weight-regular);
+  line-height: 1;
+  letter-spacing: var(--tracking-normal);
+  color: var(--fg-subtle);
+  background: var(--bg-muted);
+  border: 0;
+  box-shadow: none;                             /* globals.css의 kbd 전역 그림자 리셋 */
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* 내부 개별 키 span — 문자열 children이 심볼 단위로 쪼개져 각 하나씩 감싸짐.
+   .keyIcon은 phosphor 아이콘이 들어간 슬롯 (Cmd/Shift/Option/Arrow 등),
+   그 외는 문자 텍스트 (A~Z, 0~9, `,`, `.`, `/` 등). */
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 폭이 좁은 문자(,·.·/)도 자연스럽게 정렬되도록 최소 폭만 확보. */
+  min-width: 1ch;
+  text-align: center;
+}
+
+.keyIcon {
+  /* 아이콘은 이미 정사각 — 강제 min-width 해제해서 자연 폭 유지. */
+  min-width: 0;
+}
+
+/* Sizes ──────────────────────────────────────────────────────── */
+/* MenuItem sm/md 옆에 자연스럽게 붙는 두 사이즈.
+   높이는 line-height + padding으로 결정, 별도 min-height 강제 없음.
+   심볼 사이 gap은 padding-inline보다 살짝 좁게 — "한 덩어리" 인상 유지. */
+.sm {
+  padding-block: var(--space-0_5);
+  padding-inline: var(--space-1);
+  gap: var(--space-0_5);
+  font-size: var(--text-2xs);                   /* 12 */
+  border-radius: var(--radius-xs);
+}
+.md {
+  padding-block: var(--space-1);
+  padding-inline: var(--space-1_5);
+  gap: var(--space-0_5);
+  font-size: var(--text-2xs);                   /* 12 */
+  border-radius: var(--radius-sm);
+}

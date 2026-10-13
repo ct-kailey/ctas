@@ -1,0 +1,116 @@
+/* Switch — 즉시 적용되는 on/off 컨트롤.
+   시각: 알약 모양 트랙 + 원형 썸. checked면 트랙이 --primary로 채워지고 썸이 우측 이동.
+   시맨틱: role=switch가 붙은 checkbox input. label 래퍼가 hitbox.
+
+   축 반응:
+   ─ Density → --control-h-* (트랙 세로 크기 비례)
+   ─ Motion  → 썸 이동·색 전환 duration
+   ─ Palette → 켜졌을 때 --primary
+*/
+
+.root {
+  --_track-h: var(--space-4);
+  --_track-w: var(--space-8);
+  --_thumb: var(--space-3);
+  --_pad: var(--space-0_5);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Sizes */
+.size_sm {
+  --_track-h: var(--space-3);
+  --_track-w: var(--space-6);
+  --_thumb: var(--space-2);
+}
+.size_md {
+  --_track-h: var(--space-4);
+  --_track-w: var(--space-8);
+  --_thumb: var(--space-3);
+}
+.size_lg {
+  --_track-h: var(--space-5);
+  --_track-w: var(--space-10);
+  --_thumb: var(--space-4);
+}
+
+/* Native input: visually-hidden but focusable & form-submittable */
+.input {
+  position: absolute;
+  width: var(--hairline);
+  height: var(--hairline);
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.track {
+  position: relative;
+  display: inline-block;
+  width: var(--_track-w);
+  height: var(--_track-h);
+  background: var(--bg-muted);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-full);
+  transition:
+    background var(--duration-slow) var(--ease-out),
+    border-color var(--duration-slow) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.thumb {
+  position: absolute;
+  top: 50%;
+  left: var(--_pad);
+  width: var(--_thumb);
+  height: var(--_thumb);
+  background: var(--bg);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-xs);
+  transform: translateY(-50%);
+  transition:
+    left var(--duration-base) var(--ease-out),
+    background var(--duration-slow) var(--ease-out);
+}
+
+/* Checked — 트랙은 primary로 채우고, 썸을 우측 끝 - pad로 이동. */
+.input:checked + .track {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.input:checked + .track .thumb {
+  left: calc(var(--_track-w) - var(--_thumb) - var(--_pad) - var(--hairline) * 2);
+}
+
+/* Hover */
+.root:hover .input:not(:disabled) + .track {
+  border-color: var(--border-strong);
+}
+.root:hover .input:not(:disabled):checked + .track {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+/* Focus — 트랙에 링 표시 */
+.input:focus-visible + .track {
+  box-shadow: var(--ring-shadow);
+}
+
+/* Disabled — Button과 동일한 통일 스펙 (실버 · 회색) */
+.root:has(.input:disabled) {
+  cursor: not-allowed;
+}
+.input:disabled + .track {
+  background: var(--bg-muted);
+  border-color: transparent;
+}
+.input:disabled + .track .thumb {
+  background: var(--fg-disabled);
+  box-shadow: none;
+}

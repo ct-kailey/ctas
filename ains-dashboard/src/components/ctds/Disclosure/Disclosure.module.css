@@ -1,0 +1,73 @@
+/* Disclosure ───────────────────────────────────────────────
+   토글 섹션. grid-template-rows 트릭으로 CSS만으로 height 애니메이션.
+   trigger는 라벨 + caret, body는 opacity + height 페이드. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Trigger — 라벨과 caret을 양 끝에. */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  min-height: var(--control-h-md);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+  text-align: start;
+  transition: var(--transition-colors);
+}
+
+.trigger:hover {
+  color: var(--fg-muted);
+}
+
+.trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+  border-radius: var(--radius-xs);
+}
+
+.triggerLabel {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.caret {
+  color: var(--fg-muted);
+  flex: 0 0 auto;
+  transition: transform var(--duration-base) var(--ease-out);
+}
+
+.root[data-open] .caret {
+  transform: rotate(180deg);
+}
+
+/* Body wrap — grid-template-rows 0fr→1fr 트릭.
+   bodyInner는 min-height:0 + overflow:hidden으로 그 안쪽에서 자연 높이만큼만 자람. */
+.bodyWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-emphasized),
+    opacity var(--duration-base) var(--ease-out);
+}
+
+.bodyWrap[data-open] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.bodyInner {
+  min-height: 0;
+  overflow: hidden;
+}

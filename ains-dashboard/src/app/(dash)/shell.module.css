@@ -1,0 +1,5 @@
+/* AppFrame.topbarSlot(flex) 안에서 Topbar가 슬롯 폭을 다 쓰도록. CTDS 0.2.5 Topbar엔 이 규칙이 없다. */
+.topbar {
+  flex: 1 1 auto;
+  min-width: 0;
+}

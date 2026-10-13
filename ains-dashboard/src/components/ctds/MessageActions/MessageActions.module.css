@@ -1,0 +1,43 @@
+/* MessageActions — 메시지 하단 액션 아이콘 바.
+   UserMessage·AIMessage·MessageState 공용. fg-muted 톤, hover 시 fg-strong. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.root[data-align="end"] {
+  justify-content: flex-end;
+}
+.root[data-align="start"] {
+  justify-content: flex-start;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  width: var(--space-6);
+  height: var(--space-6);
+  flex: 0 0 auto;
+  transition: var(--transition-colors);
+}
+.btn:hover {
+  background: var(--bg-subtle);
+  color: var(--fg-strong);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+.icon {
+  width: 65%;
+  height: 65%;
+}

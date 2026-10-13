@@ -1,0 +1,40 @@
+/* Onboarding 페이지 전용 팔레트.
+   축(hue/palette) 시스템과 독립된 고정 브랜드 컬러. 온보딩은 웜 아이보리 배경 +
+   차분한 wine·brown rail 조합으로 톤을 고정. 사용자가 "Cloud Dancer + 세련된 브라운
+   + 와인" 요청. 축 값 변경 영향 안 받음. */
+
+:root {
+  /* 아주 옅은 웜 오프화이트 — 거의 순백 (Cloud Dancer보다 밝게) */
+  --onb-bg: #F8F6F2;
+
+  /* Rail — 웜 차콜(거의 뉴트럴, warm undertone).
+     Wine·brown은 강조 없이 아주 미세하게만 배어남. */
+  --onb-rail: #2C2825;
+  --onb-rail-deep: #201D1A;
+
+  /* Accent — 정말 필요할 때만. Active state 강조에 subtle하게. */
+  --onb-accent: #6B4F4C;
+
+  /* Rail 위 텍스트/보조 */
+  --onb-rail-fg: #EEE9E2;
+  --onb-rail-fg-muted: #A69B94;
+  --onb-rail-fg-subtle: #6D6560;
+  --onb-rail-surface: rgba(238, 233, 226, 0.10);
+  --onb-rail-line: rgba(238, 233, 226, 0.14);
+  --onb-rail-dot-idle: rgba(238, 233, 226, 0.22);
+  --onb-rail-progress-dot: rgba(238, 233, 226, 0.28);
+
+  /* 콘텐츠 (우측) */
+  --onb-card-bg: #FFFFFF;
+  --onb-back-btn: #E8E4DD;
+  --onb-back-btn-hover: #DED8CE;
+  --onb-fg: #2A2622;
+  --onb-fg-muted: #6E655F;
+  --onb-border: rgba(42, 38, 34, 0.08);
+  --onb-border-strong: rgba(42, 38, 34, 0.14);
+
+  /* Mode preview swatch — 모드 축 미리보기용 고정 색. 현재 테마와 무관하게
+     light/dark 두 비주얼을 동시에 보여주기 위함. */
+  --onb-mode-light: #FFFFFF;
+  --onb-mode-dark: #1A1A1A;
+}

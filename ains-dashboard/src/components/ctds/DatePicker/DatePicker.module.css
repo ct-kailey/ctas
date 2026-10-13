@@ -1,0 +1,295 @@
+/* Trigger ─────────────────────────────────────────────────── */
+.triggerInput {
+  min-width: calc(var(--space-2) * 22);
+}
+
+.triggerInput[data-with-time] {
+  min-width: calc(var(--space-2) * 30);
+}
+
+/* Popover / inline panel ──────────────────────────────────── */
+/* In · Out 애니메이션은 전역 유틸 `.m-float`가 담당 (globals.css). tsx에서 Content
+   className에 "m-float"을 concat. 여기서는 표면 시각(bg/border/shadow/radius)과
+   Radix가 준 transform-origin만 지정한다. */
+.popoverContent {
+  z-index: var(--z-popover);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  transform-origin: var(--radix-popover-content-transform-origin);
+}
+
+.inlineWrap {
+  display: inline-block;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.panelMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.panelMain[data-with-time] {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  /* 캘린더 실제 주 수(5~6)에 따라 높이 반응. TimeSelector가 이 높이를 stretch로 따라감. */
+}
+
+.panelMain[data-with-time] > :first-child {
+  padding: var(--space-3);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--hairline) solid var(--border);
+}
+
+/* Presets — 상단 chip 나열 ─────────────────────────────────── */
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3) 0;
+}
+
+/* Calendar grid ───────────────────────────────────────────── */
+.calendarWrap {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.monthCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: calc(var(--control-h-sm) * 7);
+}
+
+.monthHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-inline: 0;
+}
+
+.monthHeader > button {
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  flex: 0 0 auto;
+}
+
+.monthTitle {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-normal);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+}
+
+
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+}
+
+.weekday {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  column-gap: 0;
+  row-gap: var(--hairline);
+}
+
+.dayCell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: var(--font-normal);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  position: relative;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.dayCell:hover:not(:disabled):not([data-selected]) {
+  background: var(--hover);
+}
+
+.dayCell:focus-visible {
+  outline: var(--ring-width) solid var(--ring);
+  outline-offset: calc(-1 * var(--ring-width));
+  box-shadow: none;
+}
+
+.dayCell[data-outside] {
+  color: var(--fg-disabled);
+}
+
+.dayCell:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.dayCell[data-in-range] {
+  background: var(--secondary-bg);
+  color: var(--secondary-fg);
+  border-radius: 0;
+}
+
+.dayCell[data-range-start] {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.dayCell[data-range-end] {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* 주 단위 pill — 각 주의 첫/마지막 컬럼에서는 라운드를 살려서
+   in-range 밴드가 주마다 알약 모양으로 끊긴다. */
+.grid > .dayCell[data-in-range]:nth-child(7n+1),
+.grid > .dayCell[data-range-end]:nth-child(7n+1) {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.grid > .dayCell[data-in-range]:nth-child(7n),
+.grid > .dayCell[data-range-start]:nth-child(7n) {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.dayCell[data-today]:not([data-selected]):not([data-in-range]) {
+  color: var(--primary);
+  font-weight: var(--font-weight-medium);
+  box-shadow: inset 0 0 0 var(--hairline) var(--primary);
+}
+
+.dayCell[data-today][data-in-range] {
+  color: var(--primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.dayCell[data-selected] {
+  background: var(--primary);
+  color: var(--bg);
+}
+
+.dayCell[data-selected]:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+/* range-start/end + selected 조합의 hover에서도 반쪽 알약 radius 유지. */
+.dayCell[data-range-start][data-selected]:hover {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.dayCell[data-range-end][data-selected]:hover {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.dayLabel {
+  line-height: var(--lh-sm);
+}
+
+/* Time area ──────────────────────────────────────────────── */
+/* 스크롤 규약: 이 wrapper엔 padding 없음. 안쪽 스크롤 컨테이너와 트랙이 담당.
+   왼쪽 구분선은 pseudo로 그려 상하 짧게(preset 영역과 맞물리지 않도록). */
+.timeArea {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.timeArea::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--space-3);
+  bottom: var(--space-3);
+  width: var(--hairline);
+  background: var(--border);
+}
+
+.timeArea[data-mode="range"] {
+  flex-direction: row;
+  gap: 0;
+}
+
+
+.timeSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.timeLabel {
+  padding: var(--space-2) var(--space-4) 0;
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.timeList {
+  min-width: calc(var(--control-h-md) * 3.5);
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.timeListTrack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+  padding: var(--space-2);
+}
+

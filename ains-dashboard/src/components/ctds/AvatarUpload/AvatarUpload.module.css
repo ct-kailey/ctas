@@ -1,0 +1,130 @@
+/* AvatarUpload ────────────────────────────────────────────────
+   Avatar를 감싸는 폼 컨트롤. 표시 로직은 Avatar에 위임하고,
+   여기선 파일 선택·삭제 인터랙션과 오버레이 UI만 담당.
+
+   구조: <div>
+           <button.trigger>           ← 클릭 시 <input type=file>
+             <Avatar />
+             <span.overlay />         ← hover 시 하단에 카메라
+           </button>
+           <button.remove />          ← src 있을 때만, 우상단 X
+           <input type=file .input /> ← 시각 숨김
+         </div> */
+.root {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.trigger {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+/* trigger는 안쪽 Avatar와 border-radius를 맞춰야 focus ring이 정확한 모양으로 감쌈.
+   circle이면 full, rounded면 Avatar와 동일한 size별 radius. */
+.circle .trigger { border-radius: var(--radius-full); }
+.rounded.xs .trigger,
+.rounded.sm .trigger { border-radius: var(--radius-xs); }
+.rounded.md .trigger { border-radius: var(--radius-sm); }
+.rounded.lg .trigger { border-radius: var(--radius-md); }
+.rounded.xl .trigger { border-radius: var(--radius-lg); }
+.trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+.trigger:disabled {
+  cursor: not-allowed;
+}
+
+/* Overlay ─────────────────────────────────────────────────
+   하단 반쪽에만 오버레이. 기본 숨김, hover/focus에서 등장.
+   translateY로 slide-up 애니 — 즉시 등장보다 프로필 사진을 덜 가리는 인상.
+   scrim/scrim-fg 토큰으로 mode 무관 다크 표면. */
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scrim);
+  color: var(--scrim-fg);
+  opacity: 0;
+  transform: translateY(20%);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
+}
+.trigger:hover .overlay,
+.trigger:focus-visible .overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Remove button ───────────────────────────────────────────
+   우상단. X. Avatar 원 바깥으로 살짝 튀어나오게 배치해서
+   "부착된 액션"임을 명확히. z-docked로 오버레이보다 위. */
+.remove {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  z-index: var(--z-docked);
+}
+.remove:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+.remove:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+.remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Remove 크기 · offset은 Avatar size별로 스왑. 원 바깥으로 살짝 튀어나오도록. */
+.xs .remove { width: var(--space-3); height: var(--space-3); transform: translate(25%, -25%); }
+.sm .remove { width: var(--space-4); height: var(--space-4); transform: translate(25%, -25%); }
+.md .remove { width: var(--space-4); height: var(--space-4); transform: translate(25%, -25%); }
+.lg .remove { width: var(--space-5); height: var(--space-5); transform: translate(20%, -20%); }
+.xl .remove { width: var(--space-6); height: var(--space-6); transform: translate(15%, -15%); }
+
+/* Hidden native input — 표준 visually-hidden 유틸을 클래스로 인라인 */
+.input {
+  position: absolute;
+  width: var(--space-0_5);   /* 시각 완전 숨김 — 실제 크기는 무의미 */
+  height: var(--space-0_5);
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Disabled ─────────────────────────────────────────────── */
+.disabled .trigger { opacity: 0.5; }
+.disabled .overlay { display: none; }

@@ -1,0 +1,220 @@
+/* GalleryItem ───────────────────────────────────────────────
+   갤러리뷰 콘텐츠 카드. media(썸네일) + body(title/description/meta/actions).
+   전부 CTDS 토큰 경유. 하드코딩 금지.
+
+   layout:
+     vertical   — media 위 / body 아래 (기본). 그리드형.
+     horizontal — media 왼쪽(고정 폭) / body 오른쪽. 세로 리스트형.
+
+   chrome 없음: 투명 bg, 테두리 없음. 썸네일 radius가 유일한 경계.
+   선택 상태 없음.
+
+   state:
+     - hover는 href 또는 onClick 있을 때만. translateY(-1px) + 썸네일 shadow-sm.
+     - focus-visible은 ring 토큰. */
+
+.root {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  color: var(--fg);
+  text-decoration: none;
+  font-family: var(--font-sans);
+  background: transparent;
+  /* hover translateY 상단 잘림 1차 방어 */
+  margin-top: var(--hairline);
+
+  /* horizontal의 media 고정 폭. 토큰 조합으로 구성 (96+96+64 = 256px 수준).
+     소비자가 CSS 변수를 override해서 좁거나 넓게 쓸 수 있도록 노출. */
+  --gallery-media-size: calc(var(--space-24) * 2 + var(--space-16));
+}
+
+.vertical {
+  flex-direction: column;
+}
+
+.horizontal {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* ── Media ─────────────────────────────────────────────────── */
+
+.media {
+  position: relative;
+  display: block;
+  background: var(--bg-muted);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  /* aspect-ratio는 data-aspect 로 스왑. 기본 16/9. */
+  aspect-ratio: 16 / 9;
+}
+
+.vertical .media {
+  width: 100%;
+}
+
+/* horizontal에서 media는 왼쪽 고정 폭. 카드가 좁아져도 media는 유지되고 body가 먼저 수축. */
+.horizontal .media {
+  flex: 0 0 var(--gallery-media-size);
+  width: var(--gallery-media-size);
+}
+
+.media[data-aspect="4/3"] { aspect-ratio: 4 / 3; }
+.media[data-aspect="1/1"] { aspect-ratio: 1 / 1; }
+.media[data-aspect="3/4"] { aspect-ratio: 3 / 4; }
+
+/* media 안쪽 img/video 등은 꽉 채워 cover. */
+.media > img,
+.media > video,
+.media > picture > img,
+.media > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Overlay actions ───────────────────────────────────────── */
+
+.overlayActions {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  z-index: var(--z-raise);
+}
+
+/* ── Body ──────────────────────────────────────────────────── */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* vertical: media 아래로 떨어지며 상단 여백만. */
+.vertical .body {
+  padding: var(--space-3) 0 0;
+}
+
+/* horizontal: media 오른쪽에서 flex-grow. padding 없이 gap으로 분리. */
+.horizontal .body {
+  flex: 1 1 auto;
+}
+
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-unit) * 0.5);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.title {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* horizontal에서는 title이 공간을 더 가짐 — 한 단계 큰 lg 톤. */
+.horizontal .title {
+  font-size: var(--text-lg);
+  line-height: var(--lh-lg);
+}
+
+.description {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.horizontal .description {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  -webkit-line-clamp: 3;
+}
+
+/* footer 액션 — titleRow 우측에 inline 배치. 작은 액션(IconButton·Button sm/ghost) 전용. */
+.footerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+/* ── Meta ──────────────────────────────────────────────────── */
+
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-muted);
+}
+
+.horizontal .meta {
+  margin-top: var(--space-2);
+}
+
+/* ── Interactive ───────────────────────────────────────────── */
+
+.interactive {
+  cursor: pointer;
+  transition: var(--transition-colors), var(--transition-press), var(--transition-ring);
+}
+
+/* hover=float (기본): 카드 전체 translateY + 썸네일 shadow-sm + --hover 틴트. */
+.interactive[data-hover="float"]:hover:not([data-disabled="true"]) {
+  transform: translateY(-1px);
+}
+.interactive[data-hover="float"]:hover:not([data-disabled="true"]) .media {
+  box-shadow: var(--shadow-sm), inset 0 0 0 100vmax var(--hover);
+}
+.interactive[data-hover="float"]:active:not([data-disabled="true"]) {
+  transform: translateY(0);
+}
+
+/* hover=tint: translateY·shadow 없음. 썸네일에 --hover 틴트만 — 밀집 그리드용 조용한 피드백. */
+.interactive[data-hover="tint"]:hover:not([data-disabled="true"]) .media {
+  box-shadow: inset 0 0 0 100vmax var(--hover);
+}
+
+.interactive:focus-visible {
+  outline: none;
+}
+.interactive:focus-visible .media {
+  box-shadow: var(--ring-shadow);
+}
+
+.root[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

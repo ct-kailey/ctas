@@ -1,0 +1,64 @@
+.root {
+  height: var(--space-0_5);
+  background: transparent;
+  overflow: hidden;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-out);
+  opacity: 0;
+}
+.root[data-active] {
+  opacity: 1;
+}
+
+.root[data-position="fixed"] {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-toast);
+}
+
+.bar {
+  height: 100%;
+  background: var(--fg-strong);
+  border-radius: 0 var(--radius-full) var(--radius-full) 0;
+  transition: width var(--duration-fast) var(--ease-out);
+}
+
+.root[data-mode="determinate"] .bar {
+  transform-origin: left center;
+}
+
+/* indeterminate — 왼쪽부터 채워지는 NProgress 스타일.
+   빠르게 시작해서 (뜨자마자 30% 이미 채움) 서서히 90%까지. */
+.root[data-mode="indeterminate"] .bar {
+  width: 0%;
+  transform-origin: left center;
+  animation: pb-grow calc(var(--duration-slower) * 3) var(--ease-out) forwards;
+}
+
+@keyframes pb-grow {
+  0%   { width: 0%; }
+  10%  { width: 30%; }
+  30%  { width: 55%; }
+  60%  { width: 75%; }
+  100% { width: 90%; }
+}
+
+/* 사라질 때 100%까지 밀고 fade-out — "완료됐다" 느낌 */
+.root:not([data-active])[data-mode="indeterminate"] .bar {
+  animation: none;
+  width: 100%;
+  transition:
+    width var(--duration-fast) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root[data-mode="indeterminate"] .bar {
+    animation: none;
+    width: 100%;
+    transform: none;
+    opacity: 0.5;
+  }
+}

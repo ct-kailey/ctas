@@ -1,0 +1,109 @@
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  padding: 0;
+  flex-shrink: 0;
+  transition: var(--transition-colors), var(--transition-ring), var(--transition-press);
+}
+.root:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+.root:active:not(:disabled) {
+  transform: translateY(var(--space-0_5));
+}
+/* Disabled — filled variant(secondary/outline)는 회색 배경 + 실버 색.
+   ghost·destructive는 평상시 배경이 없으므로 투명 유지하고 아이콘 색만 fg-disabled로 연해진다.
+   Pagination·툴바처럼 아이콘 하나짜리 비활성이 밑 배경을 가리면 어색하기 때문. */
+.root:disabled {
+  cursor: not-allowed;
+  color: var(--fg-disabled);
+  border-color: transparent;
+}
+.secondary:disabled,
+.outline:disabled {
+  background: var(--bg-muted);
+}
+.ghost:disabled,
+.destructive:disabled {
+  background: transparent;
+}
+
+/* sizes — IconButton 전용 --iconbtn-h-*.
+   텍스트 컨트롤(Button/Input)보다 좁게 잡아 아이콘 하나가 헐거워 보이지 않도록.
+   sm=인라인·초밀도 / md=툴바 기본(IconButton 기본값) / lg=표준.
+
+   ⚠️ Button과 사이즈 이름은 같지만 실제 크기는 한 단계씩 작다:
+     - IconButton sm(20) → Button에 대응 없음(더 작음)
+     - IconButton md(24) → Button sm(28)에 대응
+     - IconButton lg(32) → Button md(32)에 대응
+   같은 툴바에 Button과 IconButton을 나란히 놓을 때 이 매핑으로 크기 매칭. */
+.sm { width: var(--iconbtn-h-sm); height: var(--iconbtn-h-sm); border-radius: var(--radius-xs); }
+.md { width: var(--iconbtn-h-md); height: var(--iconbtn-h-md); }
+.lg { width: var(--iconbtn-h-lg); height: var(--iconbtn-h-lg); }
+
+/* 아이콘 크기는 라이브러리 무관하게 CSS로 고정.
+   family 스왑 시 각 라이브러리의 size prop 처리 편차로 아이콘 크기가 미세하게
+   달라지는 문제를 방지 → svg에 직접 강제. */
+.sm > svg { width: var(--icon-size-xs); height: var(--icon-size-xs); }
+.md > svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
+.lg > svg { width: var(--icon-size-md); height: var(--icon-size-md); }
+
+/* Dual: 트레일링 아이콘(예: caret-down) 동반 시 가로형.
+   정사각 width를 풀고, 대칭 좁은 패딩 + gap으로 시각 균형. */
+.dual {
+  width: auto;
+  gap: var(--space-1);
+}
+.sm.dual { padding-inline: var(--space-1);   gap: var(--space-0_5); }
+.md.dual { padding-inline: var(--space-1_5); }
+.lg.dual { padding-inline: var(--space-2); }
+
+/* variants ─────────────────────────────────────────────── */
+/* secondary — primary 8% 알파 표면 + primary 텍스트 (Button.secondary와 동일 정책).
+   Accent=mono일 때는 시맨틱 토큰이 무채색으로 자동 폴백. */
+.secondary {
+  background: var(--secondary-bg);
+  color: var(--secondary-fg);
+  border-color: transparent;
+}
+.secondary:hover:not(:disabled) {
+  background: var(--secondary-bg-hover);
+}
+
+/* outline — 경계만 */
+.outline {
+  background: transparent;
+  color: var(--fg-muted);
+  border-color: var(--border);
+}
+.outline:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+/* ghost — 무게 최소, hover에만 표면. IconButton 기본값. */
+.ghost {
+  background: transparent;
+  color: var(--fg-subtle);
+  border-color: transparent;
+}
+.ghost:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+/* destructive — 아이콘 단독은 시각 부피가 작아 솔리드 destructive는 과함.
+   평상시 transparent + destructive 텍스트, hover 시 destructive 12% 표면.
+   (Button의 destructive/destructive-ghost 둘 다 여기로 매핑됨.) */
+.destructive {
+  background: transparent;
+  color: var(--destructive);
+  border-color: transparent;
+}
+.destructive:hover:not(:disabled) {
+  background: var(--destructive-subtle);
+}

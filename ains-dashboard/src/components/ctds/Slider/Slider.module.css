@@ -1,0 +1,120 @@
+/* Slider — 미니멀 스펙: 트랙 + 채워진 부분 + 썸.
+   native input[type=range]를 커스텀 스타일링. 값 라벨·마크·range는 없음.
+
+   축 반응:
+   ─ Density → --control-h-* (썸 크기), --space-scale (트랙 두께)
+   ─ Shape   → 트랙·썸 radius
+   ─ Motion  → hover·drag 상태 전환 duration/easing
+   ─ Palette → 채워진 트랙 --primary
+*/
+
+.root {
+  --_track-h: var(--space-1);
+  --_thumb: var(--control-h-md);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  /* 썸 높이만큼 hit area 확보 */
+  height: var(--_thumb);
+  --_track-fg: var(--primary);
+  --_track-bg: var(--bg-muted);
+}
+
+/* Sizes ─ Button/Tabs와 동일한 control-h 스케일 */
+.size_sm { --_thumb: var(--control-h-sm); --_track-h: var(--space-0_5); }
+.size_md { --_thumb: var(--control-h-md); --_track-h: var(--space-1); }
+.size_lg { --_thumb: var(--control-h-lg); --_track-h: var(--space-1_5); }
+
+/* Focus ring — 썸에만 */
+.root:focus { outline: none; }
+
+/* WebKit / Blink ──────────────────────────────────────────── */
+.root::-webkit-slider-runnable-track {
+  height: var(--_track-h);
+  border-radius: var(--radius-full);
+  background:
+    linear-gradient(
+      to right,
+      var(--_track-fg) 0%,
+      var(--_track-fg) var(--slider-pct, 0%),
+      var(--_track-bg) var(--slider-pct, 0%),
+      var(--_track-bg) 100%
+    );
+  border: var(--hairline) solid var(--border);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.root::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--_thumb);
+  height: var(--_thumb);
+  border-radius: var(--radius-full);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border-strong);
+  box-shadow: var(--shadow-xs);
+  /* 트랙 중앙 정렬: (track-h - thumb) / 2, border 두께 보정 */
+  margin-top: calc((var(--_track-h) - var(--_thumb)) / 2 - var(--hairline));
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+  cursor: grab;
+}
+.root:hover:not(:disabled)::-webkit-slider-thumb {
+  border-color: var(--primary);
+}
+.root:focus-visible::-webkit-slider-thumb {
+  box-shadow: var(--ring-shadow);
+  border-color: var(--primary);
+}
+.root:active:not(:disabled)::-webkit-slider-thumb {
+  cursor: grabbing;
+  transform: scale(1.05);
+}
+
+/* Firefox ─────────────────────────────────────────────────── */
+.root::-moz-range-track {
+  height: var(--_track-h);
+  border-radius: var(--radius-full);
+  background: var(--_track-bg);
+  border: var(--hairline) solid var(--border);
+}
+.root::-moz-range-progress {
+  height: var(--_track-h);
+  border-radius: var(--radius-full);
+  background: var(--_track-fg);
+}
+.root::-moz-range-thumb {
+  width: var(--_thumb);
+  height: var(--_thumb);
+  border-radius: var(--radius-full);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border-strong);
+  box-shadow: var(--shadow-xs);
+  transition:
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+  cursor: grab;
+}
+.root:hover:not(:disabled)::-moz-range-thumb {
+  border-color: var(--primary);
+}
+.root:focus-visible::-moz-range-thumb {
+  box-shadow: var(--ring-shadow);
+  border-color: var(--primary);
+}
+.root:active:not(:disabled)::-moz-range-thumb {
+  cursor: grabbing;
+  transform: scale(1.05);
+}
+
+/* Disabled */
+.root:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

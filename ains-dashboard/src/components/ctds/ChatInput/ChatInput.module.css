@@ -1,0 +1,320 @@
+/* ChatInput — attachments bar · quotation · body (textarea/input + footer).
+   radius는 Shape 축 토큰 사용 — soft에선 둥글고 crisp에선 각지게 자동.
+   hairline border + bg, focus-within에서 ring. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-colors), var(--transition-ring);
+  overflow: hidden; /* root border radius로 자식 clip (scroll 끝이 root border에서) */
+}
+
+/* Multi/Single 공통 — root 자체는 padding 0. 각 섹션(.attachments/.quotation/.body)이
+   자신의 상하 padding을 책임져서 scroll 트랙이 root border까지 닿도록. */
+.shape-multi,
+.shape-single {
+  padding: 0;
+}
+
+.root:focus-within {
+  box-shadow: var(--ring), var(--shadow-md);
+}
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 첨부물 바 — 가로 wrap 스택.
+   gap space-1 (feedback-small-component-gap). */
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+}
+/* SingleLine은 아래 body footer가 자체 상단 padding을 가지므로 bottom 압축. */
+.shape-single .attachments {
+  padding-bottom: var(--space-0_5);
+}
+.attachmentCell {
+  display: flex;
+  min-width: 0;
+}
+.attachmentCell[data-kind="image"] > *,
+.attachmentCell[data-kind="file"] > * {
+  flex: 0 0 auto;
+}
+
+/* Quotation */
+.quotation {
+  display: block;
+  padding: var(--space-2);
+}
+/* SingleLine은 아래 body footer가 자체 상단 padding을 가지므로 bottom 압축. */
+.shape-single .quotation {
+  padding-bottom: var(--space-0_5);
+}
+/* attachments 아래에 quotation이 오면 상단 패딩 제거 (attachments bottom이 책임) */
+.attachments + .quotation {
+  padding-top: 0;
+}
+
+/* body */
+.body {
+  display: flex;
+  min-width: 0;
+}
+
+/* MultiLine */
+.shape-multi .body {
+  flex-direction: column;
+}
+.multiStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+}
+/* multiScroll — 세로 스크롤 컨테이너.
+   **스크롤 룰**: wrapper에 padding 0, textarea에 상·하 padding + 좌·우 padding 둘 다.
+   textarea가 자신의 padding을 content의 일부로 품으므로 scroll 시 글이 상·하 padding 영역을
+   통과해 root border에서 clip. wrapper에 padding을 두면 scroll 시 그 영역이 "빈 띠"로 남음. */
+.multiScroll {
+  overflow-y: auto;
+  max-height: calc(var(--text-sm) * 1.5 * 8); /* ~8 lines */
+  padding: 0;
+  scroll-padding-bottom: var(--space-3);
+  scroll-padding-top: var(--space-3);
+}
+
+/* textarea에 상·하·좌·우 padding 전부 — 스크롤되면 함께 올라감. */
+.multiField {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: calc(var(--text-sm) * 1.5);
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  color: var(--fg-strong);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.multiField::placeholder {
+  color: var(--fg-muted);
+}
+/* attachments/quotation 아래에선 상단 padding 압축 (이미 attachments/quotation이 상단 책임). */
+.attachments + .body .multiField,
+.quotation + .body .multiField {
+  padding-top: var(--space-1);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+/* SingleLine — body는 relative + padding 0, 버튼은 absolute로 좌·우 하단 고정.
+   singleScroll이 body 전체 높이·폭 차지하되 좌·우 padding으로 버튼 자리 확보.
+   이러면 body 높이가 전적으로 textarea(singleScroll) 크기에 따라감 — padding 늘리면 input도 커짐. */
+.shape-single .body {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  position: relative;
+}
+/* 버튼 bottom inset은 textarea 상·하 padding과 같은 토큰으로 — 1줄 상태에서
+   textarea 수직 중앙 = 버튼 수직 중앙 (density scale 바뀌어도 비례해서 유지됨). */
+.shape-single .attachBtn {
+  position: absolute;
+  left: var(--space-2);
+  bottom: calc((var(--space-3) * 2 + var(--text-sm) * 1.5 - var(--space-8)) / 2);
+  z-index: var(--z-raise);
+}
+.shape-single .actions {
+  position: absolute;
+  right: var(--space-2);
+  bottom: calc((var(--space-3) * 2 + var(--text-sm) * 1.5 - var(--space-8)) / 2);
+  z-index: var(--z-raise);
+}
+/* singleScroll — body 전체 차지. 좌·우 padding으로 버튼 자리 확보.
+   왼쪽: attachBtn 32 + margin 8 = 40 (gap 없음).
+   오른쪽: actions(model+gap+send) 가변 + margin 8. */
+.shape-single .singleScroll {
+  padding-left: var(--space-10);
+  padding-right: calc(var(--space-20) + var(--space-8));
+}
+.singleScroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  max-height: calc(var(--text-sm) * 1.5 * 8);
+  padding: 0;
+  /* 타이핑 중 caret이 하단에 올 때 scroll이 자동으로 textarea padding-bottom을 지나
+     root border까지 밀어주도록 scroll-padding 확보. */
+  scroll-padding-bottom: var(--space-3);
+  scroll-padding-top: var(--space-3);
+}
+.singleField {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3) 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  color: var(--fg-strong);
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+.singleField::placeholder {
+  color: var(--fg-muted);
+}
+
+/* Attach 버튼 */
+.attachBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  width: var(--space-8);
+  height: var(--space-8);
+  flex: 0 0 auto;
+  transition: var(--transition-colors);
+}
+.attachBtn:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.attachBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.attachBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.attachIcon {
+  width: 50%;
+  height: 50%;
+}
+
+/* model + send */
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+.modelBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1_5) var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--text-sm);
+  line-height: 1;
+  transition: var(--transition-colors);
+}
+.modelBtn:hover {
+  background: var(--bg-subtle);
+  color: var(--fg);
+}
+.modelBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.modelBtn:disabled {
+  cursor: not-allowed;
+}
+.modelLead {
+  width: var(--space-4);
+  height: var(--space-4);
+  flex: 0 0 auto;
+}
+.modelLabel {
+  color: var(--fg);
+}
+.modelCaret {
+  width: var(--space-3);
+  height: var(--space-3);
+  flex: 0 0 auto;
+}
+.modelBtn[data-compact] {
+  padding: var(--space-1_5);
+}
+
+/* Send — Shape 축 반응. Button sm과 동일한 radius. */
+.sendBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  width: var(--space-8);
+  height: var(--space-8);
+  flex: 0 0 auto;
+  transition: var(--transition-colors);
+}
+.sendBtn[data-active] {
+  background: var(--primary);
+  color: var(--bg);
+}
+.sendBtn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.sendBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.sendBtn:disabled {
+  cursor: not-allowed;
+}
+/* 비활성(= 입력 비어있어 보낼 수 없음) 상태 아이콘을 연하게.
+   data-active일 땐 primary 배경이라 색 유지. */
+.sendBtn:not([data-active]) {
+  color: var(--fg-disabled);
+}
+.sendIcon {
+  width: 44%;
+  height: 44%;
+}
+
+/* 파일 input 숨김 */
+.hiddenFile {
+  display: none;
+}

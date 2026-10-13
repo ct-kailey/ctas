@@ -1,0 +1,102 @@
+/* EmptyState ──────────────────────────────────────────────────
+   리스트/테이블/대시보드 영역이 비었을 때 영역 전체를 채우는 자리채움.
+   세로 중앙정렬 — 시각 요소 → 타이틀 → 설명 → 액션.
+   size는 외곽 padding과 시각 요소/텍스트 스케일을 함께 스왑. */
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  /* 영역 전체를 채우도록 컨테이너 폭·높이를 꽉 채운다. */
+  width: 100%;
+}
+
+/* Visual slot ─────────────────────────────────────────────────
+   illustration: 자체 폭/높이 결정. 컨테이너는 size별 min-height만 보장.
+   icon: --icon-size-* 토큰 기반, size별로 몇 배수 스케일. */
+.illustration {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--fg-subtle);
+}
+
+/* Text block — title/description은 세트로 묶여 보이도록 gap 좁게. */
+.text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 42ch;
+}
+.title {
+  color: var(--fg);
+  font-weight: var(--font-weight-medium);
+}
+.description {
+  color: var(--fg-muted);
+}
+
+/* Actions — Button 1~2개 가로 배치. */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+/* text ↔ actions 사이는 다른 요소 간격보다 한 단계 더 벌린다 —
+   "읽은 뒤 → 행동"으로 넘어가는 breath. root gap 위에 margin-top으로 추가. */
+.text + .actions {
+  margin-top: var(--space-2);
+}
+
+/* Size scale ──────────────────────────────────────────────────
+   sm: 패널·사이드 리스트 안 (좁은 영역)
+   md: 메인 콘텐츠 영역 (테이블·그리드)
+   아이콘·폰트·패딩 전부 콘솔 밀도 기준으로 보수적. 과하지 않게. */
+.sizeSm {
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+}
+.sizeSm .icon > svg {
+  width: var(--icon-size-lg);
+  height: var(--icon-size-lg);
+}
+.sizeSm .title {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+.sizeSm .description {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.sizeMd {
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-5);
+}
+.sizeMd .icon > svg {
+  /* icon-size-lg × 1.17 ≒ 28px — sm(24)보다 살짝만 큼. */
+  width: calc(var(--icon-size-lg) * 1.17);
+  height: calc(var(--icon-size-lg) * 1.17);
+}
+.sizeMd .title {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+.sizeMd .description {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+

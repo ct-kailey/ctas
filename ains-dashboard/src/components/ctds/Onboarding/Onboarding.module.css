@@ -1,0 +1,1424 @@
+/* Onboarding — wizard 위저드 레이아웃.
+   좌: dark rail (스텝 리스트) / 우: 밝은 콘텐츠(질문·선택지·요약).
+   scroll two-layer padding rule: 스크롤 컨테이너에는 padding 없음, 안쪽 트랙에만 padding. */
+
+.shell {
+  min-height: 100vh;
+  padding: var(--space-6);
+  /* Cloud Dancer #F0EEE9 — 온보딩 전용 고정 팔레트 (_components/onboardingPalette.css) */
+  background: var(--onb-bg);
+  color: var(--onb-fg);
+  display: grid;
+  grid-template-columns: calc(var(--space-24) * 4) 1fr;
+  gap: var(--space-8);
+  box-sizing: border-box;
+  align-items: start;
+}
+
+/* ── Rail (좌측 스텝 리스트) ──────────────────────────── */
+
+.rail {
+  /* Flat 웜 차콜. 그라데이션 없음. */
+  background: var(--onb-rail);
+  color: var(--onb-rail-fg);
+  padding: var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  overflow: hidden;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-lg);
+  min-width: 0;
+  box-sizing: border-box;
+  position: sticky;
+  top: var(--space-6);
+  /* viewport 높이 - shell padding 양쪽 */
+  height: calc(100vh - var(--space-6) * 2);
+}
+
+.railBrand {
+  display: inline-flex;
+  width: var(--space-10);
+  height: var(--space-10);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--onb-rail-surface);
+  color: var(--onb-rail-fg);
+  flex-shrink: 0;
+}
+
+/* Rail의 스텝 리스트 — Stepper 컴포넌트에 온보딩 다크 팔레트 오버라이드 */
+.railSteps {
+  flex: 1;
+  min-height: 0;
+  --stepper-fg: var(--onb-rail-fg);
+  --stepper-fg-muted: var(--onb-rail-fg-muted);
+  --stepper-fg-subtle: var(--onb-rail-fg-subtle);
+  --stepper-line: var(--onb-rail-line);
+  --stepper-dot-idle: var(--onb-rail-dot-idle);
+  --stepper-marker-fg: var(--onb-rail);
+}
+
+.railFoot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--text-xs);
+  color: var(--onb-rail-fg-subtle);
+  padding-top: var(--space-4);
+  flex-shrink: 0;
+}
+.railFootBtn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  transition: var(--transition-colors);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.railFootBtn:hover { color: var(--onb-rail-fg); }
+
+/* ── Content (우측 질문·요약) ─────────────────────────── */
+
+.content {
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+.contentInner {
+  padding: var(--space-16) var(--space-12) var(--space-8);
+  max-width: calc(var(--space-24) * 7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  box-sizing: border-box;
+}
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.stepHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  align-items: flex-start;
+}
+.stepProgress {
+  font-size: var(--text-xs);
+  color: var(--fg-subtle);
+  font-family: var(--font-code);
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-1);
+}
+.stepTitle {
+  font-size: var(--text-2xl);
+  line-height: var(--lh-2xl);
+  letter-spacing: -0.025em;
+  color: var(--onb-fg);
+  font-weight: var(--font-weight-semibold);
+}
+.stepLead {
+  color: var(--onb-fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  max-width: calc(var(--space-24) * 5);
+}
+
+/* ── Choice cards ─────────────────────────────────────── */
+
+.choiceList {
+  display: grid;
+  gap: var(--space-2);
+  /* SelectableCard hover translateY(-1px) 여백 확보 — 부모 stepBody가 overflow:hidden이라
+     최상단 카드가 hover 시 잘리지 않도록. */
+  padding-top: var(--space-1);
+}
+
+.choice {
+  appearance: none;
+  text-align: left;
+  background: var(--onb-card-bg);
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  cursor: pointer;
+  transition: var(--transition-colors), box-shadow var(--duration-slow) var(--ease-out);
+  display: grid;
+  grid-template-columns: var(--space-5) 1fr auto;
+  gap: var(--space-4);
+  align-items: center;
+  color: var(--onb-fg);
+  box-shadow: var(--shadow-xs);
+}
+.choice:hover {
+  box-shadow: var(--shadow-sm);
+}
+.choice[data-active] {
+  border-color: var(--onb-rail);
+  box-shadow: var(--shadow-sm);
+}
+
+.choiceRadio {
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-full);
+  border: var(--hairline) solid var(--onb-border-strong);
+  margin-top: var(--space-0_5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.choice[data-active] .choiceRadio {
+  border-color: var(--onb-rail);
+  border-width: calc(var(--hairline) * 2);
+}
+.choice[data-active] .choiceRadio::after {
+  content: "";
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--onb-rail);
+}
+
+.choiceBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.choiceTitle {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--onb-fg);
+}
+.choiceHint {
+  font-size: var(--text-sm);
+  color: var(--onb-fg-muted);
+  line-height: var(--lh-sm);
+}
+.choiceExamples {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  margin-top: var(--space-1);
+}
+
+.choiceThumb {
+  width: calc(var(--space-16) * 1);
+  height: calc(var(--space-8) * 1);
+  border-radius: var(--radius-sm);
+  border: var(--hairline) solid var(--border);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+}
+
+/* Vibe 프리뷰: 미니 UI 스와치.
+   Palette 색은 쓰지 않고 fg 톤만 사용해서 vibe 자체의 shape·motion·icon weight에만 집중. */
+.vibePreview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1_5);
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  padding: 0 var(--space-2);
+}
+.vibePreviewBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-5);
+  height: var(--space-5);
+  color: var(--bg);
+  background: var(--fg-strong);
+  flex-shrink: 0;
+}
+.vibePreviewBtn[data-shape="crisp"] { border-radius: var(--radius-none); }
+.vibePreviewBtn[data-shape="standard"] { border-radius: var(--radius-xs); }
+.vibePreviewBtn[data-shape="soft"] { border-radius: var(--radius-full); }
+
+.vibePreviewChip {
+  display: inline-block;
+  width: var(--space-5);
+  height: var(--space-2);
+  background: color-mix(in oklab, var(--fg) 18%, transparent);
+  flex-shrink: 0;
+}
+.vibePreviewChip[data-variant="ghost"] {
+  background: transparent;
+  border: var(--hairline) solid color-mix(in oklab, var(--fg) 22%, transparent);
+}
+.vibePreviewChip[data-shape="crisp"] { border-radius: var(--radius-none); }
+.vibePreviewChip[data-shape="standard"] { border-radius: var(--radius-xs); }
+.vibePreviewChip[data-shape="soft"] { border-radius: var(--radius-full); }
+
+.choice[data-active] .vibePreviewBtn { background: var(--primary); }
+.choice[data-active] .vibePreviewChip {
+  background: color-mix(in oklab, var(--primary) 55%, transparent);
+}
+.choice[data-active] .vibePreviewChip[data-variant="ghost"] {
+  background: transparent;
+  border-color: color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
+.vibePreviewChip[data-motion="bouncy"] {
+  animation: vibeBounce calc(var(--duration-slower) * 5) var(--ease-emphasized) infinite;
+}
+.vibePreviewChip[data-motion="standard"] {
+  animation: vibePulse calc(var(--duration-slower) * 7) var(--ease-in-out) infinite;
+}
+.vibePreviewChip[data-motion="calm"] {
+  animation: vibeFade calc(var(--duration-slower) * 9) var(--ease-in-out) infinite;
+}
+
+@keyframes vibeBounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(calc(var(--space-0_5) * -1)); }
+  60% { transform: translateY(calc(var(--space-0_5) * 0.5)); }
+}
+@keyframes vibePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@keyframes vibeFade {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.65; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vibePreviewChip { animation: none; }
+}
+
+/* Layout mini thumbnails inside choice */
+.thumb {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-subtle);
+}
+.thumb[data-kind="sidebar-only"] {
+  grid-template-columns: 30% 1fr;
+}
+.thumb[data-kind="topbar-sidebar"] {
+  grid-template-rows: 20% 1fr;
+  grid-template-columns: 30% 1fr;
+}
+.thumb[data-kind="topbar-only"] {
+  grid-template-rows: 22% 1fr;
+}
+.thumb[data-kind="dual-sidebar"] {
+  grid-template-columns: 22% 1fr 22%;
+}
+.thumbCell {
+  border-right: var(--hairline) solid var(--border);
+  border-bottom: var(--hairline) solid var(--border);
+}
+.thumbCell:last-child { border-right: none; }
+.thumbCell[data-role="rail"] { background: var(--fg-strong); }
+.thumbCell[data-role="bar"] { background: color-mix(in oklab, var(--fg-strong) 8%, var(--bg)); }
+
+/* ── Color step ───────────────────────────────────────── */
+
+.colorStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-height: 0;
+}
+.colorSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.colorSectionTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-strong);
+}
+.colorSectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.colorSectionHint {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+.paletteRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.hueSliderBlock {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-3);
+  align-items: center;
+  transition: var(--transition-colors);
+}
+.hueSliderBlock[data-locked] > *:not(.hueSliderSwatch) {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.hueSliderSwatch {
+  width: var(--space-8);
+  height: var(--space-8);
+  border-radius: var(--radius-full);
+  border: var(--hairline) solid var(--border);
+}
+.hueSliderValue {
+  font-family: var(--font-code);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  min-width: var(--space-10);
+  text-align: right;
+}
+
+.hexDisclosure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.hexToggle {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1_5);
+  align-self: flex-start;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  transition: var(--transition-colors);
+}
+.hexToggle:hover { color: var(--fg); }
+.hexOptionalTag {
+  font-size: var(--text-xs);
+  color: var(--fg-subtle);
+  padding: 0 var(--space-1_5);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-xs);
+}
+.hexBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1_5);
+  padding-left: var(--space-5);
+}
+.hexBigSwatch {
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-sm);
+  border: var(--hairline) solid var(--border);
+}
+.hexHelp {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+/* ── Footer nav (Back/Continue) ───────────────────────── */
+
+.stepFoot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-6);
+  flex-shrink: 0;
+}
+.stepFootHint {
+  font-size: var(--text-xs);
+  color: var(--fg-subtle);
+  text-align: center;
+}
+.stepFootActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+.stepFootActions > * {
+  width: 100%;
+  height: calc(var(--control-h-lg) * 1.25);
+}
+/* Continue = rail과 같은 charcoal 톤 */
+.stepFootActions > *:nth-child(2) {
+  background: var(--onb-rail);
+  border-color: transparent;
+  color: var(--onb-rail-fg);
+}
+.stepFootActions > *:nth-child(2):hover:not(:disabled) {
+  background: var(--onb-rail-deep);
+}
+/* Back = 담백한 웜 회색 fill */
+.stepFootActions > *:nth-child(1) {
+  background: var(--onb-back-btn);
+  border-color: transparent;
+  color: var(--onb-fg);
+}
+.stepFootActions > *:nth-child(1):hover:not(:disabled) {
+  background: var(--onb-back-btn-hover);
+}
+
+/* ── Summary ──────────────────────────────────────────── */
+
+/* 5개 항목 → 3열(2+3) 깔끔한 블록 그리드. 폭 좁아지면 2열 → 1열 */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+@media (max-width: 900px) {
+  .summaryGrid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .summaryGrid { grid-template-columns: 1fr; }
+}
+
+.summaryCard {
+  background: var(--onb-card-bg);
+  border: var(--hairline) solid var(--onb-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: var(--shadow-xs);
+}
+.summaryCardPreview {
+  height: calc(var(--space-16) * 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--onb-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  overflow: hidden;
+}
+.summaryCardText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+}
+.summaryLabel {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+}
+.summaryValue {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--onb-fg);
+  line-height: var(--lh-sm);
+}
+/* ── Apply dialog ───────────────────────────────────────
+   확인 → applying → done/error 플로우. Modal 자체는 "진짜 콘텐츠 카드"
+   역할이라 bg + radius OK. 색 border·테두리 박스는 금지. */
+.applyBackdrop {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in oklab, var(--onb-rail) 55%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  padding: var(--space-6);
+}
+.applyModal {
+  background: var(--onb-card-bg);
+  color: var(--onb-fg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  padding: var(--space-8);
+  max-width: calc(var(--space-24) * 5);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.applyTitle {
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--onb-fg);
+  line-height: var(--lh-xl);
+  margin: 0;
+}
+.applyLead {
+  font-size: var(--text-sm);
+  color: var(--onb-fg-muted);
+  line-height: var(--lh-sm);
+  margin: 0;
+}
+.applyFileList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.applyFileList li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+  padding-left: var(--space-3);
+  border-left: var(--hairline) solid var(--onb-border-strong);
+}
+.applyFileList code {
+  font-size: var(--text-sm);
+  color: var(--onb-fg);
+  font-family: var(--font-code);
+}
+.applyFileHint {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+}
+.applyError {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  font-family: var(--font-code);
+  background: color-mix(in oklab, var(--onb-fg) 5%, transparent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.applyActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+/* 비권장 안내 — Callout 박스 금지. 그냥 muted 한 줄. */
+.summaryHint {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  line-height: var(--lh-sm);
+  padding-left: var(--space-1);
+}
+
+.summaryPreviewMuted {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  font-family: var(--font-code);
+  letter-spacing: 0.04em;
+}
+
+/* 컬러 카드 — hue 3톤 스와치 */
+.colorPreview {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+.colorPreviewSwatch {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  border: var(--hairline) solid var(--onb-border);
+}
+.colorPreviewSwatch[data-tone="soft"],
+.colorPreviewSwatch[data-tone="deep"] {
+  width: var(--space-5);
+  height: var(--space-5);
+}
+
+/* 레이아웃 카드 — 밀도와 같은 연한 wireframe 톤 */
+.layoutPreview {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: var(--space-0_5);
+}
+.layoutPreviewRail {
+  width: var(--space-4);
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--onb-fg) 20%, transparent);
+  border-radius: var(--radius-xs);
+}
+.layoutPreviewMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+  min-width: 0;
+}
+.layoutPreviewBar {
+  height: var(--space-2);
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--onb-fg) 20%, transparent);
+  border-radius: var(--radius-xs);
+}
+.layoutPreviewContent {
+  flex: 1;
+  background: color-mix(in oklab, var(--onb-fg) 8%, transparent);
+  border-radius: var(--radius-xs);
+}
+.layoutPreview[data-frame="topbar-first"] {
+  flex-direction: column;
+}
+.layoutPreviewBody {
+  flex: 1;
+  display: flex;
+  gap: var(--space-0_5);
+  min-height: 0;
+}
+.layoutPreviewTabs {
+  height: var(--space-1_5);
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--onb-fg) 14%, transparent);
+  border-radius: var(--radius-xs);
+}
+
+/* 밀도 카드 — row 4개로 간격 비주얼 */
+.densityPreview {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  justify-content: center;
+}
+.densityPreview > span {
+  display: block;
+  background: color-mix(in oklab, var(--onb-fg) 20%, transparent);
+  border-radius: var(--radius-xs);
+  height: var(--space-1);
+}
+.densityPreview[data-density="compact"] > span { margin-bottom: var(--space-0_5); }
+.densityPreview[data-density="compact"] > span:last-child { margin-bottom: 0; }
+.densityPreview[data-density="default"] > span { margin-bottom: var(--space-1); }
+.densityPreview[data-density="default"] > span:last-child { margin-bottom: 0; }
+.densityPreview[data-density="comfortable"] > span { margin-bottom: var(--space-2); }
+.densityPreview[data-density="comfortable"] > span:last-child { margin-bottom: 0; }
+
+/* vibePreview가 summaryCard 안에 있을 때 — 투명 배경(이미 onb-bg 위) */
+.vibePreview[data-summary] {
+  background: transparent;
+  padding: 0;
+}
+
+
+/* ── Summary 고급 설정 토글 (OnboardingAxisPanel 접힘) ── */
+
+.summaryAdvanced {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+/* 토글 — 섹션 헤더 톤. 테두리/배경 박스 금지. */
+.summaryAdvancedToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  background: transparent;
+  border: none;
+  color: var(--onb-fg);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: var(--transition-colors);
+}
+.summaryAdvancedToggle:hover { color: var(--onb-fg-muted); }
+
+/* Body — 박스 아니고, 위쪽 hairline + 들여쓰기로만 영역 구분 */
+.summaryAdvancedBody {
+  padding: var(--space-4) 0 0;
+  border-top: var(--hairline) solid var(--onb-border);
+}
+
+/* ── Axis panel — Summary 고급설정 전용 wide variant ─────
+   Free mode 사이드바(narrow)와 공유되는 OnboardingAxisPanel을
+   Summary 안쪽 넓은 폭(≈700px)에선 라벨-컨트롤 가로 2열로 재배치하고
+   각 세그먼트에 미니 프리뷰를 얹는다. narrow(.axis* / .segment*)는 그대로 유지. */
+
+.axisAdv {
+  display: flex;
+  flex-direction: column;
+  color: var(--onb-fg);
+}
+.axisAdvHead {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: var(--space-2);
+}
+.axisAdvRow {
+  display: grid;
+  grid-template-columns: calc(var(--space-16) * 1) 1fr;
+  gap: var(--space-8);
+  align-items: start;
+  padding: var(--space-5) 0;
+  border-top: var(--hairline) solid var(--onb-border);
+}
+.axisAdvRow:first-of-type { border-top: none; padding-top: var(--space-2); }
+.axisAdvLabel {
+  font-size: var(--text-sm);
+  color: var(--onb-fg);
+  font-weight: var(--font-weight-medium);
+  padding-top: var(--space-2);
+  line-height: var(--lh-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+}
+
+/* 테마가 잠근 축 뱃지 — "Spare 결정" 같은 코드폰트 소형 라벨.
+   왼쪽 hairline 하나로만 "묶음" 암시, 색/배경 박스 금지. */
+.axisLockBadge {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  font-family: var(--font-code);
+  letter-spacing: 0.04em;
+  padding-left: var(--space-2);
+  border-left: var(--hairline) solid var(--onb-border-strong);
+  line-height: var(--lh-xs);
+}
+.axisAdvControl {
+  min-width: 0;
+}
+
+/* 세그먼트 wide — iOS 스타일. 그룹 전체에 track bg를 깔고,
+   활성 아이템은 "track 위에 올라앉은 흰 카드"로 올라옴.
+   비활성 영역이 보여서 "이게 선택지 세트"로 읽히게. */
+.segmentWide {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-0_5);
+  width: 100%;
+  padding: var(--space-1);
+  background: color-mix(in oklab, var(--onb-fg) 5%, transparent);
+  border-radius: var(--radius-md);
+}
+.segmentWideItem {
+  appearance: none;
+  background: transparent;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-1_5);
+  color: var(--onb-fg-muted);
+  transition: var(--transition-colors);
+  min-width: 0;
+}
+.segmentWideItem:hover {
+  color: var(--onb-fg);
+}
+.segmentWideItem[data-active] {
+  background: var(--onb-card-bg);
+  color: var(--onb-fg);
+  box-shadow: var(--shadow-xs);
+}
+/* 테마가 잠근 축 — 비활성 선택지는 흐려지고 클릭 불가 */
+.segmentWideItem[data-disabled] {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.segmentWideItem[data-disabled]:hover {
+  background: transparent;
+  color: var(--onb-fg-muted);
+}
+.segmentWidePreview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-10);
+  height: var(--space-8);
+  flex-shrink: 0;
+}
+.segmentWideLabel {
+  font-size: var(--text-xs);
+  color: inherit;
+  letter-spacing: 0.01em;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.segmentWideSublabel {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  font-family: var(--font-code);
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+}
+.segmentWideItem[data-active] .segmentWideSublabel { opacity: 1; }
+
+/* Hue 블록 wide — 세그먼트와 동일한 track 리듬 */
+.axisAdvHue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.axisAdvHue .huePresets {
+  gap: var(--space-0_5);
+  padding: var(--space-1);
+  background: color-mix(in oklab, var(--onb-fg) 5%, transparent);
+  border-radius: var(--radius-md);
+}
+.axisAdvHue .hueChip {
+  background: transparent;
+  border-color: transparent;
+  border-radius: var(--radius-sm);
+}
+.axisAdvHue .hueChip:hover {
+  background: transparent;
+  border-color: transparent;
+}
+.axisAdvHue .hueChip[data-active] {
+  background: var(--onb-card-bg);
+  border-color: transparent;
+  box-shadow: var(--shadow-xs);
+}
+.axisAdvCheck {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  cursor: pointer;
+  margin-top: var(--space-1);
+}
+
+/* ── Preview atoms ───────────────────────────────────── */
+
+/* Mode — 반-반 원형. light/dark 한 눈에 */
+.modeSwatch {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  border: var(--hairline) solid var(--onb-border-strong);
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+}
+.modeSwatch[data-mode="light"] { background: var(--onb-mode-light); }
+.modeSwatch[data-mode="dark"] { background: var(--onb-mode-dark); }
+
+.paletteSwatch {
+  width: var(--space-6);
+  height: var(--space-6);
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+.accentPreview {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+.accentDot {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+/* Shape — 색 톤 다운, 활성 시 또렷 */
+.shapePreview {
+  display: inline-block;
+  width: var(--space-6);
+  height: var(--space-6);
+  background: color-mix(in oklab, var(--onb-fg) 35%, transparent);
+  transition: var(--transition-colors);
+}
+.segmentWideItem[data-active] .shapePreview {
+  background: var(--onb-fg);
+}
+.shapePreview[data-shape="crisp"] { border-radius: var(--radius-none); }
+.shapePreview[data-shape="standard"] { border-radius: var(--radius-xs); }
+.shapePreview[data-shape="soft"] { border-radius: var(--radius-full); }
+
+/* Density — bar 두께·여백 미세 조정 */
+.densityMini {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  width: var(--space-8);
+  height: var(--space-6);
+}
+.densityMini > span {
+  display: block;
+  background: color-mix(in oklab, var(--onb-fg) 30%, transparent);
+  border-radius: var(--radius-xs);
+  height: var(--space-0_5);
+}
+.segmentWideItem[data-active] .densityMini > span {
+  background: color-mix(in oklab, var(--onb-fg) 60%, transparent);
+}
+.densityMini[data-density="compact"] > span { margin-bottom: var(--space-1); }
+.densityMini[data-density="default"] > span { margin-bottom: var(--space-1_5); }
+.densityMini[data-density="comfortable"] > span { margin-bottom: var(--space-2); }
+.densityMini > span:last-child { margin-bottom: 0; }
+
+.motionPreview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: var(--space-10);
+  height: var(--space-6);
+  padding-left: var(--space-1);
+}
+.motionDot {
+  display: inline-block;
+  width: var(--space-2_5);
+  height: var(--space-2_5);
+  border-radius: var(--radius-full);
+  background: var(--onb-fg);
+}
+.motionDot[data-motion="bouncy"] {
+  animation: axisAdvBounce calc(var(--duration-slower) * 4) var(--ease-emphasized) infinite;
+}
+.motionDot[data-motion="standard"] {
+  animation: axisAdvSlide calc(var(--duration-slower) * 5) var(--ease-in-out) infinite;
+}
+.motionDot[data-motion="calm"] {
+  animation: axisAdvFade calc(var(--duration-slower) * 7) var(--ease-in-out) infinite;
+}
+.motionDot[data-motion="none"] {
+  opacity: 0.4;
+}
+@keyframes axisAdvBounce {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(var(--space-5)); }
+}
+@keyframes axisAdvSlide {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(var(--space-5)); }
+}
+@keyframes axisAdvFade {
+  0%, 100% { opacity: 1; transform: translateX(0); }
+  50% { opacity: 0.5; transform: translateX(var(--space-5)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .motionDot { animation: none; }
+}
+
+.iconFamilyPreview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--onb-fg-muted);
+}
+.segmentWideItem[data-active] .iconFamilyPreview { color: var(--onb-fg); }
+
+/* Icon family/weight 미리보기 — 트리오로 family 특색 체감. preview 박스 밖으로 overflow 허용. */
+.iconTrio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--onb-fg-muted);
+  transition: var(--transition-colors);
+  white-space: nowrap;
+}
+.segmentWideItem[data-active] .iconTrio { color: var(--onb-fg); }
+/* 아이콘 트리오를 담은 preview 박스는 더 넓게 */
+.segmentWidePreview:has(.iconTrio) {
+  width: auto;
+}
+
+/* Focus ring — 미니 버튼에 ring on/off */
+.focusRingPreview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-10);
+  height: var(--space-8);
+}
+.focusRingButton {
+  display: inline-block;
+  width: var(--space-6);
+  height: var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--onb-fg);
+}
+.focusRingButton[data-on] {
+  box-shadow:
+    0 0 0 calc(var(--hairline) * 1) var(--onb-bg),
+    0 0 0 calc(var(--hairline) * 3) color-mix(in oklab, var(--onb-rail) 60%, transparent);
+}
+
+/* Voice — 세로 스택 샘플 문구. 세그먼트가 아닌 "카드 리스트" 톤으로.
+   같은 상황을 세 톤으로 보여줘서 체감이 바로 와닿게. */
+.voiceGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+  width: 100%;
+  padding: var(--space-1);
+  background: color-mix(in oklab, var(--onb-fg) 5%, transparent);
+  border-radius: var(--radius-md);
+}
+.voiceItem {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  text-align: left;
+  transition: var(--transition-colors);
+}
+.voiceItem:hover .voiceSample {
+  color: var(--onb-fg);
+}
+.voiceItem[data-active] {
+  background: var(--onb-card-bg);
+}
+.voiceItem[data-active] .voiceSample {
+  color: var(--onb-fg);
+}
+.voiceItem[data-active] .voiceCode {
+  color: var(--onb-fg);
+}
+.voiceSample {
+  font-size: var(--text-sm);
+  color: var(--onb-fg-muted);
+  flex: 1;
+  min-width: 0;
+  transition: var(--transition-colors);
+}
+.voiceCode {
+  font-size: var(--text-xs);
+  color: var(--onb-fg-muted);
+  font-family: var(--font-code);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+/* ── Free mode ─────────────────────────────────────────── */
+
+.freeShell {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+  display: grid;
+  grid-template-columns: calc(var(--space-24) * 3.4) 1fr;
+}
+.freeAxis {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow: hidden;
+  border-right: var(--hairline) solid var(--border);
+  background: var(--bg-subtle);
+  display: flex;
+  flex-direction: column;
+}
+.freeAxisScroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.freeAxisInner {
+  padding: var(--space-5) var(--space-5) var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.freeContent {
+  overflow-y: auto;
+  min-height: 0;
+  max-height: 100vh;
+}
+.freeContentInner {
+  padding: var(--space-8) var(--space-8) var(--space-24);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.freeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.freeTitle {
+  font-size: var(--text-2xl);
+  line-height: var(--lh-2xl);
+  color: var(--fg-strong);
+  letter-spacing: -0.02em;
+}
+.freeLead {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  margin-top: var(--space-1);
+}
+
+/* 축 컨트롤러 내부 (기존과 동일) */
+.axisRailHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--hairline) solid var(--border);
+}
+.axisRailTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--fg);
+}
+.axisRailReset {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+.axisRailReset:hover { color: var(--fg); }
+.axisRow { display: flex; flex-direction: column; gap: var(--space-1_5); }
+.axisLabel { font-size: var(--text-xs); color: var(--fg-muted); }
+.segment {
+  display: flex;
+  gap: var(--space-0_5);
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-0_5);
+}
+.segmentItem {
+  flex: 1;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+.segmentItem:hover { color: var(--fg); }
+.segmentItem[data-active] {
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-xs);
+}
+.hueBox { display: flex; flex-direction: column; gap: var(--space-2); }
+.huePresets { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1); }
+.hueChip {
+  appearance: none;
+  border: var(--hairline) solid var(--border);
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  min-width: 0;
+}
+.hueChip:hover { border-color: var(--border-strong); }
+.hueChip[data-active] { border-color: var(--primary); }
+.hueSwatch {
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  flex-shrink: 0;
+}
+.hueLabel {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hueDial { display: flex; align-items: center; gap: var(--space-2); }
+.hueDial input[type="range"] { flex: 1; min-width: 0; }
+.hueValue {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  min-width: var(--space-8);
+  text-align: right;
+}
+.hexRow { display: flex; align-items: center; gap: var(--space-2); }
+.hexSwatch {
+  width: var(--space-5);
+  height: var(--space-5);
+  border-radius: var(--radius-xs);
+  border: var(--hairline) solid var(--border-strong);
+  flex-shrink: 0;
+}
+.hexInput {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+  color: var(--fg);
+}
+.hexInput:focus { outline: none; border-color: var(--primary); }
+.iconRow { display: flex; flex-direction: column; gap: var(--space-1); }
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+  .rail { padding: var(--space-4); height: auto; }
+  .contentInner { padding: var(--space-6); height: auto; }
+  .stepBody { overflow: visible; }
+  .freeShell { grid-template-columns: 1fr; }
+  .freeAxis { position: static; height: auto; }
+}
+
+/* ── Theme card title row — 영어 접두 뱃지 + 한국어 제목 ── */
+
+.themeTitleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Theme hover preview — 커서 따라다니는 둥둥 뜬 이미지 ── */
+
+.themeHoverLayer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: var(--z-tooltip);
+  width: calc(var(--space-24) * 4);
+  height: calc(var(--space-24) * 2.667);
+  padding: var(--space-1);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  opacity: 0;
+  transform: translate(-9999px, -9999px);
+  transition: opacity var(--duration-base) var(--ease-out);
+  animation: themeHoverFloat var(--duration-slower) var(--ease-in-out) infinite alternate;
+}
+.themeHoverLayer[data-visible="true"] {
+  opacity: 1;
+}
+
+.themeHoverImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--radius-md);
+}
+
+.themeHoverPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  background: var(--bg-subtle);
+}
+.themeHoverPlaceholderLabel {
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+.themeHoverPlaceholderHint {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+@keyframes themeHoverFloat {
+  from { translate: 0 0; }
+  to { translate: 0 calc(var(--space-1) * -1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .themeHoverLayer { animation: none; transition: none; }
+}
+
+/* ── Layout wireframe (호버 미리보기 안쪽) ─────────────── */
+
+.layoutWire {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg);
+  border-radius: var(--radius-md);
+}
+.layoutWireSidebar {
+  width: calc(var(--space-24) * 1);
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--primary) 80%, var(--fg) 20%);
+  border-radius: var(--radius-sm);
+}
+.layoutWireMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.layoutWireTopbar {
+  height: var(--space-6);
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--primary) 50%, var(--bg) 50%);
+  border-radius: var(--radius-sm);
+}
+.layoutWireContent {
+  flex: 1;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+}
+/* topbar-first: 탑바가 가로 전체, 아래로 사이드바+콘텐츠 */
+.layoutWire[data-frame="topbar-first"] {
+  flex-direction: column;
+}
+.layoutWireBody {
+  flex: 1;
+  display: flex;
+  gap: var(--space-2);
+  min-height: 0;
+}
+.layoutWireTabs {
+  height: var(--space-4);
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--primary) 25%, var(--bg) 75%);
+  border-radius: var(--radius-sm);
+}
+

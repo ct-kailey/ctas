@@ -1,0 +1,137 @@
+/* TableCell*
+   ───────────────────────────────────────────────────────────────
+   TableRow 셀 안쪽에 꽂히는 "콘텐츠 포맷터"들. 공통 레이아웃만.
+   폭·정렬·padding은 상위 TableRow .cell에서 통제한다.
+
+   토큰만 사용 — 색/시간/폰트 리터럴 금지.
+*/
+
+/* 공용 inline-flex 베이스 — 모든 셀 포맷터가 상속.
+   overflow/mask는 상위 TableRow .cellInner가 책임 — 포맷터는 clipping을 두지 않는다.
+   (여기서 overflow:hidden을 주면 자식 mask가 중첩되어 fade가 깨짐). */
+.base {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+/* Text ─────────────────────────────────────────────────── */
+.text {
+  white-space: nowrap;
+  color: inherit;
+}
+
+.textMuted { color: var(--fg-muted); }
+.textStrong { color: var(--fg-strong); font-weight: var(--font-weight-medium); }
+.textSubtle { color: var(--fg-subtle); }
+
+/* Number — 숫자 셀. tabular-nums로 자릿수 정렬 안정. */
+.number {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 통화/단위 접미사는 fg-muted로 한 톤 약하게. */
+.numberUnit {
+  color: var(--fg-muted);
+  margin-inline-start: var(--space-0_5);
+}
+
+/* 음수 하이라이트 — destructive 톤. */
+.numberNegative {
+  color: var(--destructive);
+}
+
+/* Image cell — 썸네일 + 라벨.
+   썸네일 ↔ 라벨 사이는 공용 base(--space-1)보다 넉넉하게 --space-2.
+   아이콘·이미지 자리에 라벨이 바짝 붙으면 "그릇과 내용"의 리듬이 깨짐. */
+.imageCell {
+  gap: var(--space-2);
+}
+
+/* Image thumb — 정사각/radius-sm 기본. src 없거나 로드 실패 시 빈 회색박스로 노출.
+   셀 min-height를 넘기지 않도록 size로 받은 px 그대로 적용. */
+.image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--bg-muted);
+  color: var(--fg-subtle);
+  flex-shrink: 0;
+}
+
+.imageImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Icon ───────────────────────────────────────────────────
+   아이콘 ↔ 라벨 사이도 image/avatar와 같은 리듬으로 --space-2. */
+.icon {
+  color: var(--fg);
+  gap: var(--space-2);
+}
+
+.iconMuted { color: var(--fg-muted); }
+.iconSubtle { color: var(--fg-subtle); }
+.iconStrong { color: var(--fg-strong); }
+.iconAccent { color: var(--primary); }
+
+/* Avatar ───────────────────────────────────────────────── */
+.avatar {
+  /* 아바타 ↔ 이름 사이 간격 — 다른 리딩 요소(image/icon)보다 한 단계 넓게.
+     사람 식별 셀은 "얼굴"과 "이름"이 분리된 두 정보라 숨 쉴 공간이 필요. */
+  gap: var(--space-3);
+}
+
+.avatarText {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: var(--lh-sm);
+}
+
+.avatarSublabel {
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* Meter ────────────────────────────────────────────────── */
+.meter {
+  gap: var(--space-2);
+}
+
+.meterTrack {
+  position: relative;
+  display: inline-block;
+  height: var(--space-1_5);
+  background: var(--bg-muted);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.meterFill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  background: var(--primary);
+  border-radius: inherit;
+}
+
+.meterSuccess .meterFill { background: var(--success); }
+.meterWarning .meterFill { background: var(--warning); }
+.meterDestructive .meterFill { background: var(--destructive); }
+
+.meterLabel {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
