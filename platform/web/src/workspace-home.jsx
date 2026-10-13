@@ -13,7 +13,7 @@ const GRADES = {
 const FILTERS = ['all', 'urgent', 'check', 'info'];
 const GRADE_ORDER = { urgent: 0, check: 1, info: 2 };
 const TAB_LABELS = {
-  reviews: '변경 검토', documents: '문서·분석 확인', context: 'Context 검토',
+  reviews: '변경 검토', documents: '문서·분석 확인', context: '요구사항·결정 검토',
   questions: '질문 확인', 'work-items': '작업 확인', channels: '수집 기록 검토',
 };
 const RULE_LABELS = {
@@ -27,9 +27,11 @@ const RULE_LABELS = {
   channel_uncertain: '대화 분석 결과 확인 필요', channel_review: '수집 기록 검토 대기',
 };
 const EVENT_LABELS = {
+  'member.added': '구성원 추가', 'member.role_changed': '구성원 권한 변경', 'member.removed': '구성원 해제',
+  'implementation.repository_access_updated': '저장소 읽기 연결 변경',
   'project.created': '프로젝트 생성', 'domain.created': '업무 영역 등록',
   'revision.uploaded': '문서 등록', 'revision.recorded': '기록 작성',
-  'baseline.initial_published': '첫 기준선 발행', 'baseline.published': '기준선 갱신',
+  'baseline.initial_published': '첫 확정본 지정', 'baseline.published': '확정본 갱신',
   'review.requested': '변경 검토 요청', 'review.approved': '변경 승인', 'review.rejected': '변경 반려',
   'review.question_answered': '검토 질문 답변', 'job.started': '문서 분석 시작',
   'job.succeeded': '문서 분석 완료', 'job.failed': '문서 분석 실패', 'job.uncertain': '분석 결과 확인 필요',
@@ -93,7 +95,7 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
   const stats = [
     { label: '문서·기록', value: counts.documents ?? documents.length, tab: 'documents' },
     { label: '변경 검토 대기', value: counts.pending_reviews ?? (overview?.reviews || []).filter(item => ['needs_review', 'no_change'].includes(item.status)).length, tab: 'reviews' },
-    { label: '발행된 기준선', value: counts.baselines ?? documents.filter(item => item.baseline_revision_id).length, tab: 'documents' },
+    { label: '확정한 문서', value: counts.baselines ?? documents.filter(item => item.baseline_revision_id).length, tab: 'documents' },
     { label: '진행 중인 분석', value: counts.active_jobs ?? (overview?.jobs || []).filter(item => ['queued', 'running'].includes(item.status)).length, tab: 'documents' },
   ];
   return <div className="workspace-home">
@@ -111,9 +113,9 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
     </section>
 
     <section className="workspace-home-section" aria-labelledby="workspace-flow-heading">
-      <div className="workspace-home-section-head"><h2 id="workspace-flow-heading">프로젝트 흐름</h2><span className="workspace-home-meta">필요한 단계로 이동해 업무를 이어가세요.</span></div>
-      <ol className="workspace-home-flow">{WORKFLOW_STEPS.map((step, index) => <li key={step.id}><button type="button" onClick={() => onNavigate(step.primaryTab, { workflowStep: step.id })} aria-label={`${index + 1}. ${step.label} 열기`}><span className="workspace-home-step-number">{String(index + 1).padStart(2, '0')}</span><strong>{step.label}</strong><p>{step.description}</p><ArrowRight size={15} aria-hidden="true" /></button></li>)}</ol>
-      <p className="workspace-home-note">새 자료나 변경 요청이 생기면 관련 단계로 돌아가 검토합니다. AI 실행과 기준 반영은 담당자의 승인 후 진행합니다.</p>
+      <div className="workspace-home-section-head"><h2 id="workspace-flow-heading">업무 바로가기</h2></div>
+      <div className="workspace-home-flow">{WORKFLOW_STEPS.filter(area => !area.management).map(area => <button key={area.id} type="button" onClick={() => onNavigate(area.primaryTab, { workflowStep: area.id })}><strong>{area.label}</strong><p>{area.description}</p><ArrowRight size={15} aria-hidden="true" /></button>)}</div>
+      <p className="workspace-home-note">정해진 순서는 없습니다. 작업 중에도 자료·요구사항·계약을 추가하거나 수정할 수 있습니다.</p>
     </section>
 
     <div className="workspace-home-columns">
@@ -141,7 +143,6 @@ export function AttentionInbox({ project, projects, onProjectSelect, documentLoa
   const items = filter === 'all' ? allItems : allItems.filter(item => item.grade === filter);
   const total = attention?.counts?.[filter];
   return <div className="workspace-home workspace-attention-inbox">
-    <p className="workspace-home-description">프로젝트를 선택해 확인할 기록, 지연된 응답, 멈춘 작업을 살펴보세요.</p>
     <div className="workspace-home-section-head"><AttentionProjectSelect project={project} projects={projects} onProjectSelect={onProjectSelect} /><Button type="button" variant="secondary" icon={RefreshCw} busy={attentionLoading} onClick={onRefreshAttention}>새로고침</Button></div>
     <Tabs size="sm" variant="underline" value={filter} onValueChange={setFilter}>
       <Tabs.List aria-label="알림 우선순위">{FILTERS.map(value => <Tabs.Trigger key={value} value={value}>{value === 'all' ? '전체' : GRADES[value].label}{attention ? ` ${attention.counts[value].toLocaleString()}` : ''}</Tabs.Trigger>)}</Tabs.List>

@@ -15,9 +15,20 @@ test('executor includes already staged edits and produces a real checked patch w
  await git(['init','-b','main']);await fs.writeFile(path.join(source,'policy.js'),'module.exports = 5;\n');await git(['add','.']);await git(['-c','user.name=QA','-c','user.email=qa@example.test','commit','-m','Synthetic fixture']);
  const head=await git(['rev-parse','HEAD']);
  const s={repository:{url:'https://github.com/example/synthetic.git',base_branch:'main',head_sha:head},plan_input:{project:{name:'Synthetic',goal:'Change policy'},sources:[]},plan_result:{tasks:[{title:'Change to 50'}]}};
- const result=await executeCheckout(s,dir,{codexBin:'synthetic-codex',runImpl:async(command,args,options)=>{
-  if(command==='git'&&args[0]==='clone'){const next=[...args];next[next.length-2]=source;return run(command,next,options);}
+ const readToken='github_pat_synthetic_executor_read_0123456789';
+ const result=await executeCheckout(s,dir,{codexBin:'synthetic-codex',repositoryToken:readToken,runImpl:async(command,args,options)=>{
+  if(command==='git'&&args[0]==='clone'){
+   assert.equal(options.env.GIT_CONFIG_KEY_1,'http.https://github.com/.extraheader');
+   assert.equal(options.env.GIT_CONFIG_VALUE_1,'Authorization: Basic '+Buffer.from('x-access-token:'+readToken).toString('base64'));
+   assert.equal(options.env.GIT_CONFIG_KEY_0,'http.followRedirects');assert.equal(options.env.GIT_CONFIG_VALUE_0,'false');
+   assert.ok(!JSON.stringify(args).includes(readToken));
+   const next=[...args];next[next.length-2]=source;return run(command,next,options);
+  }
+  assert.equal(options.env.GIT_CONFIG_VALUE_1,undefined);assert.equal(options.env.AINS_GITHUB_READ_TOKEN,undefined);
+  assert.ok(!JSON.stringify(options).includes(readToken));
   if(command==='synthetic-codex'){
+   const gitConfig=await fs.readFile(path.join(options.cwd,'.git/config'),'utf8');
+   assert.ok(!gitConfig.includes(readToken));assert.ok(!gitConfig.includes('extraheader'));
    await fs.writeFile(path.join(options.cwd,'policy.js'),'module.exports = 50;\n');await git(['add','policy.js'],options.cwd);
    await fs.writeFile(args[args.indexOf('--output-last-message')+1],JSON.stringify({summary:'Policy changed',reported_checks:['Synthetic test'],limitations:[]}));
    options.onLine(JSON.stringify({type:'item.completed',item:{type:'command_execution',command:'node --test',exit_code:0}}));return {code:0,stdout:'',stderr:''};
@@ -25,4 +36,13 @@ test('executor includes already staged edits and produces a real checked patch w
   return run(command,args,options);
  }});
  assert.deepEqual(result.changed_files,['policy.js']);assert.match(result.patch,/\+module.exports = 50/);assert.equal(result.observed_commands[0].exit_code,0);assert.equal(await git(['rev-parse','HEAD'],path.join(dir,'checkout')),head);assert.equal(await git(['remote'],path.join(dir,'checkout')),'');
+});
+test('executor private clone failures report a safe action code without propagating Git output or credentials',async t=>{
+ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'ains-clone-denied-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));
+ const snapshot={repository:{url:'https://github.com/example/private.git',base_branch:'main'}};
+ for(const token of [undefined,'github_pat_synthetic_executor_read_0123456789']) {
+  await assert.rejects(executeCheckout(snapshot,dir,{repositoryToken:token,runImpl:async()=>({code:128,stdout:'',stderr:`upstream denied ${token || 'anonymous'}`})}),error=>{
+   assert.equal(error.code,token?'REPOSITORY_CLONE_ACCESS_FAILED':'REPOSITORY_CLONE_AUTH_OR_URL_REQUIRED');assert.ok(!error.message.includes('upstream'));if(token)assert.ok(!error.message.includes(token));return true;
+  });
+ }
 });

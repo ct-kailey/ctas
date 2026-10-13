@@ -56,15 +56,16 @@ test('workspace remains accessible when browser storage access is blocked', asyn
 });
 
 
-test('workflow navigation preserves step intent without marking progress', async () => {
+test('work areas keep legacy links, member navigation and free access without progress gates', async () => {
   const { readWorkspaceLocation, rememberWorkspaceReturn, restoreWorkspaceReturn } = await import('../web/src/workspace-navigation.mjs');
   const { WORKFLOW_STEPS, resolveWorkflowStep } = await import('../web/src/workspace-flow.mjs');
-  assert.equal(WORKFLOW_STEPS.length, 8);
+  assert.ok(WORKFLOW_STEPS.some(area => area.tabs.includes('members')));
   assert.equal(readWorkspaceLocation('').tab, 'home');
+  assert.equal(readWorkspaceLocation('?project=second&tab=members').tab, 'members');
   assert.equal(readWorkspaceLocation('?tab=alerts').workflowStep, null);
   assert.equal(readWorkspaceLocation('?tab=context&step=knowledge').workflowStep, 'knowledge');
   assert.equal(readWorkspaceLocation('?tab=documents&step=knowledge').workflowStep, 'collect');
-  assert.equal(resolveWorkflowStep('work-governance', 'validate').id, 'validate');
+  assert.equal(resolveWorkflowStep('work-governance', 'validate').id, 'plan');
   const entry = readWorkspaceLocation('?project=second&tab=context&step=knowledge');
   const entries = new Map(); const storage = {setItem:(k,v)=>entries.set(k,v), getItem:k=>entries.get(k), removeItem:k=>entries.delete(k)};
   rememberWorkspaceReturn(storage, entry, 1000);

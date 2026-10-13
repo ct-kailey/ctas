@@ -12,7 +12,7 @@ export const STATUS = {
   queued: ['대기 중', 'quiet'], running: ['분석 중', 'blue'], ready: ['추출·정리 완료', 'green'],
   succeeded: ['완료', 'green'], needs_review: ['검토 필요', 'amber'], no_change: ['변경 없음', 'quiet'],
   blocked: ['확인 필요', 'red'], failed: ['실패', 'red'], uncertain: ['결과 확인 필요', 'amber'],
-  approved: ['승인 완료', 'green'], rejected: ['반려', 'red'], published: ['기준선 반영', 'green'],
+  approved: ['승인 완료', 'green'], rejected: ['반려', 'red'], published: ['확정본 반영', 'green'],
   pending: ['대기 중', 'quiet'], extracting: ['추출 중', 'blue'], processing: ['처리 중', 'blue'],
 };
 export const ROLES = { owner: '관리자', reviewer: '검토자', member: '실무자', viewer: '열람자' };
@@ -27,7 +27,7 @@ export function Badge({ status, children, tone }) {
 export function Spinner({ label = '불러오는 중입니다' }) { return <div className="loading" role="status"><CTDSSpinner size="lg" aria-hidden="true" role="presentation" /><span>{label}</span></div>; }
 export function ErrorNotice({ error, onRetry }) {
   if (!error) return null;
-  return <div className="notice error" role="alert"><AlertTriangle size={18} /><div><strong>{error.message || String(error)}</strong>{error.code ? <small>{error.code}</small> : null}</div>{onRetry ? <CTDSButton data-ctds="button" type="button" size="sm" variant="ghost" onClick={onRetry}>다시 불러오기</CTDSButton> : null}</div>;
+  return <div className="notice error" role="alert"><AlertTriangle size={18} /><div><strong>{String(error.message || error).replaceAll('기준선', '확정본').replaceAll('리비전', '버전')}</strong>{error.code ? <details><summary>오류 코드 보기</summary><small>{error.code}</small></details> : null}</div>{onRetry ? <CTDSButton data-ctds="button" type="button" size="sm" variant="ghost" onClick={onRetry}>다시 불러오기</CTDSButton> : null}</div>;
 }
 export function Empty({ icon: Icon, title, children, action, compact = false }) {
   return <CTDSEmptyState size={compact ? 'sm' : 'md'} className={`empty ${compact ? 'compact' : ''}`} data-ctds="empty" illustration={Icon ? <Icon size={24} strokeWidth={1.5} /> : undefined} title={<h3>{title}</h3>} description={children} actions={action} />;
@@ -65,7 +65,7 @@ export function Toast({ message, onClose }) {
   useEffect(() => { const timer = setTimeout(onClose, 7000); return () => clearTimeout(timer); }, [message, onClose]);
   return <div className="toast" role="status"><Check size={18} /><span>{message}</span><button className="icon-button" aria-label="알림 닫기" onClick={onClose}><X size={16} /></button></div>;
 }
-export function SectionHeading({ eyebrow, title, children }) { return <div className="section-heading"><div>{eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}<h2>{title}</h2></div>{children}</div>; }
+export function SectionHeading({ eyebrow, title, children }) { return <div className="section-heading"><div><h2>{title}</h2></div>{children}</div>; }
 export function TextLink({ children, ...props }) { return <CTDSButton data-ctds="button" type="button" size="sm" variant="ghost" {...props} rightIcon={<ArrowRight size={14} />}>{children}</CTDSButton>; }
 
 const SOURCE_CHECKS = {

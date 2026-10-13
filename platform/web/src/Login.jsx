@@ -69,11 +69,11 @@ export function Login({ onLogin, onGoogleStart }) {
   return <main className="login-page">
     <section className="login-story">
       <a className="wordmark light" href="/" aria-label="AINS 홈">ains<span>●</span></a>
-      <div className="login-story-body"><span className="eyebrow">WORK, WITH CONTEXT</span><h1>변경을 이해하고,<br />다음 기준을 세우다.</h1><p>문서 속 작은 차이부터 프로젝트의 다음 결정까지.<br />근거가 이어지는 SI·SM 작업실.</p><div className="login-process"><span>문서</span><ArrowRight size={18} /><span>검토</span><ArrowRight size={18} /><span>기준선</span></div></div>
+      <div className="login-story-body"><h1>변경을 이해하고,<br />다음 기준을 세우다.</h1><p>문서 속 작은 차이부터 프로젝트의 다음 결정까지.<br />근거가 이어지는 SI·SM 작업실.</p><div className="login-process"><span>문서</span><ArrowRight size={18} /><span>검토</span><ArrowRight size={18} /><span>확정본</span></div></div>
       <footer><span>AINS × Nora</span><span>일의 맥락을 연결합니다.</span></footer><div className="login-line line-one" /><div className="login-line line-two" />
     </section>
     <section className="login-form-panel"><div className="login-form-wrap">
-      <span className="eyebrow">YOUR WORKSPACE</span><h2>작업실에 들어가기</h2><p className="muted">등록된 계정으로 업무를 이어가세요.</p>
+      <h2>작업실에 들어가기</h2><p className="muted">등록된 계정으로 업무를 이어가세요.</p>
       <div ref={errorRegion} tabIndex={-1} className="login-error-region"><ErrorNotice error={error} /></div>
       {providers.loading ? <div className="login-provider-state" role="status"><LoaderCircle size={15} className="spin" />로그인 방식을 확인하고 있습니다.</div> : providers.google ? <div className="login-google">
         <button type="button" className="button secondary google-continue" disabled={busy || redirecting} onClick={continueWithGoogle} aria-busy={redirecting}><img src={googleLogo} width="20" height="20.4" alt="" aria-hidden="true" /><span>{redirecting ? 'Google로 이동 중…' : 'Google로 계속하기'}</span>{redirecting ? <LoaderCircle size={16} className="spin google-progress" aria-hidden="true" /> : null}</button>

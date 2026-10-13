@@ -79,14 +79,19 @@ function createImplementationLedger(pool,{requireGovernance=true}={}){return {
       await audit(client,p,u,'implementation.settings_updated',p,{previous_version:current.version,version:current.version+1,goal,repository_url:url,base_branch:base});return settings(client,p);
     });
   },
-  async recordRepositoryCheck(p,u,version,body={}){
-    object(body,['status','head_sha','checked_at']);
+  async recordRepositoryCheck(p,u,version,body={}, {assertAccess}={}){
+    object(body,['status','head_sha','checked_at','reason_code','credential_source']);
     if(!Number.isSafeInteger(version)||version<1||!['ready','empty','inaccessible','branch_missing'].includes(body.status)||typeof body.checked_at!=='string'||!Number.isFinite(Date.parse(body.checked_at)))fail('INVALID_REPOSITORY_CHECK','저장소 확인 결과가 올바르지 않습니다.');
     if(body.status==='ready'?(typeof body.head_sha!=='string'||!SHA.test(body.head_sha)):body.head_sha!==null)fail('INVALID_REPOSITORY_CHECK','저장소 commit 정보가 올바르지 않습니다.');
+    if(body.reason_code!=null&&!require('./repository-check').REASON_CODES.has(body.reason_code))fail('INVALID_REPOSITORY_CHECK','저장소 확인 사유가 올바르지 않습니다.');
+    if(body.credential_source!==undefined&&!['project','github_delivery','server','anonymous'].includes(body.credential_source))fail('INVALID_REPOSITORY_CHECK','저장소 인증 출처가 올바르지 않습니다.');
     const checked={status:body.status,head_sha:body.head_sha,checked_at:new Date(body.checked_at).toISOString()};
+    if(body.reason_code!==undefined)checked.reason_code=body.reason_code;
+    if(body.credential_source!==undefined)checked.credential_source=body.credential_source;
     return transaction(pool,async client=>{
       await member(client,p,u,REVIEWERS);const current=await settings(client,p,true);
       if(current.version!==version)fail('SETTINGS_VERSION_CONFLICT','저장소 확인 중 설정이 변경되었습니다.',409);
+      if(assertAccess)await assertAccess(client,current);
       if(!current.repository_url||!current.base_branch)fail('PROJECT_SETTINGS_REQUIRED','먼저 저장소와 기준 브랜치를 설정하세요.',409);
       if(current.repository_check&&Date.parse(current.repository_check.checked_at)>Date.parse(checked.checked_at))return current;
       await client.query('UPDATE project_settings SET repository_check=$1,updated_at=now() WHERE project_id=$2',[JSON.stringify(checked),p]);

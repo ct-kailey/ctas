@@ -3,6 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const { createDashboardRouter } = require('./dashboard-static');
 const { mountDashboardRoutes } = require('./dashboard');
+const { mountProjectMemberRoutes } = require('./project-members');
 const multer = require('multer');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
@@ -17,7 +18,7 @@ const { createWorkItemLedger } = require('./work-item-ledger');
 const { mountCommercialRoutes } = require('./commercial-routes');
 const { mountContextRoutes } = require('./context-routes');
 const { mountContextAIRoutes, mountContextAIWebhook } = require('./context-ai-routes');
-const { checkRepository } = require('./repository-check');
+const { mountRepositoryAccessRoutes } = require('./repository-access');
 const {createProviderSettings,mountProviderRoutes}=require('./provider-settings');
 const {mountIntegrationRoutes,mountIntegrationBridge}=require('./integration-routes');
 const {mountTranscriptionRoutes}=require('./transcription-routes');
@@ -33,7 +34,7 @@ const {mountWorkAIRoutes,mountWorkAIWebhook}=require('./work-ai-routes');
 const {mountExecutionQueueBridge,mountExecutionQueueRoutes}=require('./execution-queue');
 const {kakaoWatcherScript}=require('./kakao-watcher-download');
 
-function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {} }) {
+function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {} }) {
   const app = express(), ledger = createLedger(pool), auth = createAuth(pool, { appOrigin, production });
   const registrationAssistant = createRegistrationAssistant({ pool });
   const channels = createChannelLedger(pool);
@@ -90,6 +91,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   function roles(...allowed) { return (req,_res,next) => allowed.includes(req.projectRole) ? next() : next(error('FORBIDDEN','이 작업을 수행할 권한이 없습니다.',403)); }
   const write=roles('owner','reviewer','member'), review=roles('owner','reviewer');
   mountDashboardRoutes(project,{pool});
+  mountProjectMemberRoutes(project,{pool});
   mountCommercialRoutes(project,{pool,write,review});
   mountContextRoutes(project,{pool,write,review});
   mountContextAIRoutes(project,{pool,write,review,contextAI});
@@ -121,11 +123,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   project.get('/overview',async(req,res)=>res.json(await ledger.overview(req.params.p)));
   project.get('/settings',async(req,res)=>res.json({settings:await implementation.getSettings(req.params.p,req.user.id)}));
   project.patch('/settings',roles('owner'),async(req,res)=>res.json({settings:await implementation.saveSettings(req.params.p,req.user.id,req.body)}));
-  project.post('/settings/verify-repository',roles('owner'),async(req,res)=>{
-    const settings=await implementation.getSettings(req.params.p,req.user.id);
-    const check=await checkRepository(settings);
-    res.json({settings:await implementation.recordRepositoryCheck(req.params.p,req.user.id,settings.version,check)});
-  });
+  mountRepositoryAccessRoutes(project,{pool,owner:roles('owner'),implementation,deliveryEncryptionKey:githubDelivery.encryptionKey,...repositoryAccess});
   project.get('/implementation-plans',async(req,res)=>res.json({plans:await implementation.listPlans(req.params.p,req.user.id)}));
   project.get('/work-items',async(req,res)=>res.json(await workItems.list(req.params.p,req.user.id)));
   project.get('/work-items/:id',async(req,res)=>res.json({item:await workItems.get(req.params.p,req.params.id,req.user.id)}));

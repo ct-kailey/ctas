@@ -84,7 +84,7 @@ export function SecurityPreview({ onEvent, onNavigate, auditEvents = [] }) {
       </> : null}
       <PreviewNotice>{notice}</PreviewNotice>
     </section>
-    <section className="wp-panel wp-stack"><div className="wp-panel-heading"><div><span className="wp-kicker">Desktop Security</span><h3>개인 CLI 실행의 경계</h3></div><Monitor size={22} aria-hidden="true" /></div><div className="wp-grid-two"><div className="wp-stack"><div className="wp-list-row"><strong>허용 작업·파일 경로</strong><span className="wp-muted">코드 분석·수정·테스트 등 승인한 작업만 실행합니다. 예시 허용 경로는 저장소의 src/와 tests/이며, .env·개인 인증 파일은 제외합니다.</span></div><div className="wp-list-row"><strong>로컬 인증과 프로세스 제어</strong><span className="wp-muted">개인 CLI 자격 증명은 중앙 DB에 저장하지 않습니다. 허용된 IPC API, 취소·시간 제한·오프라인·인증 오류 처리를 구분합니다.</span></div></div><div className="wp-stack"><div className="wp-list-row"><strong>실행 로그와 공유 결과</strong><span className="wp-muted">인증 정보와 고객 민감정보를 제외한 실행 이력을 남깁니다. 개인 실행 결과는 저장 범위와 공유 권한을 검토한 뒤 중앙 Context에 연결합니다.</span></div><div className="wp-action-row">{onNavigate ? <Button type="button" variant="secondary" icon={ArrowRight} onClick={() => onNavigate('execution')}>중앙·개인 실행 비교</Button> : null}</div></div></div></section>
+    <section className="wp-panel wp-stack"><div className="wp-panel-heading"><div><span className="wp-kicker">Desktop Security</span><h3>개인 CLI 실행의 경계</h3></div><Monitor size={22} aria-hidden="true" /></div><div className="wp-grid-two"><div className="wp-stack"><div className="wp-list-row"><strong>허용 작업·파일 경로</strong><span className="wp-muted">코드 분석·수정·테스트 등 승인한 작업만 실행합니다. 예시 허용 경로는 저장소의 src/와 tests/이며, .env·개인 인증 파일은 제외합니다.</span></div><div className="wp-list-row"><strong>로컬 인증과 프로세스 제어</strong><span className="wp-muted">개인 CLI 자격 증명은 중앙 DB에 저장하지 않습니다. 허용된 IPC API, 취소·시간 제한·오프라인·인증 오류 처리를 구분합니다.</span></div></div><div className="wp-stack"><div className="wp-list-row"><strong>실행 로그와 공유 결과</strong><span className="wp-muted">인증 정보와 고객 민감정보를 제외한 실행 이력을 남깁니다. 개인 실행 결과는 저장 범위와 공유 권한을 검토한 뒤 중앙 프로젝트 기록에 연결합니다.</span></div><div className="wp-action-row">{onNavigate ? <Button type="button" variant="secondary" icon={ArrowRight} onClick={() => onNavigate('execution')}>중앙·개인 실행 비교</Button> : null}</div></div></div></section>
   </div>;
 }
 
@@ -93,7 +93,7 @@ const WEEKS = [
   { week: 2, title: '수집과 관계 연결', work: 'Integration 마무리, Traceability', output: '관계 모델·출처 링크 프로토타입', decision: '컨텍스트 연결 방식 및 실행 요청 모델 검토', route: 'context' },
   { week: 3, title: '근거를 찾는 검색', work: 'Traceability, Smart Retrieval', output: '검색·출처 표시 프로토타입', decision: '검색 질문과 결과 품질 검토', route: 'context' },
   { week: 4, title: '리스크 탐지 기준', work: 'Smart Retrieval, Risk Detection', output: '기본 리스크 규칙 및 탐지 결과', decision: '리스크 분류·판정 기준 결정', route: 'context' },
-  { week: 5, title: '작업 전 사전 검증', work: 'Risk Detection, Pre-flight Check', output: '착수 전 점검 화면 및 결과', decision: '점검 항목·승인 흐름 결정', route: 'preflight' },
+  { week: 5, title: '작업 전 작업 전 점검', work: 'Risk Detection, Pre-flight Check', output: '착수 전 점검 화면 및 결과', decision: '점검 항목·승인 흐름 결정', route: 'preflight' },
   { week: 6, title: '상태와 응답 대기', work: 'Pre-flight, Progress Monitoring', output: 'Task 상태·대기 시간 표시', decision: '모니터링 범위 결정', route: 'tasks' },
   { week: 7, title: '범위와 충돌 관리', work: 'Monitoring, Scope & Conflict, 자동화 설계', output: '범위 연결·중복 탐지 프로토타입', decision: '충돌 판정 및 자동화 범위 결정', route: 'tasks' },
   { week: 8, title: '자동화와 산출물', work: 'Task Automation, Auto Deliverables', output: '요청→Task 흐름, 산출물 템플릿', decision: '자동화 결과·문서 형식 검토', route: 'execution' },
