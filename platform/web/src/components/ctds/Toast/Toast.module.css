@@ -1,0 +1,264 @@
+/* Toast ─────────────────────────────────────────────────────────
+   휘발성 피드백. 코너에 쌓이고 자동 사라짐.
+   구조: [icon · title/description · action · close]
+   placement별 slide-in/out 애니. tone은 아이콘·action 색에만. */
+
+/* Viewport ───────────────────────────────────────────────────── */
+.viewport {
+  position: fixed;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* 420 = space-2(8) * 52.5 → space-2 * 52 로 근사. 420 ≈ 416. */
+  max-width: calc(var(--space-2) * 52);
+  width: calc(100vw - var(--space-6));
+  padding: var(--space-4);
+  margin: 0;
+  list-style: none;
+  outline: none;
+  /* 포인터 이벤트는 자식(.root)에만 */
+  pointer-events: none;
+}
+
+.viewport > * {
+  pointer-events: auto;
+}
+
+.placement-bottom-right {
+  bottom: 0;
+  right: 0;
+}
+
+.placement-top-center {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  align-items: center;
+}
+
+/* top-center는 단일 라인 강제 — 모바일·간결 패턴에서 공간이 좁고
+   한 줄 신호만 깨끗하게 전달. description 숨기고 title은 ellipsis. */
+.placement-top-center .description {
+  display: none;
+}
+.placement-top-center .title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Root ────────────────────────────────────────────────────────── */
+.root {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  /* 우측 padding은 IconButton의 자체 hit area를 감안해 작게. close에 음수 margin으로 외곽 정렬 보정. */
+  padding: var(--space-2_5) var(--space-2) var(--space-2_5) var(--space-3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-sans);
+  /* 280 = space-2(8) * 35 */
+  min-width: calc(var(--space-2) * 35);
+  width: 100%;
+  border: 1px solid transparent;
+  /* 애니메이션 성능: 레이어 승격 + will-change */
+  will-change: transform, opacity;
+}
+
+/* Surfaces ──────────────────────────────────────────────────── */
+.surface-inverse {
+  background: var(--fg);
+  color: var(--bg);
+  --toast-fg: var(--bg);
+  --toast-fg-muted: var(--bg-muted);
+  --toast-close-hover: color-mix(in oklab, var(--bg) 12%, transparent);
+}
+
+.surface-default {
+  background: var(--bg);
+  color: var(--fg);
+  border-color: var(--border);
+  --toast-fg: var(--fg);
+  --toast-fg-muted: var(--fg-muted);
+  --toast-close-hover: var(--bg-subtle);
+}
+
+/* Tones — 아이콘·action 색만 스왑 ─────────────────────────── */
+.tone-neutral   { --toast-accent: var(--toast-fg-muted); }
+.tone-success   { --toast-accent: var(--success); }
+.tone-warning   { --toast-accent: var(--warning); }
+.tone-destructive { --toast-accent: var(--destructive); }
+
+/* Icon ──────────────────────────────────────────────────────── */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: var(--lh-sm);
+  color: var(--toast-accent);
+}
+.icon > svg {
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+}
+
+/* Body ──────────────────────────────────────────────────────── */
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  /* 남은 공간을 전부 차지해 close가 항상 toast 우측 끝에 붙도록. */
+  flex: 1 1 auto;
+}
+
+.title {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--toast-fg);
+  margin: 0;
+}
+
+.description {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  /* title 대비 명확히 약하게 — fg-subtle은 라이트 L=0.68, 다크 L=0.48로 양쪽 모드에서 중간 회색 */
+  color: var(--fg-subtle);
+  margin: 0;
+}
+
+/* inverse 배경에선 fg-subtle이 "검정 배경 위 중간 회색"으로 바로 쓸 수 있지만
+   title(bg=흰)과의 대비를 더 벌리기 위해 bg를 섞어 조금 밝게. */
+.surface-inverse .description {
+  color: color-mix(in oklab, var(--fg-subtle) 60%, var(--bg) 40%);
+}
+
+/* Action slot ───────────────────────────────────────────────── */
+.action {
+  display: inline-flex;
+  /* close와 동일한 원칙 — title 첫 줄 baseline에 정렬. xs Button(24px) 중심을 title lh 중앙에. */
+  margin-top: calc((var(--lh-sm) - var(--control-h-xs)) / 2);
+}
+
+/* inverse 배경에선 action Button이 자체 color: var(--fg)로 어두운 글자가 되어 검정 배경에
+   묻힌다. action은 ghost/outline만 허용되므로 color/border를 반전해 가시성 확보. */
+.surface-inverse .action {
+  color: var(--bg);
+}
+.surface-inverse .action :global(button) {
+  color: var(--bg);
+  border-color: var(--bg-muted);
+}
+.surface-inverse .action :global(button):hover:not(:disabled) {
+  background: color-mix(in oklab, var(--bg) 12%, transparent);
+}
+
+/* Close ─────────────────────────────────────────────────────── */
+.close {
+  flex-shrink: 0;
+  color: var(--toast-fg-muted);
+  /* flex-start 정렬에서 close는 title 첫 줄 line-height 중앙에 맞춤 (Callout과 동일 패턴). */
+  margin-top: calc((var(--lh-sm) - var(--iconbtn-h-sm)) / 2);
+}
+
+/* inverse 배경에선 IconButton ghost의 color(--fg-subtle)/hover color(--fg)가
+   검정 배경에 묻힌다. 역상으로 치환해 bg-muted 글리프 + hover 시 밝아지도록. */
+.surface-inverse .close {
+  color: var(--bg-muted);
+}
+.surface-inverse .close:hover:not(:disabled) {
+  color: var(--bg);
+  background: color-mix(in oklab, var(--bg) 12%, transparent);
+}
+
+/* inverse surface에서 ghost IconButton hover 배경을 밝은 알파로 override.
+   IconButton 자체는 bg-muted를 쓰므로 inverse에선 묻혀 보이지 않도록 보정. */
+.surface-inverse .close:hover {
+  background: var(--toast-close-hover);
+  color: var(--toast-fg);
+}
+
+/* Animations ────────────────────────────────────────────────
+   Sonner/Linear 톤 — 짧은 거리 slide + fade + 미세 scale.
+   In은 ease-emphasized(테마별 커브)로 공간에 '놓이는' 느낌,
+   Out은 slide 없이 fade+scale만 짧게 — 날아가지 않고 '사라짐'. */
+
+@keyframes toast-in-right {
+  from {
+    transform: translateX(var(--space-4)) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-in-top {
+  from {
+    transform: translateY(calc(-1 * var(--space-4))) scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-out {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+}
+
+/* 스와이프로 치울 때는 손가락이 민 방향 그대로 — 거리는 짧게. */
+@keyframes toast-swipe-out-right {
+  from { transform: translateX(var(--radix-toast-swipe-end-x)); }
+  to {
+    transform: translateX(calc(100% + var(--space-4)));
+    opacity: 0;
+  }
+}
+
+.placement-bottom-right .root[data-state="open"] {
+  animation: toast-in-right var(--duration-slow) var(--ease-emphasized);
+}
+
+.placement-top-center .root[data-state="open"] {
+  animation: toast-in-top var(--duration-slow) var(--ease-emphasized);
+}
+
+.placement-bottom-right .root[data-state="closed"],
+.placement-top-center .root[data-state="closed"] {
+  animation: toast-out var(--duration-base) var(--ease-in);
+}
+
+.root[data-swipe="move"] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+
+.root[data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.root[data-swipe="end"] {
+  animation: toast-swipe-out-right var(--duration-base) var(--ease-out);
+}
+
+/* Reduced motion ────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .root[data-state="open"],
+  .root[data-state="closed"],
+  .root[data-swipe="end"] {
+    animation: none;
+  }
+}

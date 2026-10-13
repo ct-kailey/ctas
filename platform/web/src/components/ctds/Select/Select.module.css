@@ -1,0 +1,151 @@
+/* Select — Radix Select 위에 얹은 시각 레이어.
+   Trigger 시각은 Input.module.css에서 재사용하고, 여기서는 Select 전용 잔여만 정의한다.
+   Content/Item 시각은 ContextMenu의 팝오버 표면과 MenuItem 어댑터 패턴을 그대로 따른다. */
+
+/* Trigger 잔여 ────────────────────────────────────────────────────
+   Input.root의 시각 규칙(border/bg/height/padding/font-size/radius)은 그대로 상속.
+   여기서는 <button> UA 스타일(margin·padding·font·text-align·color)을 완전히 리셋해
+   <input>일 때와 시각적으로 1:1 일치시킨다.
+   특히 button의 기본 font는 시스템 폰트(-apple-system-body)로 부모 상속을 끊으므로
+   font: inherit 필수. padding: 0으로 UA 여백을 지우고 root의 padding-inline만 살린다. */
+.trigger {
+  margin: 0;
+  padding-block: 0;
+  /* font-family만 부모 상속으로 리셋 — <button> UA는 시스템 폰트(-apple-system-body)로
+     부모 상속을 끊는다. shorthand `font: inherit`은 font-size까지 덮어써서 사이즈 클래스(sizeSm/Md/Lg)의
+     font-size 지정을 무효화하므로 절대 금지. font-family만 inherit하고 font-size/font-weight/
+     line-height는 Input.root/size 클래스가 정한 값을 그대로 사용. */
+  font-family: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  appearance: none;
+  /* gap · border · border-radius · height · font-size · padding-inline · background은
+     모두 Input.root/variant/size 클래스에서 이미 지정 — 여기서 재선언하지 않는다. */
+}
+.trigger[data-disabled] {
+  cursor: not-allowed;
+}
+/* Input.root의 hover/focus 규칙은 `:has(:focus-visible)` 기반이라 button 트리거에서는
+   자연스럽게 걸리지 않는다. Input과 동일한 시각(border-strong · outline 제거, ring 없음)을
+   button 자신의 focus-visible과 열림 상태에 대해 재선언. */
+.trigger:focus-visible,
+.trigger[data-state="open"] {
+  border-color: var(--border-strong);
+  outline: none;
+}
+/* invalid 상태에서는 열림/포커스에서도 destructive를 유지 — Input과 동일 규칙. */
+.trigger[data-invalid]:focus-visible,
+.trigger[data-invalid][data-state="open"] {
+  border-color: var(--destructive);
+}
+/* line variant는 아래쪽 border만 강조 — Input.line의 focus 규칙과 동일.
+   .line 클래스는 Input.module.css의 hashed 클래스라 직접 참조 불가 →
+   .trigger에 data-variant 어트리뷰트로 커버. */
+.trigger[data-variant="line"]:focus-visible,
+.trigger[data-variant="line"][data-state="open"] {
+  border-color: transparent;
+  border-bottom-color: var(--border-strong);
+}
+.trigger[data-variant="line"][data-invalid]:focus-visible,
+.trigger[data-variant="line"][data-invalid][data-state="open"] {
+  border-color: transparent;
+  border-bottom-color: var(--destructive);
+}
+
+/* 선택된 값 텍스트 슬롯 ─────────────────────────────────────────
+   Input의 .input과 동일한 line-height + font-size 상속 규칙을 따른다.
+   flex:1로 남은 공간을 차지하되 긴 라벨은 ellipsis.
+   placeholder 색은 Radix가 자식 span[data-placeholder]에 부여. */
+.value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  line-height: var(--lh-sm);
+  color: var(--fg);
+}
+.value :global([data-placeholder]) {
+  color: var(--fg-subtle);
+}
+
+/* Chevron ─────────────────────────────────────────────────────────
+   열림 시 180도 회전. transition-transform은 컬러 프리셋에 없어 duration/easing 토큰 조합.
+   Icon 컴포넌트가 svg 크기를 em으로 하드코딩하므로 부모 font-size에 자동 스케일. */
+.chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-subtle);
+  transition: transform var(--duration-fast) var(--ease-out);
+  flex: 0 0 auto;
+}
+.trigger[data-state="open"] .chevron {
+  transform: rotate(180deg);
+}
+/* size별 chevron 아이콘 크기 — Input의 .icon 규칙과 동일한 스텝.
+   trigger의 size는 Input.module.css hashed 클래스라 여기서 직접 참조 불가 →
+   chevron 자체에 data-size를 부여해 참조. */
+.chevron[data-size="sm"] > svg { width: var(--icon-size-xs); height: var(--icon-size-xs); }
+.chevron[data-size="md"] > svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
+.chevron[data-size="lg"] > svg { width: var(--icon-size-md); height: var(--icon-size-md); }
+
+/* Content panel ─────────────────────────────────────────────────
+   ContextMenu.Content와 표면(surface) 시각을 공유. bg·border·radius·shadow·padding·outline은
+   ContextMenu.module.css의 .surface에서 composes로 가져온다.
+   Select 전용 잔여만 여기서:
+   - 폭 규칙: 트리거 폭 이상으로 벌어지도록 --radix-select-trigger-width 사용
+   - 높이 제한: Radix가 계산한 available-height
+   - transform-origin: Select primitive용 변수
+   - overflow hidden: 스크롤 버튼과 viewport가 content 경계 안에 머물도록 */
+.content {
+  composes: surface from "../ContextMenu/ContextMenu.module.css";
+  --select-menu-w: calc(var(--space-2) * 28);
+  width: max-content;
+  min-width: max(var(--radix-select-trigger-width), var(--select-menu-w));
+  max-width: min(
+    calc(var(--select-menu-w) + var(--space-2) * 8),
+    calc(100vw - var(--space-6))
+  );
+  max-height: min(
+    var(--radix-select-content-available-height),
+    calc(100vh - var(--space-6))
+  );
+  z-index: var(--z-popover);
+  transform-origin: var(--radix-select-content-transform-origin);
+  overflow: hidden;
+}
+
+/* In · Out 애니메이션은 전역 유틸 `.m-float`가 담당. Select.tsx에서 Content className에
+   "m-float"을 concat해 발동. globals.css의 .m-float 정의 참고. */
+
+/* Viewport — Radix의 실제 스크롤 영역. 자체 padding 없이 content padding만 사용
+   (스크롤 컨테이너엔 padding 금지 규칙). scrollbar 시각은 globals.css의 overlay 정책. */
+
+/* Scroll buttons — 리스트가 길어 스크롤 필요 시 위/아래 노출되는 힌트 버튼. */
+.scrollButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-h-sm);
+  color: var(--fg-muted);
+  cursor: default;
+  background: linear-gradient(to bottom, var(--bg), transparent);
+}
+.scrollButton:last-child {
+  background: linear-gradient(to top, var(--bg), transparent);
+}
+.scrollButton > svg {
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+}
+
+/* Separator — ContextMenu와 동일 규칙, 원본을 composes로 그대로 재사용.
+   Select 아이템은 selected checkmark를 쓰지 않는다(배경 하이라이트로만 표시) —
+   leading 슬롯은 국기·아이콘 같은 시각 콘텐츠 전용으로 열어둔다. */
+.separator {
+  composes: separator from "../ContextMenu/ContextMenu.module.css";
+}

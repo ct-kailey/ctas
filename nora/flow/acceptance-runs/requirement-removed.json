@@ -1,0 +1,37 @@
+{
+  "kind": "flowRun",
+  "ok": true,
+  "run": {
+    "output": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":null,\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"},\"segment_id\":\"seg-002\",\"text\":\"검토 담당자는 처리 목록을 CSV로 내려받을 수 있다.\"},\"change_id\":\"chg-001\",\"change_type\":\"removed\",\"impacts\":[],\"reason\":\"기준 문서에는 존재하던 REQ-EXPORT-001이 현재 문서에서 더 이상 추출되지 않아 삭제로 분류되었습니다.\",\"requirement_key\":\"REQ-EXPORT-001\",\"risk\":\"high\",\"summary\":\"CSV 내려받기 요구사항이 삭제되었습니다.\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[],\"request_id\":\"req-requirement-removed\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"REQ-EXPORT-001에 대한 구체적인 코드/API/테스트 영향 연결이 제공되지 않아, 영향은 추정 수준으로만 검토되었습니다.\"]}",
+    "outputs": [
+      {
+        "agentId": "agent_e48d935704644fbe8a310f97287e45ea",
+        "agentName": "01 변경 분석",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-requirement-removed\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-EXPORT-001\",\"change_type\":\"removed\",\"risk\":\"high\",\"summary\":\"CSV 내려받기 요구사항이 삭제됨\",\"before\":{\"segment_id\":\"seg-002\",\"text\":\"검토 담당자는 처리 목록을 CSV로 내려받을 수 있다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"}},\"after\":null,\"reason\":\"기준 문서에는 존재하던 REQ-EXPORT-001이 현재 문서에서 더 이상 추출되지 않아 삭제 변경으로 분류된다.\",\"impacts\":[]}],\"questions\":[],\"warnings\":[],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_a87d44bb863a466abe0cf75a8f6fd907",
+        "agentName": "02 영향과 질문",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-requirement-removed\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-EXPORT-001\",\"change_type\":\"removed\",\"risk\":\"high\",\"summary\":\"CSV 내려받기 요구사항이 삭제되었습니다.\",\"before\":{\"segment_id\":\"seg-002\",\"text\":\"검토 담당자는 처리 목록을 CSV로 내려받을 수 있다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"}},\"after\":null,\"reason\":\"기준 문서에는 존재하던 REQ-EXPORT-001이 현재 문서에서 더 이상 추출되지 않아 삭제로 분류되었습니다.\",\"impacts\":[]}],\"questions\":[],\"warnings\":[\"REQ-EXPORT-001에 대한 구체적인 코드/API/테스트 영향 연결이 제공되지 않아, 영향은 추정 수준으로만 검토되었습니다.\"],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_ad65fdbc94cc4d3393fe93afbf1d5dca",
+        "agentName": "03 근거 검증",
+        "text": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":null,\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"},\"segment_id\":\"seg-002\",\"text\":\"검토 담당자는 처리 목록을 CSV로 내려받을 수 있다.\"},\"change_id\":\"chg-001\",\"change_type\":\"removed\",\"impacts\":[],\"reason\":\"기준 문서에는 존재하던 REQ-EXPORT-001이 현재 문서에서 더 이상 추출되지 않아 삭제로 분류되었습니다.\",\"requirement_key\":\"REQ-EXPORT-001\",\"risk\":\"high\",\"summary\":\"CSV 내려받기 요구사항이 삭제되었습니다.\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[],\"request_id\":\"req-requirement-removed\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"REQ-EXPORT-001에 대한 구체적인 코드/API/테스트 영향 연결이 제공되지 않아, 영향은 추정 수준으로만 검토되었습니다.\"]}"
+      }
+    ],
+    "rawStatus": "completed",
+    "status": "ok",
+    "traceId": "trc_c874408a3f0e436c973a5fc126d7f7df",
+    "usage": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 10240,
+      "costUsd": 0.02323275,
+      "inputTokens": 18001,
+      "outputTokens": 1992,
+      "totalTokens": 19993
+    }
+  },
+  "slug": "ains-sism-change-review-openai-v1",
+  "status": "ok"
+}

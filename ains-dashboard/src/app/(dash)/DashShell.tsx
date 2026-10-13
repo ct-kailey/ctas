@@ -32,13 +32,15 @@ export function DashShell({ children }: { children: ReactNode }) {
 
 function Frame({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  // Static exports use trailing slashes; keep the original navigation matching.
+  const route = pathname.replace(/\/+$/, "") || "/";
   const { alerts, openIntake } = useAins();
 
-  const projectId = pathname.startsWith("/projects/")
-    ? pathname.split("/")[2]
+  const projectId = route.startsWith("/projects/")
+    ? route.split("/")[2]
     : null;
   const project = projectId ? getProject(projectId) : undefined;
-  const isSettings = pathname.endsWith("/settings");
+  const isSettings = route.endsWith("/settings");
 
   // 급함 + 확인 필요 개수 — 알림함 메뉴 옆에 표시
   const todayCount = alerts.filter((a) => a.grade !== "info").length;
@@ -58,14 +60,14 @@ function Frame({ children }: { children: ReactNode }) {
 
           <Sidebar.Body>
             <Sidebar.Section>
-              <Sidebar.Item asChild icon={<Icon name="house" />} label="홈" active={pathname === "/"}>
+              <Sidebar.Item asChild icon={<Icon name="house" />} label="홈" active={route === "/"}>
                 <Link href="/">홈</Link>
               </Sidebar.Item>
               <Sidebar.Item
                 asChild
                 icon={<Icon name="bell" />}
                 label="알림함"
-                active={pathname === "/alerts"}
+                active={route === "/alerts"}
                 trailing={
                   todayCount > 0 ? (
                     <Badge variant="soft" status="warning">
@@ -112,8 +114,8 @@ function Frame({ children }: { children: ReactNode }) {
 
           <Sidebar.Footer>
             <Sidebar.Profile
-              name="vara"
-              sub="vara@conscience.technology"
+              name="vara · 예시 사용자"
+              sub="실제 로그인 계정이 아닙니다"
               avatar={{ status: "online" }}
             />
           </Sidebar.Footer>
@@ -124,13 +126,13 @@ function Frame({ children }: { children: ReactNode }) {
         <Topbar size="md" className={shell.topbar}>
           {/* Breadcrumb은 직접 자식 사이에만 꺽쇠를 넣는다 — Fragment로 묶지 말고 항목을 하나씩 넘긴다 */}
           <Breadcrumb>
-            {pathname === "/" && <Breadcrumb.Current>홈</Breadcrumb.Current>}
-            {pathname === "/alerts" && (
+            {route === "/" && <Breadcrumb.Current>홈</Breadcrumb.Current>}
+            {route === "/alerts" && (
               <Breadcrumb.Link asChild leftIcon={<Icon name="house" />}>
                 <Link href="/">홈</Link>
               </Breadcrumb.Link>
             )}
-            {pathname === "/alerts" && <Breadcrumb.Current>알림함</Breadcrumb.Current>}
+            {route === "/alerts" && <Breadcrumb.Current>알림함</Breadcrumb.Current>}
             {project && (
               <Breadcrumb.Link asChild leftIcon={<Icon name="house" />}>
                 <Link href="/">홈</Link>
@@ -149,7 +151,9 @@ function Frame({ children }: { children: ReactNode }) {
             size="md"
             width="md"
             variant="filled"
-            placeholder="무엇이든 검색"
+            placeholder="통합 검색 · 준비 중"
+            aria-label="통합 검색은 예시 화면에서 지원하지 않습니다"
+            disabled
             leftIcon={<Icon name="search" />}
           />
           <Button
@@ -162,7 +166,21 @@ function Frame({ children }: { children: ReactNode }) {
         </Topbar>
       </AppFrame.Topbar>
 
-      <AppFrame.Content>{children}</AppFrame.Content>
+      <AppFrame.Content>
+        <aside className={shell.previewNotice} aria-label="예시 대시보드 안내">
+          <div>
+            <Badge variant="soft">예시 데이터</Badge>
+            <p>실제 저장·메일 발송·AI 처리는 하지 않습니다. 입력과 업무 변경은 새로고침하면 초기화됩니다.</p>
+          </div>
+          <nav className={shell.workspaceLinks} aria-label="AINS 화면 이동">
+            {/* Plain anchors intentionally leave Next's /dashboard basePath. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- This opens the separate Vite workspace, not the Next home route. */}
+            <Button variant="outline" asChild><a href="/">기존 작업실</a></Button>
+            <Button variant="outline" asChild><a href="/preview">전체 흐름 프리뷰</a></Button>
+          </nav>
+        </aside>
+        {children}
+      </AppFrame.Content>
     </AppFrame>
   );
 }

@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "slug": "ains-commercial-drafting-v1",
+  "name": "AINS 제안·견적·계약 문서 양식 보정 v1",
+  "publication_status": "published",
+  "published_version_id": "gv_030bfb3902a6430e86162a65be51f930",
+  "agent_id": "agent_dcfb5ab089164b31a572edb214dedbab",
+  "trigger_id": "trg_947e759775be4e33abf2539722b4526d",
+  "model": "gpt-5.4-mini",
+  "model_params": {
+    "reasoning_effort": "low"
+  },
+  "auth": {
+    "kind": "header_token",
+    "header": "Authorization",
+    "secret_provisioned": true
+  },
+  "api": {
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/flows/ains-commercial-drafting-v1",
+    "http_verified": true,
+    "content_type": "multipart/form-data",
+    "variable": "commercial_request"
+  },
+  "native_tool_limit": {
+    "declared": [],
+    "hard_disable_verified": false
+  },
+  "publication_version": 2,
+  "published_at": "2026-09-30T08:44:12.912018Z",
+  "verification": {
+    "acceptance_passed": 4,
+    "acceptance_total": 4,
+    "client_tests_passed": 26,
+    "worker_tests_passed": 12,
+    "tool_calls_observed": 0,
+    "memory_reads_observed": 0,
+    "memory_writes_observed": 0
+  }
+}

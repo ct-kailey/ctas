@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "request_id", "project_id", "source", "conversation_key", "messages"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "request_id": {"type": "string", "minLength": 1, "maxLength": 200},
+    "project_id": {"type": "string", "minLength": 1, "maxLength": 200},
+    "conversation_key": {"type": "string", "minLength": 1, "maxLength": 500},
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "provider", "name", "external_workspace_id", "external_channel_id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/uuid"},
+        "provider": {"enum": ["slack", "discord", "teams", "kakaotalk", "other"]},
+        "name": {"type": "string", "minLength": 1, "maxLength": 200},
+        "external_workspace_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 500},
+        "external_channel_id": {"type": "string", "minLength": 1, "maxLength": 500}
+      }
+    },
+    "messages": {
+      "type": "array", "minItems": 1, "maxItems": 50,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["event_id", "message_id", "kind", "author", "text", "sent_at", "changed_at", "url"],
+        "properties": {
+          "event_id": {"$ref": "#/$defs/uuid"},
+          "message_id": {"type": "string", "minLength": 1, "maxLength": 500},
+          "kind": {"enum": ["created", "updated", "deleted"]},
+          "author": {"type": "string", "maxLength": 500},
+          "text": {"type": "string", "maxLength": 20000},
+          "sent_at": {"$ref": "#/$defs/time"},
+          "changed_at": {"$ref": "#/$defs/time"},
+          "url": {"type": ["string", "null"], "maxLength": 2048}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "uuid": {"type": "string", "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"},
+    "time": {"type": ["string", "null"], "maxLength": 40}
+  }
+}

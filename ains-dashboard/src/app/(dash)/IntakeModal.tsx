@@ -106,8 +106,8 @@ export function IntakeModal({
       title="자료 넣기"
       description={
         step === "done"
-          ? "저장하고, 결정을 뽑고, 점검까지 마쳤어요."
-          : "메일은 자동으로 들어와요. 그 밖의 자료를 여기에 넣어 주세요."
+          ? "예시 결과입니다. 자료 저장·파일 분석·AI 처리는 하지 않았습니다."
+          : "예시 입력을 체험하세요. 메일 연결·자료 저장은 하지 않으며, 파일은 이름만 표시합니다."
       }
       footer={
         step === "done" ? (
@@ -126,7 +126,7 @@ export function IntakeModal({
             )}
             <Button variant="primary" asChild>
               <Link href={`/projects/${project.id}?tab=decisions`} onClick={() => onOpenChange(false)}>
-                결정 확인하러 가기
+                기존 예시 결정 보기
               </Link>
             </Button>
           </>
@@ -142,7 +142,7 @@ export function IntakeModal({
               loading={step === "working"}
               onClick={submit}
             >
-              넣기
+              예시 결과 보기
             </Button>
           </>
         )
@@ -153,7 +153,7 @@ export function IntakeModal({
       ) : step === "working" ? (
         <div className={s.row}>
           <Spinner />
-          <span className={s.muted}>읽고 정리하는 중이에요…</span>
+          <span className={s.muted}>예시 결과를 준비하고 있어요…</span>
         </div>
       ) : (
         <div className={s.stack}>
@@ -238,7 +238,7 @@ export function IntakeModal({
                 leftIcon={<Icon name="waveform" />}
                 onClick={() => fileRef.current?.click()}
               >
-                녹음 · 회의록 파일 올리기
+                녹음 · 회의록 파일 선택 (이름만)
               </Button>
               {fileName ? (
                 <Badge variant="soft" status="success">
@@ -256,7 +256,7 @@ export function IntakeModal({
             }
             description={
               kind === "chat"
-                ? "카톡이나 슬랙 대화를 복사해서 붙여넣어요. 메시지 링크도 같이 넣으면 원본 링크로 저장돼요."
+                ? "카톡이나 슬랙의 예시 대화와 링크를 붙여넣을 수 있어요. 내용과 링크는 저장되지 않습니다."
                 : kind === "call"
                   ? "정한 내용을 몇 줄만 적어도 돼요."
                   : undefined
@@ -285,22 +285,22 @@ function Result({
       <ul className={s.checklist}>
         <li>
           <Icon name="check-circle" />
-          {project} 자료함에 저장했어요
-          {kind === "meeting" && " (회사 양식으로 다듬고 드라이브에 사본 저장)"}
+          {project} 자료함 정리 예시
+          {kind === "meeting" && " (회사 양식·드라이브 저장은 연결 전입니다)"}
         </li>
         <li>
           <Icon name="check-circle" />
-          결정 후보 2건을 뽑았어요 — 맞는지 확인해 주세요
+          결정 후보 2건 예시 — 입력 내용을 분석한 결과가 아닙니다
         </li>
         {kind === "meeting" && (
           <li>
             <Icon name="check-circle" />
-            후속 액션 2건을 할 일에 넣었어요
+            후속 액션 2건 예시 — 실제 할 일은 추가하지 않습니다
           </li>
         )}
       </ul>
-      <Callout tone="warning" title="점검 결과: 확인할 내용 1건">
-        합의된 범위에 없는 요청이 있어요. 알림함에 🟡 확인 필요로 올렸어요.
+      <Callout tone="warning" title="점검 예시: 확인할 내용 1건">
+        범위 밖 요청을 발견한 상황을 가정해 이 화면의 알림함에 예시 알림을 추가했어요.
       </Callout>
       {needsConfirmMail && (
         <Callout tone="brand" icon="envelope" title="고객에게 확인받기">

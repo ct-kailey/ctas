@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "slug": "ains-channel-triage-v1",
+  "name": "AINS Channel Conversation Triage v1",
+  "publication_status": "published",
+  "publication_version": 1,
+  "published_version_id": "gv_b240e29eab134b2d9ba1fe7e625e7cb4",
+  "agent_id": "agent_8543ca4bf0544fc2a7a28f57b251c2a5",
+  "model": "gpt-5.4-mini",
+  "model_params": {
+    "reasoning_effort": "low"
+  },
+  "auth": {
+    "kind": "header_token",
+    "header": "Authorization",
+    "secret_provisioned": true
+  },
+  "api": {
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/flows/ains-channel-triage-v1",
+    "http_verified": true,
+    "content_type": "multipart/form-data",
+    "fields": [
+      "input",
+      "variables"
+    ],
+    "variable": "channel_request",
+    "authorization": "raw token in Authorization header"
+  },
+  "sources": {
+    "prompt": "prompt.md",
+    "request_schema": "request.schema.json",
+    "result_schema": "result.schema.json"
+  },
+  "native_tool_limit": {
+    "declared": [],
+    "hard_disable_verified": false,
+    "trace_inspection": "trace-inspection.json"
+  },
+  "trigger_id": "trg_8ddfef0b86574cf6bea0308d24f66a14",
+  "published_at": "2026-09-27T06:53:57.541489Z"
+}

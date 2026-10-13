@@ -1,0 +1,147 @@
+import React, { useEffect, useState } from 'react';
+import { ArrowRight, Check, CheckCheck, CircleHelp, FileText, GitBranch, Link2, MessageSquare, Mic, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { Badge, Button, FormField, Modal } from './ui.jsx';
+import './preview-context.css';
+
+// All records below are authored demo fixtures. This module never calls an API,
+// uploads a file, reads a real conversation, or invokes Nora or a local CLI.
+const SOURCES = [
+  { id: 'contract', type: '문서', icon: FileText, title: '고객포털 계약서 · POL-07', channel: 'Google Drive · 계약 자료', author: '이서연 · 고객 담당자 (예시)', created: '2026.10.05 14:20', occurred: '2026.10.05 14:00', decided: '2026.10.05', version: '계약 v1.0 · 합의 기준', text: '[예시 원문] 계약 정책 POL-07 (REQ-102의 근거)\n이메일 인증 링크는 발송 후 10분 동안 유효합니다. 유효시간이 지나면 재발송할 수 있어야 합니다. 재발송하면 이전 인증 링크는 사용할 수 없어야 합니다.\n\n요구사항 REQ-103\n관리자의 승인을 받은 회원만 고객포털에 접근할 수 있습니다.\n\n합의: 고객 담당자·프로젝트 리드가 v1.0 범위를 확인했습니다.' },
+  { id: 'specification', type: '문서', icon: FileText, title: '로그인 기획서 v2 · REQ-102', channel: 'Google Drive · 기획 문서', author: '민서 · 기획 담당자 (예시)', created: '2026.10.09 13:20', occurred: '2026.10.09 13:00', decided: '미확정', version: 'v2 · 변경안 검토 대기', text: '[예시 원문] REQ-102 · 이메일 인증 링크\n기획서 v2에서는 인증 링크 유효시간을 30분으로 제안합니다. 고객 문의를 반영한 초안이며 계약 정책 POL-07의 10분 기준과 대조가 필요합니다.\n\n버전 변경 이력\nv1: 유효시간 10분 · 2026.10.05\nv2: 유효시간 30분 제안 · 2026.10.09\n변경 사유: 고객의 메일 확인 지연 대응 문의\n상태: 검토 대기, 최종 합의 전' },
+  { id: 'chat', type: '메신저', icon: MessageSquare, title: '인증 링크 유효시간 변경 문의', channel: 'Slack · #고객포털-협업', author: '이서연 · 고객 담당자 (예시)', created: '2026.10.09 10:34', occurred: '2026.10.09 10:32', decided: '미확정', version: '변경 요청 · 아직 합의되지 않음', text: '[예시 원문] 2026.10.09 10:32 · 이서연\n메일을 늦게 확인하는 고객도 있으니 인증 링크를 30분까지 쓸 수 있으면 좋겠습니다.\n\n2026.10.09 10:38 · 민서\n기존 합의는 10분입니다. 보안 정책과 만료 안내 화면에 영향이 있어 확인 후 반영하겠습니다.' },
+  { id: 'meeting', type: '회의 STT', icon: Mic, title: '로그인 정책 검토 회의', channel: 'Google Meet · 고객 정기회의', author: '고객·기획·개발 담당자 (예시)', created: '2026.10.09 16:40', occurred: '2026.10.09 16:00', decided: '미확정', version: '회의 전사 초안', text: '[예시 전사] 04:12 · 기획 담당자\n인증 링크 유효시간은 기존 10분과 새 요청 30분이 함께 남아 있습니다.\n\n04:31 · 개발 담당자\n만료 뒤 어떤 안내를 보여줄지 완료 기준도 정해야 합니다.\n\n05:08 · 고객 담당자\n보안 담당자와 확인하겠습니다. 확인 전에는 기존 기준을 유지해 주세요.\n\n전사 내용은 녹음과 대조해야 하며 화자·고유명사는 검토 대상입니다.' },
+  { id: 'git', type: 'Git', icon: GitBranch, title: '로그인 작업 계획 · T-21', channel: 'GitHub · gaon-customer-portal', author: '민서 · 개발 담당자 (예시)', created: '2026.10.09 17:20', occurred: '2026.10.09 17:15', decided: '착수 승인 전', version: '작업 초안 · 기준 브랜치 main', text: '[예시 작업 기록] T-21\n이메일 인증 링크 만료 처리를 구현합니다.\n요구사항: REQ-102\n예상 수정 범위: src/auth/**, tests/auth/**\n\n확인할 항목\n- 유효시간 10분과 변경 요청 30분 중 적용 기준\n- 만료 화면의 안내·재발송 동작\n- T-19의 동일 인증 파일 수정과 작업 순서\n\n아직 코드를 실행하거나 PR을 생성하지 않았습니다.' },
+];
+const SOURCE_BY_ID = Object.fromEntries(SOURCES.map(source => [source.id, source]));
+const DOC_LABELS = { proposal: '제안서', estimate: '견적서', contract: '계약서' };
+const INITIAL_DOCS = {
+  proposal: '고객이 가입 상태와 요청 진행 상황을 직접 확인하는 고객포털을 구축합니다.\n우선 범위: 회원 가입, 이메일 인증, 승인 회원 로그인.\n인증 링크는 10분 동안 유효하며 만료 시 재발송을 안내합니다.\n첫 프로토타입으로 로그인 흐름과 주요 정책을 검토합니다.',
+  estimate: '예시 견적 초안\n기획·정책 정리: 5 작업일\n로그인·이메일 인증 구현: 8 작업일\nQA·고객 검토 반영: 5 작업일\n투입 예상: 총 18 작업일, 개발 1명 + 기획·QA 참여\n비용과 상세 일정은 고객 검토 후 별도 확정합니다.',
+  contract: '계약 범위: 회원 가입, 이메일 인증, 승인 회원의 고객포털 로그인.\n인증 링크 유효시간: 발송 후 10분.\n납품 기준: 합의된 완료 기준과 테스트 결과를 고객이 확인한 뒤 수용.\n범위 변경: 영향·일정·견적을 검토하고 별도 합의 후 반영.\n모든 내용은 화면 시연을 위한 예시이며 실제 계약이 아닙니다.',
+};
+
+function SourceDialog({ source, onClose, children }) {
+  return <Modal title={source.title} eyebrow="예시 원문 · 출처 확인" wide onClose={onClose}>
+    <div className="modal-body wp-source-dialog">
+      <div className="wp-row"><Badge tone="quiet">{source.type}</Badge><span className="wp-muted">{source.version}</span></div>
+      <dl className="wp-source-meta">
+        <div><dt>대화·자료 채널</dt><dd>{source.channel}</dd></div><div><dt>작성자·참여자</dt><dd>{source.author}</dd></div>
+        <div><dt>수집 일시</dt><dd>{source.created}</dd></div><div><dt>실제 발생 일시</dt><dd>{source.occurred}</dd></div><div><dt>결정 날짜</dt><dd>{source.decided}</dd></div>
+      </dl>
+      <pre className="wp-source-text">{source.text}</pre>{children}
+    </div>
+  </Modal>;
+}
+function SourceButton({ id, onOpen, children }) {
+  return <Button type="button" variant="secondary" icon={Link2} onClick={() => onOpen(SOURCE_BY_ID[id])}>{children || SOURCE_BY_ID[id].title}</Button>;
+}
+function LocalStatus({ children }) { return children ? <p className="wp-local-status" role="status"><CheckCheck size={16} aria-hidden="true" />{children}</p> : null; }
+
+export function ProjectPreview({ projectName = '가온 고객포털', setProjectName, onNext, onEvent, active = true }) {
+  const [profile, setProfile] = useState({ company: '가온 커머스', lead: '민서 · 프로젝트 리드', size: '중형 · 핵심 기능 8개', start: '2026-10-05', end: '2026-12-24', repository: 'team-example/gaon-customer-portal', branch: 'main' });
+  const [activeDoc, setActiveDoc] = useState('proposal'), [docs, setDocs] = useState(INITIAL_DOCS);
+  const [reviewed, setReviewed] = useState({}), [preview, setPreview] = useState(null), [accepted, setAccepted] = useState(false), [notice, setNotice] = useState('');
+  useEffect(() => { if (!active) setPreview(null); }, [active]);
+  const updateProfile = (key, value) => { setProfile(old => ({ ...old, [key]: value })); setAccepted(false); };
+  const completedDocs = Object.keys(DOC_LABELS).filter(key => reviewed[key]).length;
+  const profileReady = Boolean(projectName.trim() && profile.company.trim() && profile.lead.trim() && profile.start && profile.end && profile.start <= profile.end && profile.repository.trim() && profile.branch.trim());
+  function announce(message) { setNotice(message); onEvent?.(message); }
+  function normalizeDocument() {
+    setPreview({ kind: activeDoc, content: docs[activeDoc].startsWith(`[${DOC_LABELS[activeDoc]} · 사내 표준 양식]`) ? docs[activeDoc] : `[${DOC_LABELS[activeDoc]} · 사내 표준 양식]\n프로젝트: ${projectName}\n고객사: ${profile.company}\n담당: ${profile.lead}\n기간: ${profile.start} ~ ${profile.end}\n\n1. 검토 내용\n${docs[activeDoc].trim()}\n\n2. 검토·승인 기록\n담당자 검토 후 고객 확인이 필요합니다.\n\n※ 예시 변환 결과: 입력한 내용을 정리하며 실제 Nora 호출은 하지 않습니다.` });
+    announce(`${DOC_LABELS[activeDoc]}의 사내 양식 변환 예시를 준비했습니다.`);
+  }
+  return <div className="wp-stack wp-context-preview">
+    <section className="wp-panel">
+      <div className="wp-panel-heading"><div><h2>프로젝트 정보부터 정합니다</h2><p className="wp-muted">고객·일정·저장소를 같은 프로젝트에 묶어 이후 문서와 작업의 기준으로 사용합니다.</p></div><Badge tone="quiet">리드·영업 담당자</Badge></div>
+      <div className="wp-grid-two wp-project-fields">
+        <FormField label="프로젝트명"><input value={projectName} maxLength={100} required onChange={event => { setProjectName?.(event.target.value); setAccepted(false); }} /></FormField>
+        <FormField label="기업명"><input value={profile.company} required onChange={event => updateProfile('company', event.target.value)} /></FormField>
+        <FormField label="프로젝트 담당자"><input value={profile.lead} required onChange={event => updateProfile('lead', event.target.value)} /></FormField>
+        <FormField label="프로젝트 규모"><select value={profile.size} onChange={event => updateProfile('size', event.target.value)}><option>소형 · 핵심 기능 4개</option><option>중형 · 핵심 기능 8개</option><option>대형 · 단계별 구축</option></select></FormField>
+        <FormField label="시작 예정일"><input type="date" value={profile.start} required onChange={event => updateProfile('start', event.target.value)} /></FormField>
+        <FormField label="납품 예정일"><input type="date" value={profile.end} min={profile.start} required onChange={event => updateProfile('end', event.target.value)} /></FormField>
+        <FormField label="Git 저장소" hint="예시 식별자입니다. 실제 저장소에 연결하지 않습니다."><input value={profile.repository} required onChange={event => updateProfile('repository', event.target.value)} /></FormField>
+        <FormField label="기준 브랜치"><input value={profile.branch} required onChange={event => updateProfile('branch', event.target.value)} /></FormField>
+      </div>
+    </section>
+    <section className="wp-panel">
+      <div className="wp-panel-heading"><div><h2>계약 산출물을 작성하고 검토합니다</h2><p className="wp-muted">직접 작성 → Nora 양식 정리 → 담당자 검토의 과정을 체험합니다.</p></div><Badge tone={completedDocs === 3 ? 'green' : 'quiet'}>{completedDocs}/3 검토 완료</Badge></div>
+      <div className="wp-doc-switch" role="group" aria-label="계약 산출물 선택">{Object.entries(DOC_LABELS).map(([key, label]) => <Button key={key} type="button" variant="secondary" aria-pressed={activeDoc === key} icon={reviewed[key] ? Check : FileText} onClick={() => setActiveDoc(key)}>{label}{reviewed[key] ? ' · 검토 완료' : ''}</Button>)}</div>
+      <FormField label={`${DOC_LABELS[activeDoc]} 에디터`}><textarea rows={8} value={docs[activeDoc]} onChange={event => { setDocs(old => ({ ...old, [activeDoc]: event.target.value })); setReviewed(old => ({ ...old, [activeDoc]: false })); setAccepted(false); }} /></FormField>
+      <div className="wp-action-row"><Button type="button" variant="secondary" icon={Sparkles} disabled={!docs[activeDoc].trim()} onClick={normalizeDocument}>Nora 양식 정리 예시</Button><Button type="button" variant="secondary" icon={Check} disabled={!docs[activeDoc].trim() || reviewed[activeDoc]} onClick={() => { setReviewed(old => ({ ...old, [activeDoc]: true })); announce(`${DOC_LABELS[activeDoc]} 내용을 검토했습니다.`); }}>내용 검토 완료</Button></div>
+    </section>
+    <section className="wp-callout"><label className="wp-choice-line"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} /><span>프로젝트 정보와 계약 산출물을 대조했습니다. 고객 확인을 마친 상태로 다음 단계를 체험합니다.</span></label><p className="wp-muted">실제 제품에서는 고객 합의와 계약 체결의 근거·확정 날짜를 함께 남깁니다.</p></section>
+    <LocalStatus>{notice}</LocalStatus><div className="wp-action-row wp-context-next"><span className="wp-muted">{!profileReady ? '프로젝트 필수 정보와 일정 순서를 확인해 주세요.' : completedDocs < 3 ? '제안서·견적서·계약서를 각각 검토해 주세요.' : !accepted ? '마지막 확인 후 자료 수집으로 이어갑니다.' : '검토한 프로젝트 정보가 준비되었습니다.'}</span><Button type="button" icon={ArrowRight} disabled={!profileReady || completedDocs < 3 || !accepted} onClick={() => { announce('프로젝트 정보와 계약 산출물 검토를 완료했습니다.'); onNext?.(); }}>확인하고 자료 수집으로</Button></div>
+    {preview ? <Modal title={`${DOC_LABELS[preview.kind]} · 양식 정리 결과`} eyebrow="Nora 동작 예시" wide onClose={() => setPreview(null)}><div className="modal-body"><pre className="wp-source-text">{preview.content}</pre><p className="wp-muted">내용을 적용한 뒤 에디터에서 수정하거나 검토 완료로 표시할 수 있습니다.</p></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={() => setPreview(null)}>닫기</Button><Button type="button" onClick={() => { setDocs(old => ({ ...old, [preview.kind]: preview.content })); setReviewed(old => ({ ...old, [preview.kind]: false })); setAccepted(false); announce(`${DOC_LABELS[preview.kind]}에 양식 정리 예시를 적용했습니다. 내용 검토가 필요합니다.`); setPreview(null); }}>에디터에 적용</Button></footer></Modal> : null}
+  </div>;
+}
+
+export function IntakePreview({ onNext, onEvent, active = true }) {
+  const [collected, setCollected] = useState(false), [reviewed, setReviewed] = useState([]), [selected, setSelected] = useState(null), [checked, setChecked] = useState(false), [filter, setFilter] = useState('전체'), [notice, setNotice] = useState('');
+  useEffect(() => { if (!active) setSelected(null); }, [active]);
+  const items = SOURCES.filter(source => filter === '전체' || source.type === filter);
+  function open(source) { setSelected(source); setChecked(reviewed.includes(source.id)); }
+  function confirm() { setReviewed(old => [...new Set([...old, selected.id])]); const message = `${selected.title}의 원문·이력 속성을 확인하고 Context에 연결했습니다.`; setNotice(message); onEvent?.(message); setSelected(null); }
+  return <div className="wp-stack wp-context-preview">
+    <section className="wp-panel">
+      <div className="wp-panel-heading"><div><h2>흩어진 자료를 프로젝트에 모읍니다</h2><p className="wp-muted">문서·대화·회의·개발 기록을 원본 출처와 함께 수집합니다. 예시 자료 5건을 사용합니다.</p></div><Badge tone={reviewed.length === SOURCES.length ? 'green' : 'quiet'}>{reviewed.length}/{SOURCES.length} 원문 검토</Badge></div>
+      <div className="wp-action-row"><Button type="button" variant="secondary" icon={Sparkles} disabled={collected} onClick={() => { setCollected(true); setNotice('예시 5건을 파싱했습니다. 결정 날짜가 없는 기록은 미확정 상태로 남깁니다.'); onEvent?.('문서·Slack·회의 전사·Git 예시 자료 5건을 수집했습니다.'); }}>{collected ? '예시 수집 완료' : '예시 자료 5건 수집'}</Button><span className="wp-muted">실제 파일 업로드·외부 계정 연결은 실행하지 않습니다.</span></div>
+      <div className="wp-doc-switch" role="group" aria-label="자료 종류 필터">{['전체', '문서', '메신저', '회의 STT', 'Git'].map(type => <Button type="button" key={type} variant="secondary" aria-pressed={filter === type} onClick={() => setFilter(type)}>{type}</Button>)}</div>
+      <div className="wp-source-list">{items.map(source => { const Icon = source.icon, done = reviewed.includes(source.id); return <article className="wp-intake-item" key={source.id}><span className="wp-source-icon"><Icon size={20} aria-hidden="true" /></span><div className="wp-intake-content"><div className="wp-row"><h3>{source.title}</h3><Badge tone={done ? 'green' : collected ? 'amber' : 'quiet'}>{done ? '원문 확인 완료' : collected ? '검토 필요' : '수집 후보'}</Badge></div><p className="wp-muted">{source.channel}</p><div className="wp-meta"><span>발생 {source.occurred}</span><span>결정 {source.decided}</span></div></div><Button type="button" variant="secondary" onClick={() => open(source)}>{done ? '확인한 원문 보기' : '원문 대조'}</Button></article>; })}</div>
+    </section>
+    <div className="wp-grid-two"><section className="wp-callout"><h3>생성일과 결정일을 구분합니다</h3><p className="wp-muted">자료를 등록한 시각, 대화가 실제 일어난 시각, 결정이 확정된 날짜는 서로 다를 수 있습니다. 채널·작성자·버전도 함께 보존합니다.</p></section><section className="wp-callout"><h3>원문을 지우지 않고 검토합니다</h3><p className="wp-muted">AI 추출 내용은 후보입니다. 문서의 표·이미지와 전사의 화자·시간을 대조한 뒤 확정 정보로 연결합니다.</p></section></div>
+    <LocalStatus>{notice}</LocalStatus><div className="wp-action-row wp-context-next"><span className="wp-muted">{reviewed.length === SOURCES.length ? '확인한 자료의 관계와 변경 맥락을 살펴봅니다.' : '자료 수집 후 각 원문의 내용을 확인해 주세요.'}</span><Button type="button" icon={ArrowRight} disabled={reviewed.length !== SOURCES.length} onClick={() => { onEvent?.('확인한 자료 5건을 Main Context에 연결했습니다.'); onNext?.(); }}>Main Context로</Button></div>
+    {selected ? <SourceDialog source={selected} onClose={() => setSelected(null)}><div className="wp-callout wp-source-review"><label className="wp-choice-line"><input type="checkbox" checked={checked} disabled={!collected} onChange={event => setChecked(event.target.checked)} /><span>원문과 추출 내용·발생 일시·채널·확정 여부를 대조했습니다.</span></label>{!collected ? <p className="wp-muted">자료를 먼저 수집하면 검토를 확정할 수 있습니다.</p> : null}<div className="wp-action-row"><Button type="button" variant="secondary" onClick={() => setSelected(null)}>닫기</Button><Button type="button" disabled={!collected || !checked} onClick={confirm}>확인하고 Context에 연결</Button></div></div></SourceDialog> : null}
+  </div>;
+}
+
+const SEARCH_EXAMPLES = ['인증 링크는 몇 분 동안 유효한가요?', '30분으로 바꾸자는 요청은 어디에 있나요?', '로그인 작업이 대기 중인 이유는?'];
+export function ContextPreview({ onNext, onNavigate, onEvent, preflightResolved = false, active = true }) {
+  const [tab, setTab] = useState('trace'), [query, setQuery] = useState(SEARCH_EXAMPLES[0]), [answer, setAnswer] = useState(null), [source, setSource] = useState(null), [range, setRange] = useState('2026-10-09');
+  useEffect(() => { if (!active) setSource(null); }, [active]);
+  useEffect(() => { setAnswer(null); }, [preflightResolved]);
+  const resolved = preflightResolved;
+  function search(event) { event?.preventDefault(); const match = /인증|로그인|링크|유효|10|30|대기/.test(query); setAnswer(match ? (resolved ? '고객의 재확인으로 인증 링크 유효시간은 10분입니다. 만료 뒤 재발송 안내를 보여주는 완료 기준도 추가했습니다.' : '확정된 기준은 10분입니다. 기획서 v2와 Slack의 30분 요청은 변경 제안이며 아직 승인되지 않았습니다. 두 기록을 대조한 뒤 고객 확인이 필요합니다.') : '이 예시 프로젝트에서는 로그인·인증 링크에 관한 질문을 체험할 수 있습니다. 아래 예시 질문을 선택해 주세요.'); onEvent?.(`예시 Context 검색: ${query}`); }
+  return <div className="wp-stack wp-context-preview">
+    <section className="wp-panel"><div className="wp-panel-heading"><div><h2>검색 결과에서 판단의 근거까지</h2><p className="wp-muted">현재 합의와 변경 제안을 구분하고 원문으로 확인합니다.</p></div><Badge tone="quiet">프로젝트 범위 검색</Badge></div>
+      <form onSubmit={search} className="wp-search-form"><FormField label="프로젝트 Context에 질문"><input value={query} required onChange={event => { setQuery(event.target.value); setAnswer(null); }} placeholder="인증 링크 정책이 어떻게 바뀌었나요?" /></FormField><Button type="submit" variant="secondary" icon={Search}>근거 찾기</Button></form>
+      <div className="wp-search-examples">{SEARCH_EXAMPLES.map(text => <button type="button" key={text} onClick={() => { setQuery(text); setAnswer(null); }}>{text}</button>)}</div>
+      {answer ? <div className="wp-search-answer" role="status"><span className="wp-kicker">NORA · 검색 응답 예시</span><p>{answer}</p>{/인증|로그인|링크|유효|10|30|대기/.test(query) ? <div className="wp-action-row"><SourceButton id="contract" onOpen={setSource}>근거 1 · 합의된 요구사항</SourceButton><SourceButton id="specification" onOpen={setSource}>근거 2 · 기획서 v2</SourceButton><SourceButton id="chat" onOpen={setSource}>근거 3 · 변경 문의</SourceButton></div> : null}</div> : null}
+    </section>
+    <section className="wp-panel"><div className="wp-panel-heading"><div><h2>정보를 하나의 맥락으로 연결합니다</h2><p className="wp-muted">요구사항 → 결정 → 작업 → 결과의 관계와 버전 변화를 확인합니다.</p></div></div>
+      <div className="wp-doc-switch" role="group" aria-label="Context 보기">{[['trace', '연결 관계'], ['versions', '변경 이력'], ['timeline', 'Daily Timeline']].map(([key, label]) => <Button type="button" key={key} variant="secondary" aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</Button>)}</div>
+      {tab === 'trace' ? <><ol className="wp-trace-chain" aria-label="요구사항에서 결과까지"><li><span className="wp-kicker">REQUIREMENT</span><h3>REQ-102</h3><p>이메일 인증 링크 만료</p><Button type="button" variant="secondary" onClick={() => setSource(SOURCE_BY_ID.contract)}>합의 원문</Button></li><li><span className="wp-kicker">DECISION</span><h3>{resolved ? '10분 유지 확정' : '유효시간 재확인'}</h3><p>{resolved ? '고객 답변과 완료 기준 확인' : '기존 10분 · 요청 30분'}</p><Badge tone={resolved ? 'green' : 'amber'}>{resolved ? '확인 완료' : '충돌 검토 중'}</Badge></li><li><span className="wp-kicker">TASK</span><h3>T-21</h3><p>인증 링크 만료·재발송 구현</p><Button type="button" variant="secondary" onClick={() => onNavigate?.('tasks')}>작업 화면</Button></li><li><span className="wp-kicker">RESULT</span><h3>PR·검증 기록</h3><p>구현 결과와 완료 기준 연결</p><Button type="button" variant="secondary" onClick={() => onNavigate?.('validation')}>결과 검수 화면</Button></li></ol><div className="wp-callout"><div className="wp-row"><ShieldCheck size={18} aria-hidden="true" /><strong>왜 이 작업이 생겼나요?</strong></div><p className="wp-muted">고객포털의 이메일 인증 요구사항에서 시작했습니다. 변경 문의가 기존 계약과 달라 착수 전 확인이 필요합니다. 수정할 코드뿐 아니라 결정 근거와 제외 범위도 작업에 전달합니다.</p></div></> : null}
+      {tab === 'versions' ? <div className="wp-stack"><div className="wp-row"><h3>인증 링크 정책의 변경 비교</h3><Badge tone={resolved ? 'green' : 'amber'}>{resolved ? '10분 유지 결정' : '기획서 v2 · 미확정'}</Badge></div><div className="wp-grid-two"><article className="wp-version-block"><span className="wp-kicker">현재 기준 · 계약 POL-07</span><p>인증 링크는 발송 후 <strong>10분</strong> 동안 유효합니다.</p><span className="wp-muted">고객 합의 · 2026.10.05</span><SourceButton id="contract" onOpen={setSource}>현재 기준 원문</SourceButton></article><article className="wp-version-block"><span className="wp-kicker">기획서 v2 · 변경 제안</span><p>인증 링크를 <strong>30분</strong>까지 사용할 수 있으면 좋겠습니다.</p><span className="wp-muted">기획서 개정 · 2026.10.09</span><SourceButton id="specification" onOpen={setSource}>버전 변경 원문</SourceButton></article></div><p className="wp-muted">제안은 원문으로 보존합니다. 검토한 결정만 새로운 기준선으로 반영하며 이전 버전은 덮어쓰지 않습니다.</p><div className="wp-action-row"><Button type="button" variant="secondary" onClick={() => onNavigate?.('preflight')}>충돌과 영향 검토하기</Button></div></div> : null}
+      {tab === 'timeline' ? <div className="wp-stack"><FormField label="조회할 날짜"><select value={range} onChange={event => setRange(event.target.value)}><option value="2026-10-09">10월 9일 · 09:00~다음 날 09:00</option><option value="all">전체 이력</option></select></FormField><ol className="wp-context-timeline">{(range === 'all' ? [...SOURCES] : SOURCES.filter(item => item.id !== 'contract')).sort((a, b) => a.occurred.localeCompare(b.occurred)).map(item => <li key={item.id}><time>{item.occurred}</time><div><strong>{item.title}</strong><p className="wp-muted">{item.channel} · {item.decided === '미확정' ? '최종 결정 대기' : item.version}</p></div><Button type="button" variant="secondary" onClick={() => setSource(item)}>근거 보기</Button></li>)}</ol></div> : null}
+    </section><div className="wp-action-row wp-context-next"><span className="wp-muted">검색·연결·변경 이력을 바탕으로 착수 전에 위험을 점검합니다.</span><Button type="button" icon={ArrowRight} onClick={() => { onEvent?.('요구사항의 출처와 변경 맥락을 확인했습니다.'); onNext?.(); }}>착수 전 점검으로</Button></div>{source ? <SourceDialog source={source} onClose={() => setSource(null)} /> : null}
+  </div>;
+}
+
+export function PreflightPreview({ onNext, onEvent, active = true }) {
+  const [checked, setChecked] = useState(false), [questionState, setQuestionState] = useState('none'), [question, setQuestion] = useState('계약 POL-07은 인증 링크 유효시간 10분입니다. 기획서 v2의 30분 변경안이 최종 요청인지, 보안 정책을 검토한 뒤 적용 기준을 확인해 주시겠어요?'), [channel, setChannel] = useState('Slack · #고객포털-협업');
+  const [answerReviewed, setAnswerReviewed] = useState(false), [criteria, setCriteria] = useState(false), [sequenced, setSequenced] = useState(false), [rechecked, setRechecked] = useState(false), [accepted, setAccepted] = useState(false), [held, setHeld] = useState(false), [source, setSource] = useState(null), [notice, setNotice] = useState('');
+  useEffect(() => { if (!active) setSource(null); }, [active]);
+  const policyDone = questionState === 'resolved', resolvedCount = Number(policyDone) + Number(criteria) + Number(sequenced), ready = checked && resolvedCount === 3 && rechecked && !held;
+  function announce(message) { setNotice(message); onEvent?.(message); }
+  function resetApproval() { setRechecked(false); setAccepted(false); }
+  return <div className="wp-stack wp-context-preview">
+    <section className="wp-panel"><div className="wp-panel-heading"><div><h2>이 작업을 시작해도 될까요?</h2><p className="wp-muted">REQ-102와 관련 정책·계약·작업 범위를 대조합니다.</p></div><Badge tone={held ? 'amber' : ready ? 'green' : checked && resolvedCount === 3 ? 'amber' : checked ? 'red' : 'quiet'}>{held ? '착수 보류' : ready ? '범위 승인 가능' : checked && resolvedCount === 3 ? '재점검 필요' : checked ? `${3 - resolvedCount}건 확인 필요` : '점검 전'}</Badge></div><div className="wp-action-row"><Button type="button" variant="secondary" icon={ShieldCheck} onClick={() => { setChecked(true); setHeld(false); setRechecked(resolvedCount === 3); announce(resolvedCount === 3 ? '재점검 완료: 정책·완료 기준·작업 순서가 확인되었습니다.' : `사전 점검 예시: 미해결 확인 사항 ${3 - resolvedCount}건이 남아 있습니다.`); }}>{checked ? '현재 상태로 다시 점검' : 'Nora 사전 점검 예시'}</Button><span className="wp-muted">계약 1건 · 기획서 1건 · 변경 문의 1건 · 회의록 1건 · 작업 계획 1건</span></div></section>
+    {checked ? <>
+      <section className="wp-panel"><div className="wp-panel-heading"><h2>확인할 사항과 영향 범위</h2><Badge tone={resolvedCount === 3 ? 'green' : 'amber'}>{resolvedCount}/3 해결</Badge></div><div className="wp-issue-list">
+        <article><div className="wp-row"><Badge tone={policyDone ? 'green' : 'red'}>{policyDone ? '해결' : '정책 충돌'}</Badge><h3>인증 링크 유효시간 10분 ↔ 30분</h3></div><p className="wp-muted">로그인 정책·토큰 만료 처리·안내 화면에 영향을 줍니다. 변경 문의를 곧바로 확정 요구사항으로 처리하지 않습니다.</p><div className="wp-action-row"><SourceButton id="contract" onOpen={setSource}>10분 합의 근거</SourceButton><SourceButton id="specification" onOpen={setSource}>기획서 v2 · 30분</SourceButton></div></article>
+        <article><div className="wp-row"><Badge tone={criteria ? 'green' : 'amber'}>{criteria ? '보완 완료' : '완료 기준 누락'}</Badge><h3>유효시간이 지난 뒤의 행동</h3></div><p className="wp-muted">만료 안내와 재발송 버튼의 동작이 완료 기준에 없습니다.</p><label className="wp-choice-line"><input type="checkbox" checked={criteria} onChange={event => { setCriteria(event.target.checked); resetApproval(); }} /><span>“만료된 링크는 접근을 거부하고 재발송을 안내한다”를 완료 기준에 추가합니다.</span></label></article>
+        <article><div className="wp-row"><Badge tone={sequenced ? 'green' : 'amber'}>{sequenced ? '작업 순서 확정' : '작업 범위 중복'}</Badge><h3>T-19도 src/auth를 수정합니다</h3></div><p className="wp-muted">담당자 태훈의 인증 화면 작업과 같은 파일을 수정할 수 있습니다.</p><label className="wp-choice-line"><input type="checkbox" checked={sequenced} onChange={event => { setSequenced(event.target.checked); resetApproval(); }} /><span>T-19 반영 후 T-21을 시작하도록 순서를 정합니다.</span></label></article>
+      </div></section>
+      <section className="wp-panel"><div className="wp-panel-heading"><div><h2>고객에게 확인하고 답변을 기다립니다</h2><p className="wp-muted">질문·수신 대상·채널·대기 작업을 연결합니다. 아래 발송과 응답은 모두 화면 예시입니다.</p></div><Badge tone={policyDone ? 'green' : questionState === 'waiting' ? 'amber' : 'quiet'}>{{ none: '질문 없음', draft: '초안 검토', waiting: '답변 대기 · 1일', received: '답변 검토 필요', resolved: '답변 확인 완료' }[questionState]}</Badge></div>
+        {questionState === 'none' ? <div className="wp-action-row"><Button type="button" variant="secondary" icon={CircleHelp} onClick={() => { setQuestionState('draft'); announce('정책 충돌의 근거를 포함한 고객 확인 질문 초안을 만들었습니다.'); }}>고객 확인 질문 만들기</Button></div> : <div className="wp-stack"><FormField label="고객 확인 질문"><textarea rows={3} value={question} disabled={questionState !== 'draft'} onChange={event => setQuestion(event.target.value)} /></FormField><div className="wp-grid-two"><FormField label="대화 채널"><select value={channel} disabled={questionState !== 'draft'} onChange={event => setChannel(event.target.value)}><option>Slack · #고객포털-협업</option><option>Email · 고객 담당자</option></select></FormField><div className="wp-question-parties"><span className="wp-muted">질문 민서 → 이서연</span><span className="wp-muted">대기 작업 T-21 · 개발 담당 서지우</span><span className="wp-muted">예시 질문 일시 10월 12일 10:00</span></div></div>
+          {questionState === 'draft' ? <div className="wp-action-row"><Button type="button" variant="secondary" disabled={!question.trim()} onClick={() => { setQuestionState('waiting'); announce('질문 발송 상태를 시뮬레이션했습니다. 실제 메시지는 보내지 않았습니다.'); }}>질문 확인 후 발송 상태 체험</Button></div> : null}
+          {questionState === 'waiting' ? <div className="wp-callout"><strong>이 답변을 기다리며 T-21이 멈춰 있습니다.</strong><p className="wp-muted">예시 리마인드: 이틀 동안 응답이 없으면 담당자에게 알려줍니다.</p><div className="wp-action-row"><Button type="button" variant="secondary" onClick={() => { setQuestionState('received'); announce('고객의 답변 예시를 수신했습니다. 최종 확인 전에는 작업 대기를 유지합니다.'); }}>고객 답변 예시 받기</Button></div></div> : null}
+          {['received', 'resolved'].includes(questionState) ? <div className="wp-answer-evidence"><div className="wp-row"><MessageSquare size={18} aria-hidden="true" /><strong>이서연 · 10월 13일 09:10 · 답변 예시</strong></div><p>보안 담당자와 확인했습니다. 기존 <strong>10분</strong> 기준을 유지해 주세요. 만료되면 안내와 재발송 버튼을 보여주면 됩니다. 30분 변경 문의는 이번 범위에서 제외합니다.</p>{!policyDone ? <><label className="wp-choice-line"><input type="checkbox" checked={answerReviewed} onChange={event => setAnswerReviewed(event.target.checked)} /><span>원문·답변자·적용 기준을 대조했고 이 답변을 확정합니다.</span></label><div className="wp-action-row"><Button type="button" variant="secondary" disabled={!answerReviewed} onClick={() => { setQuestionState('resolved'); resetApproval(); announce('고객 답변을 검토해 10분 유지로 확정했습니다. 정책 충돌을 해결했습니다.'); }}>답변 확인 · 충돌 해결</Button></div></> : <Badge tone="green">10분 유지 · 결정 이력 보존</Badge>}</div> : null}
+        </div>}
+      </section>
+      <section className="wp-panel"><div className="wp-panel-heading"><div><h2>검토한 범위만 승인합니다</h2><p className="wp-muted">Nora가 제안한 범위를 사람이 확인한 뒤 작업과 실행 요청에 고정합니다.</p></div><Badge tone={ready ? 'green' : 'quiet'}>{ready ? 'Scope Lock 승인 대기' : '점검 해결 후 승인'}</Badge></div><div className="wp-grid-two"><div className="wp-scope-box"><h3>포함 범위</h3><ul><li>인증 링크 유효시간 10분</li><li>만료 안내·재발송 동작</li><li>src/auth/** · tests/auth/**</li><li>검토 민서 · 개발 서지우 · 완료 예정 10월 16일</li></ul></div><div className="wp-scope-box"><h3>이번 작업에서 제외</h3><ul><li>유효시간 30분 변경</li><li>결제·관리자 권한 기능 변경</li><li>승인 없이 외부 메시지 발송</li><li>자동 병합·운영 배포</li></ul></div></div><label className="wp-choice-line"><input type="checkbox" checked={accepted} disabled={!ready} onChange={event => setAccepted(event.target.checked)} /><span>해결한 정책·완료 기준·수정 범위와 작업 순서를 확인했습니다.</span></label></section>
+    </> : <section className="wp-callout"><h3>먼저 점검 결과를 확인해 보세요</h3><p className="wp-muted">정책 충돌이 있으면 질문을 생성하고, 답변을 대조한 뒤 재점검합니다. 해결되지 않은 채로 실행을 시작하지 않습니다.</p></section>}
+    <LocalStatus>{notice}</LocalStatus><div className="wp-action-row wp-context-next"><span className="wp-muted">{held ? '착수를 보류했습니다. 다시 점검하면 검토를 이어갈 수 있습니다.' : resolvedCount === 3 && !rechecked ? '확인 사항을 해결했습니다. 현재 상태로 다시 점검해 주세요.' : ready ? '최종 범위를 확인하면 작업 생성으로 이어집니다.' : '미해결 사항이 남아 있으면 범위를 승인할 수 없습니다.'}</span><div className="wp-action-row"><Button type="button" variant="secondary" disabled={!checked || held} onClick={() => { setHeld(true); setAccepted(false); announce('T-21 착수를 보류했습니다. 미해결 사항과 질문 이력은 유지합니다.'); }}>착수 보류</Button><Button type="button" icon={ArrowRight} disabled={!ready || !accepted} onClick={() => { announce('정책·작업 순서를 재점검하고 T-21의 범위를 승인했습니다.'); onNext?.(); }}>범위 승인 · 작업 만들기로</Button></div></div>
+    {source ? <SourceDialog source={source} onClose={() => setSource(null)} /> : null}
+  </div>;
+}

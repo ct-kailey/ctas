@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "pipeline_id": "pipe_69176e8b946449329ab1a98b927b66cf",
+  "name": "AINS SI/SM Document Intake v1",
+  "publication_status": "published",
+  "api": {
+    "trigger_node_id": "n_6ea1b0229b4b4948a1f10a1805142afd",
+    "auth": "bearer",
+    "path_hint": "ains-sism-document-intake-v1",
+    "secret_provisioned": true,
+    "url_verified": true,
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/foundry/ains-sism-document-intake-v1"
+  },
+  "nodes": {
+    "validate": "n_8b16455360c142cda0759e1153c31c68",
+    "normalize": "n_13c2398d9a10499a9b3745b4a9cf40a3"
+  },
+  "sources": {
+    "n_8b16455360c142cda0759e1153c31c68": "validate-document.js",
+    "n_13c2398d9a10499a9b3745b4a9cf40a3": "normalize-block.js"
+  },
+  "runtime": {
+    "input_global": "args",
+    "output": "return object shallow-merges with incoming record",
+    "final_output": "report.final_output JSON string",
+    "observed_mcp_execution": "inline result",
+    "pure_processing": true,
+    "requires_single_document": true,
+    "requires_zero_failed_records": true
+  },
+  "limits": {
+    "segments": 200,
+    "total_text_unicode_codepoints": 100000,
+    "segment_text_unicode_codepoints": 100000,
+    "payload_utf8_bytes": 2000000,
+    "identity_unicode_codepoints": 200
+  },
+  "caller_obligations": [
+    "Authenticate project ownership and pass only one Document object.",
+    "Reject any stage.artifacts.failed > 0 regardless of run status.",
+    "Reject script_error and any non-Document/array output; validate output schema and expected identifiers, source hash and original texts.",
+    "Keep bearer secret server-side in the trusted adapter.",
+    "The pipeline checks sha256 format; it cannot verify original bytes or extraction fidelity."
+  ],
+  "publication_version": 1,
+  "publication_content_hash": "798301bed1ce870839308a8a6d9be9b8f1f425a0b3a6d63beb9bb0c74e44d2fc",
+  "verification": {
+    "published_mcp_run_id": "378fef2e-b010-4ac6-87b3-104c3ee22ca3",
+    "published_http_run_id": "647956d2-85d4-43a5-99a3-b9b29584e58b",
+    "http_status": 200,
+    "consumer_contract_verified": true
+  }
+}

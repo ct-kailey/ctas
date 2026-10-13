@@ -1,36 +1,35 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AINS 예시 대시보드
 
-## Getting Started
+vara의 프로젝트 현황 UI를 기존 AINS 작업실과 함께 배포하는 정적 프리뷰입니다. 진입 경로는 `/dashboard/`이고, 기존 작업실 `/` 및 전체 흐름 프리뷰 `/preview`로 이동할 수 있습니다.
 
-First, run the development server:
+## 실행과 배포
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# http://localhost:3000/dashboard/
+
+npm run build
+npm run typecheck
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`next build`가 `out/`에 HTML·JS·CSS·글꼴을 생성합니다. 상위 프로젝트의 통합 빌드에서 이 디렉터리를 `/dashboard` 아래로 복사하고 Express가 제공합니다. 정적 export이므로 별도 Next 서버나 `next start`는 사용하지 않습니다. 독립 배포 시에도 `/dashboard` 경로를 마운트해야 하며, 존재하지 않는 경로는 기존 작업실 HTML 대신 404로 응답해야 합니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+현재 정적 라우트는 홈, 알림함, `seegene`·`a-corp`·`b-corp` 프로젝트와 각각의 설정 화면입니다. 프로젝트 목록은 `src/lib/mock.ts`에서 빌드 시 결정되므로 새 프로젝트를 추가하면 다시 빌드해야 합니다.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 프리뷰의 범위
 
-## Learn More
+- 모든 프로젝트·문서·알림·결정·할 일은 예시 데이터입니다. 업무 API, Gmail, Google Drive, AI와 연결하지 않습니다.
+- 자료 입력은 파일 이름과 입력 폼만 받고 정해진 결과를 보여 줍니다. 파일 내용 읽기·분석·업로드·저장은 하지 않습니다.
+- 메일 초안은 수정·클립보드 복사가 가능합니다. 완료 버튼은 화면의 예시 알림만 정리하며 실제 발송하지 않습니다.
+- 설정 변경·할 일 체크·결정 검토는 화면 상태만 바꿉니다. 새로고침하면 초기화되며 일부 상태는 화면을 나가도 초기화됩니다.
+- 통합 검색은 연결 전이므로 비활성 상태로 표시합니다.
+- 예시 사용자 표시와 AI 동의 설정은 실제 인증이나 접근 제어를 의미하지 않습니다.
 
-To learn more about Next.js, take a look at the following resources:
+## CTDS
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+기존 업무 UI의 구조와 Phosphor 아이콘을 유지하며 AINS 작업실의 Spare·calm·hue 100 카키 기본색을 적용합니다. `src/lib/dashboard-theme.ts`가 초기 설정이며 `globals.css`는 calm의 채도만 작업실과 맞춥니다. Pretendard 1.3.9를 `next/font/local`로 자체 제공해 외부 폰트 요청이 없습니다.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`/dashboard/ctds/`는 기존 작업실 `/ctds`로 안내하는 정적 페이지입니다. 파일을 쓰는 원래 CTDS 온보딩 컴포넌트는 소스에 보존하지만 대시보드 라우트에서는 사용하지 않습니다. 두 앱의 브라우저 테마 설정 저장 방식은 별도입니다.
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+통합 호스트는 생성된 HTML의 인라인 스크립트에 맞는 CSP를 제공해야 합니다. 대시보드의 CSP를 위해 기존 작업실 전체 정책을 완화하지 않습니다.

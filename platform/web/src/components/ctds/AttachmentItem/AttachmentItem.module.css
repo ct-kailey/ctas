@@ -1,0 +1,112 @@
+/* AttachmentItem — [leading] filename (meta) [actions]
+   size sm/md: 1줄 pill
+   size lg:    2줄 큰 카드 (파일명 위 / meta 아래)
+   폭은 전부 --input-w-lg (400px) 고정 — 소비처가 폭 걱정 없이 넣기만. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: var(--input-w-lg);
+  min-width: 0;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  color: var(--fg);
+  transition: var(--transition-colors);
+  box-sizing: border-box;
+  /* 아주 연한 drop shadow — 종이가 살짝 떠 있는 정도 (hairline보다 아주 약간만 강조). */
+  box-shadow: var(--shadow-xs);
+}
+
+/* ───────── size ─────────
+   sm/md: 1줄. radius-md.
+   lg:   2줄 세로 스택. radius-lg + 넉넉한 padding. */
+.sizeSm {
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  gap: var(--space-1_5);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-md);
+}
+.sizeMd {
+  padding: var(--space-1_5) var(--space-1_5) var(--space-1_5) var(--space-2_5);
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-md);
+}
+.sizeLg {
+  padding: var(--space-2_5) var(--space-1_5) var(--space-2_5) var(--space-2_5);
+  gap: var(--space-2_5);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-lg);
+}
+
+/* ───────── text block ───────── */
+.text {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+.sizeLg .text {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-0_5);
+}
+
+.label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-strong);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.2;
+}
+.sizeLg .label {
+  font-size: var(--text-sm);
+}
+
+.meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--fg-subtle);
+  font-weight: var(--font-weight-regular);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+/* ───────── loading slot ─────────
+   FileIcon 자리에 들어가는 정사각 — 각 사이즈 FileIcon 치수와 동일.
+   내부 Spinner(lottie-dots)가 꽉 채운다. */
+.loadingSlot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: var(--primary);
+  width: var(--space-6);
+  height: var(--space-6);
+}
+.sizeSm .loadingSlot {
+  width: var(--space-4);
+  height: var(--space-4);
+}
+.sizeLg .loadingSlot {
+  width: var(--space-8);
+  height: var(--space-8);
+}
+/* ───────── actions ───────── */
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}

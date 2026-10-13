@@ -1,0 +1,182 @@
+/* Stepper — 다단계 진행 표시 컴포넌트
+   구성: root(container) > item(button) > marker(dot|number) + body(title + hint)
+   축 반응:
+   ─ Density → --space-scale, --font-scale (여백·라벨 크기)
+   ─ Shape   → focus ring radius (marker는 항상 full)
+   ─ Motion  → 상태 전환 duration/easing (transition-colors)
+
+   로컬 색 변수 (root에서 오버라이드 가능):
+   ─ --stepper-fg         : 활성/진행중 스텝 텍스트
+   ─ --stepper-fg-muted   : 완료 스텝 텍스트
+   ─ --stepper-fg-subtle  : 미도달 스텝 텍스트 · hint
+   ─ --stepper-line       : 스텝 사이 dashed 트리 라인
+   ─ --stepper-dot-idle   : 미도달 dot border
+   ─ --stepper-marker-fg  : done marker 안쪽 텍스트/아이콘 색 (배경 위)
+*/
+
+.root {
+  --stepper-fg: var(--fg);
+  --stepper-fg-muted: var(--fg-muted);
+  --stepper-fg-subtle: var(--fg-subtle);
+  --stepper-line: var(--border);
+  --stepper-dot-idle: var(--border);
+  --stepper-marker-fg: var(--bg);
+
+  --stepper-marker-size: var(--space-5);
+  --stepper-marker-gap: var(--space-4);
+  --stepper-item-gap: var(--space-6);
+
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Orientation ─────────────────────────────────────────── */
+
+.vertical { flex-direction: column; }
+.horizontal { flex-direction: row; align-items: flex-start; }
+
+/* Item ─────────────────────────────────────────────────── */
+
+.item {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--stepper-fg-subtle);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  position: relative;
+  text-align: left;
+  font-family: inherit;
+  min-width: 0;
+}
+.item:hover:not(:disabled) { color: var(--stepper-fg-muted); }
+.item[data-state="done"] { color: var(--stepper-fg-muted); }
+.item[data-state="active"] { color: var(--stepper-fg); }
+.item:disabled { cursor: not-allowed; }
+.item:focus-visible {
+  outline: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--ring-shadow);
+}
+
+/* Vertical item: 2-column grid, 아래로 dashed line */
+.vertical .item {
+  display: grid;
+  grid-template-columns: var(--stepper-marker-size) 1fr;
+  gap: var(--stepper-marker-gap);
+  align-items: start;
+  padding-bottom: var(--stepper-item-gap);
+}
+.vertical .item:last-child { padding-bottom: 0; }
+.vertical .item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--stepper-marker-size) / 2 - var(--hairline) / 2);
+  top: var(--stepper-marker-size);
+  bottom: 0;
+  width: var(--hairline);
+  background-image: linear-gradient(
+    to bottom,
+    var(--stepper-line) 50%,
+    transparent 50%
+  );
+  background-size: var(--hairline) var(--space-1_5);
+  background-repeat: repeat-y;
+}
+
+/* Horizontal item: marker 위, body 아래로 쌓임, 옆으로 dashed line */
+.horizontal .item {
+  display: grid;
+  grid-template-rows: var(--stepper-marker-size) 1fr;
+  gap: var(--space-2);
+  justify-items: start;
+  flex: 1 1 0;
+  min-width: 0;
+  padding-right: var(--stepper-item-gap);
+}
+.horizontal .item:last-child {
+  flex: 0 0 auto;
+  padding-right: 0;
+}
+.horizontal .item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--stepper-marker-size) / 2 - var(--hairline) / 2);
+  left: var(--stepper-marker-size);
+  right: 0;
+  height: var(--hairline);
+  background-image: linear-gradient(
+    to right,
+    var(--stepper-line) 50%,
+    transparent 50%
+  );
+  background-size: var(--space-1_5) var(--hairline);
+  background-repeat: repeat-x;
+  margin-inline: var(--space-2);
+}
+
+/* Marker ───────────────────────────────────────────────── */
+
+.marker {
+  width: var(--stepper-marker-size);
+  height: var(--stepper-marker-size);
+  border-radius: var(--radius-full);
+  border: var(--hairline) solid var(--stepper-dot-idle);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  flex-shrink: 0;
+  transition: var(--transition-colors);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  color: inherit;
+}
+
+/* Active marker: 굵은 링 */
+.item[data-state="active"] .marker {
+  border-color: var(--stepper-fg);
+  border-width: calc(var(--hairline) * 2);
+  color: var(--stepper-fg);
+}
+
+/* dot marker의 active: 안쪽 작은 점 */
+.markerInnerDot {
+  width: var(--space-1_5);
+  height: var(--space-1_5);
+  border-radius: var(--radius-full);
+  background: var(--stepper-fg);
+}
+
+/* Done marker: 배경 채움, 안에 check (dot) 또는 숫자 유지 (number) */
+.item[data-state="done"] .marker {
+  border-color: transparent;
+  background: var(--stepper-fg);
+  color: var(--stepper-marker-fg);
+}
+
+/* Body ─────────────────────────────────────────────────── */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0_5);
+  min-width: 0;
+  padding-right: var(--space-2);
+}
+
+.title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.hint {
+  font-size: var(--text-xs);
+  color: var(--stepper-fg-subtle);
+  line-height: var(--lh-xs);
+}
+.item[data-state="active"] .hint {
+  color: var(--stepper-fg-muted);
+}

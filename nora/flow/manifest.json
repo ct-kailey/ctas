@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "slug": "ains-sism-change-review-openai-v1",
+  "name": "AINS SI/SM Requirement Change Review OpenAI v1",
+  "publication_status": "published",
+  "publication_version": 2,
+  "published_version_id": "gv_a227956335394554a4d071d0b9bb4930",
+  "published_at": "2026-09-25T17:08:21.088768Z",
+  "revision": "19903",
+  "model": "gpt-5.4-mini",
+  "model_params": {
+    "reasoning_effort": "low"
+  },
+  "trigger_id": "trg_f39859c5e994460ba0d3faa1f29e0e9d",
+  "agents": {
+    "analysis": "agent_e48d935704644fbe8a310f97287e45ea",
+    "impact_questions": "agent_a87d44bb863a466abe0cf75a8f6fd907",
+    "evidence_gate": "agent_ad65fdbc94cc4d3393fe93afbf1d5dca"
+  },
+  "tools": {
+    "prepare": "tb_f7669f36c2c549c38f3ee35b71a53620",
+    "finalize": "tb_08fae09c37b14c3197024d7688059d70"
+  },
+  "tool_params": {
+    "prepare": [
+      "request:object (fixed review_request binding)"
+    ],
+    "finalize": [
+      "request:object (fixed review_request binding)",
+      "review:object (semantic proposal)"
+    ]
+  },
+  "auth": {
+    "kind": "header_token",
+    "header": "Authorization",
+    "secret_provisioned": true
+  },
+  "api": {
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/flows/ains-sism-change-review-openai-v1",
+    "http_verified": true,
+    "content_type": "multipart/form-data",
+    "fields": [
+      "input",
+      "variables"
+    ],
+    "authorization": "raw token in Authorization header",
+    "success_envelope": "traceId,usage,output,outputs,status,rawStatus"
+  },
+  "validation": {
+    "publication_version": 2,
+    "published_http_status": 200,
+    "published_http_trace_id": "trc_a3b83af3956e4c1dbfce7357106d638f",
+    "multiline_exact_evidence": true,
+    "summary": "regressions-v2/summary.json",
+    "remote_tool_execution_verified": true,
+    "published_http_runs": 4,
+    "successful_review_runs": 4,
+    "regression_cases": [
+      "multiline",
+      "escaped-multiline",
+      "editorial-and-reordering",
+      "policy-now-undecided"
+    ]
+  },
+  "legacy": {
+    "slug": "ains-sism-change-review-v1",
+    "status": "unpublished_legacy_draft",
+    "reason": "Existing draft update and expectedRevision round-trip repeatedly returned HTTP409. Preserved unchanged; new OpenAI version created and tested."
+  },
+  "sources": {
+    "core": "review-core.js",
+    "prompts": [
+      "01-change-analysis.md",
+      "02-impact-and-questions.md",
+      "03-evidence-gate.md"
+    ],
+    "postprocessor": "output-gate.js",
+    "assembler": "proposal-assembler.js"
+  },
+  "validation_history": [
+    {
+      "publication_version": 1,
+      "validation": {
+        "normal_cases": 7,
+        "preflight_rejected_cases": 3,
+        "successful_review_runs": 9,
+        "remote_tool_execution_verified": true,
+        "published_http_status": 200,
+        "published_http_trace_id": "trc_fb8548d6ce254d24830501e95a673f65",
+        "unauthenticated_http_status": 401,
+        "acceptance_remote_runs": 7,
+        "published_http_runs": 2,
+        "end_to_end_trace_id": "trc_0e524e92b07d4c81bd873c0880eb1909"
+      },
+      "summary": "acceptance-summary.json"
+    }
+  ],
+  "tool_binding": {
+    "request": {
+      "source": "fixed",
+      "fixedValue": "{{review_request}}",
+      "type": "object"
+    },
+    "model_placeholder": {},
+    "runtime_access": "args.request; no source-code interpolation"
+  },
+  "native_tool_limit": {
+    "declared": [],
+    "hard_disable_verified": false,
+    "note": "Nora exposed execute_python in earlier failed draft traces despite nativeTools:[]; prompts prohibit helpers and final backend validation fails closed. Successful v2 traces are checked separately."
+  }
+}

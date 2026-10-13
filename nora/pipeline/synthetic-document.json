@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "project_id": "synthetic-sism",
+  "document_id": "synthetic-document",
+  "revision_id": "r1",
+  "source": {
+    "filename": "synthetic.txt",
+    "mime_type": "text/plain",
+    "sha256": "5b3e5abcb1d4e030083de51354dd6594ee87b77c24ece496528065b6ce157d1e"
+  },
+  "segments": [
+    {
+      "segment_id": "s1",
+      "requirement_key": null,
+      "text": "  기준은 5 mg 이상, 50% 미만, ３㎖, >= 5, ≤ 50 입니다.\r\n\t단위 μg, mL 및 부등호 < > = 를 보존한다.  ",
+      "locator": {
+        "kind": "text",
+        "label": "원문 전체"
+      },
+      "extraction_status": "ok"
+    }
+  ],
+  "extraction": {
+    "complete": true,
+    "warnings": []
+  }
+}

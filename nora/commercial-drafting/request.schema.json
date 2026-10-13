@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "project_id",
+    "profile_version",
+    "profile",
+    "document",
+    "template"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "profile_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_name",
+        "company_info",
+        "project_scope",
+        "schedule",
+        "budget",
+        "notes"
+      ],
+      "properties": {
+        "client_name": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "company_info": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 5000
+        },
+        "project_scope": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 5000
+        },
+        "schedule": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 5000
+        },
+        "budget": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 5000
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 5000
+        }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision_id",
+        "kind",
+        "title",
+        "content"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        },
+        "revision_id": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        },
+        "kind": {
+          "enum": [
+            "proposal",
+            "estimate",
+            "contract"
+          ]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "content": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sections",
+            "tables"
+          ],
+          "properties": {
+            "sections": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 12,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "title",
+                  "body"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "body": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 8000
+                  }
+                }
+              }
+            },
+            "tables": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 5,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "title",
+                  "columns",
+                  "rows"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$"
+                  },
+                  "title": {
+                    "type": "string",
+                    "minLength": 0,
+                    "maxLength": 300
+                  },
+                  "columns": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 8,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 500
+                    }
+                  },
+                  "rows": {
+                    "type": "array",
+                    "minItems": 0,
+                    "maxItems": 30,
+                    "items": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 8,
+                      "items": {
+                        "type": "string",
+                        "minLength": 0,
+                        "maxLength": 500
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "instructions",
+        "sections",
+        "company_name",
+        "footer",
+        "is_sample"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "kind": {
+          "enum": [
+            "proposal",
+            "estimate",
+            "contract"
+          ]
+        },
+        "instructions": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 8000
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "title",
+              "guidance"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,79}$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "guidance": {
+                "type": "string",
+                "minLength": 0,
+                "maxLength": 2000
+              }
+            }
+          }
+        },
+        "company_name": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 300
+        },
+        "footer": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "is_sample": {
+          "type": "boolean"
+        },
+        "reference_text": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 20000
+        }
+      }
+    },
+    "source": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revision_id",
+            "text"
+          ],
+          "properties": {
+            "revision_id": {
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40000
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+/* DropdownMenu — Radix DropdownMenu 위에 얹은 시각 레이어.
+   표면·분리선·indicator 전부 ContextMenu CSS에서 composes해 재사용 —
+   두 메뉴의 시각이 한 소스에서 흐르도록. 여기선 transform-origin·z-index 등
+   dropdown-menu primitive 전용 CSS 변수만 지정. */
+
+.content {
+  composes: content from "../ContextMenu/ContextMenu.module.css";
+  z-index: var(--z-popover);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+
+.content[data-radix-dropdown-menu-sub-content] {
+  transform-origin: var(--radix-dropdown-menu-sub-content-transform-origin);
+}
+
+.separator {
+  composes: separator from "../ContextMenu/ContextMenu.module.css";
+}
+
+.checkIndicator {
+  composes: checkIndicator from "../ContextMenu/ContextMenu.module.css";
+}
+
+.radioIndicator {
+  composes: radioIndicator from "../ContextMenu/ContextMenu.module.css";
+}

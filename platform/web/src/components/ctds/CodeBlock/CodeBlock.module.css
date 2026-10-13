@@ -1,0 +1,79 @@
+/* CodeBlock — AIMessage 안의 코드 블록. 상단 언어 라벨 + copy, 본문 pre+code. */
+
+.root {
+  position: relative;
+  background: var(--primary-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  color: var(--fg-muted);
+}
+
+.lang {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-code);
+  font-size: var(--text-xs);
+}
+.langIcon {
+  width: var(--space-4);
+  height: var(--space-4);
+}
+.langLabel {
+  line-height: 1;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  width: var(--space-6);
+  height: var(--space-6);
+  transition: var(--transition-colors);
+}
+.copyBtn:hover {
+  background: var(--hover);
+  color: var(--fg-strong);
+}
+.copyBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.copyIcon {
+  width: 60%;
+  height: 60%;
+}
+
+/* 코드 본문 — pre + mono font. 가로 스크롤 가능. */
+.code {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) var(--space-4);
+  font-family: var(--font-code);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--fg-strong);
+  overflow-x: auto;
+  white-space: pre;
+  word-wrap: normal;
+}
+.code code {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  padding: 0;
+}

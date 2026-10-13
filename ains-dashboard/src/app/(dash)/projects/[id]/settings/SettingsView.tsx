@@ -35,7 +35,7 @@ export function SettingsView({ project }: { project: Project }) {
           leftIcon={<Icon name={saved ? "check" : "check-circle"} />}
           onClick={() => setSaved(true)}
         >
-          {saved ? "저장했어요" : "저장"}
+          {saved ? "화면에만 반영했어요" : "예시 설정 적용"}
         </Button>
       </header>
 
@@ -148,7 +148,7 @@ export function SettingsView({ project }: { project: Project }) {
           <div className={s.head}>
             <h2 className={s.panelTitle}>고객 메일 주소</h2>
             <span className={s.muted}>
-              이 주소에서 온 메일만 Gmail에서 자동으로 가져와요. @seegene.com처럼 회사 주소 전체도 돼요.
+              Gmail 연결을 가정한 예시 설정입니다. 실제 메일은 가져오지 않습니다. @seegene.com처럼 회사 주소 전체도 입력할 수 있어요.
             </span>
           </div>
           <div className={s.row}>

@@ -1,0 +1,167 @@
+/* Avatar ───────────────────────────────────────────────────────
+   사람/팀/봇을 시각화하는 라벨.
+   이미지 > 이니셜 > 아이콘 순으로 폴백(안쪽 내용만 바뀌고 컨테이너는 동일).
+
+   shape prop:
+   - circle(기본): 사람·개인 계정. 항상 --radius-full.
+   - rounded: 팀·조직·봇·서비스. size별로 radius 스왑(Shape 축을 밟음).
+   두 모양이 나란히 있으면 "사람 vs 아닌 것"이 한눈에 구분됨. */
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--_avatar-bg, var(--bg-muted));
+  color: var(--_avatar-fg, var(--fg));
+  font-family: var(--label-font);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  letter-spacing: 0;   /* 이니셜은 tracking 0 — narrow letter 조합에서 시각 균형 */
+  user-select: none;
+}
+
+/* Shape ─────────────────────────────────────────────────── */
+.circle { border-radius: var(--radius-full); }
+
+/* rounded는 size에 맞춰 radius 크기가 자연스럽게 커짐.
+   xs/sm은 컨테이너 자체가 작아 xs radius, md는 sm, lg는 md, xl은 lg. */
+.rounded.xs { border-radius: var(--radius-xs); }
+.rounded.sm { border-radius: var(--radius-sm); }
+.rounded.md { border-radius: var(--radius-md); }
+.rounded.lg { border-radius: var(--radius-lg); }
+.rounded.xl { border-radius: var(--radius-xl); }
+
+/* Sizes ────────────────────────────────────────────────────
+   space-* 스케일에 붙여 다른 컨트롤과 정렬 유지.
+   xs는 Chip 내부용, sm/md는 리스트/일반, lg는 프로필 헤더 등. */
+/* 이니셜 폰트는 컨테이너 폭의 40% — 사이즈가 바뀌어도 시각 비율 유지. */
+.xs {
+  width: var(--space-4);                /* 16 */
+  height: var(--space-4);
+  font-size: calc(var(--space-4) * 0.5);   /* xs만 최소 가독성 위해 살짝 크게 */
+}
+.sm {
+  width: var(--space-6);                /* 24 */
+  height: var(--space-6);
+  font-size: calc(var(--space-6) * 0.48);
+}
+.md {
+  width: var(--space-8);                /* 32 */
+  height: var(--space-8);
+  font-size: calc(var(--space-8) * 0.48);
+}
+.lg {
+  width: var(--space-12);               /* 48 */
+  height: var(--space-12);
+  font-size: calc(var(--space-12) * 0.48);
+}
+.xl {
+  width: var(--space-24);               /* 96 */
+  height: var(--space-24);
+  font-size: calc(var(--space-24) * 0.48);
+}
+
+/* Content slots ──────────────────────────────────────────── */
+.root {
+  position: relative;
+  overflow: visible;  /* status 뱃지가 밖으로 삐져나올 수 있게 */
+}
+/* 내부 이미지 모서리는 shape를 따라야 하므로 안쪽 clip은 image에만 적용 */
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  border-radius: inherit;   /* root의 shape를 그대로 따라감 */
+}
+.image[data-loaded="true"] { opacity: 1; }
+.initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+.icon > svg {
+  display: block;
+}
+
+/* Status badge ───────────────────────────────────────────────
+   접속 상태 표시용 작은 동그라미. 우하단 고정.
+   - online: --success
+   - offline: --fg-muted (톤 다운)
+   테두리는 --bg 색 ring으로, 아바타와 시각적으로 분리.
+   크기·offset은 각 size별 공간 토큰으로 매핑. */
+.status {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: var(--_status-size, var(--space-2));
+  height: var(--_status-size, var(--space-2));
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 0 var(--_status-ring, var(--space-0_5)) var(--bg);
+  pointer-events: none;
+}
+.status[data-status="online"]  { background: var(--success); }
+.status[data-status="offline"] { background: var(--fg-disabled); }
+
+/* size별 뱃지 지름 — 컨테이너의 ~25~30% 범위.
+   ring은 작은 사이즈에선 hairline, 큰 사이즈에선 공간 토큰. */
+.xs .status { --_status-size: var(--space-1_5); --_status-ring: var(--hairline); }  /* 6 */
+.sm .status { --_status-size: var(--space-2);   --_status-ring: var(--hairline); }  /* 8 */
+.md .status { --_status-size: var(--space-2_5); --_status-ring: var(--space-0_5); } /* 10 */
+.lg .status { --_status-size: var(--space-3);   --_status-ring: var(--space-0_5); } /* 12 */
+.xl .status { --_status-size: var(--space-6);   --_status-ring: var(--space-1); }   /* 24 */
+
+/* rounded shape는 모서리가 각지므로 뱃지가 모서리 바깥으로 살짝 나가도록 */
+.rounded .status {
+  right: calc(var(--_status-size) * -0.2);
+  bottom: calc(var(--_status-size) * -0.2);
+}
+
+/* ── AvatarGroup ────────────────────────────────────────────
+   가로 겹침. 왼쪽 아바타가 앞에 오도록 z-index 역순. bg 링으로 경계 분리.
+   겹침 offset은 각 아바타 폭의 ~30%. size별로 자동 스케일. */
+.group {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  isolation: isolate;
+  width: fit-content;
+}
+
+.groupItem {
+  position: relative;
+  z-index: var(--stack-order, 0);
+  box-shadow: 0 0 0 var(--space-0_5) var(--bg);
+}
+
+.groupItem + .groupItem {
+  margin-left: calc(var(--space-1) * -1);
+}
+
+/* size별 overlap 강도 조정 */
+.group.xs .groupItem + .groupItem { margin-left: calc(var(--space-1) * -1); }   /* -4 */
+.group.sm .groupItem + .groupItem { margin-left: calc(var(--space-1_5) * -1); } /* -6 */
+.group.md .groupItem + .groupItem { margin-left: calc(var(--space-2) * -1); }   /* -8 */
+.group.lg .groupItem + .groupItem { margin-left: calc(var(--space-3) * -1); }   /* -12 */
+.group.xl .groupItem + .groupItem { margin-left: calc(var(--space-6) * -1); }   /* -24 */
+
+.overflow {
+  background: var(--bg-muted);
+  color: var(--fg-subtle);
+  font-weight: var(--font-weight-medium);
+}
+.overflow.xs { font-size: calc(var(--space-4)  * 0.42); }
+.overflow.sm { font-size: calc(var(--space-6)  * 0.36); }
+.overflow.md { font-size: calc(var(--space-8)  * 0.36); }
+.overflow.lg { font-size: calc(var(--space-12) * 0.36); }
+.overflow.xl { font-size: calc(var(--space-24) * 0.36); }

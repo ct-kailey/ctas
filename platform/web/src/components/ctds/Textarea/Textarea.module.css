@@ -1,0 +1,318 @@
+/* Root container ────────────────────────────────────────── */
+.root {
+  display: inline-flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  font-family: var(--font-normal);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: text;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  min-width: 0;
+  position: relative;
+}
+
+.root:hover:not([data-disabled]):not([data-readonly]),
+.root:focus-visible,
+.root:has(:focus-visible) {
+  border-color: var(--border-strong);
+}
+
+.root:focus-visible,
+.root:has(:focus-visible) {
+  outline: none;
+}
+
+/* Variants ──────────────────────────────────────────────── */
+.outline {
+  background: transparent;
+}
+
+.filled {
+  background: var(--bg-subtle);
+  border-color: transparent;
+}
+
+.filled:hover:not([data-disabled]):not([data-readonly]),
+.filled:focus-visible,
+.filled:has(:focus-visible) {
+  background: var(--bg-muted);
+  border-color: transparent;
+}
+
+/* line — 아래 선만. */
+.root.line {
+  background: transparent;
+  border-color: transparent;
+  border-bottom-color: var(--border);
+  border-radius: 0;
+  padding-inline: 0;
+}
+
+.root.line:hover:not([data-disabled]):not([data-readonly]),
+.root.line:focus-visible,
+.root.line:has(:focus-visible) {
+  border-color: transparent;
+  border-bottom-color: var(--border-strong);
+}
+
+.root.line[data-invalid],
+.root.line[data-invalid]:hover:not([data-disabled]):not([data-readonly]),
+.root.line[data-invalid]:focus-visible,
+.root.line[data-invalid]:has(:focus-visible) {
+  border-color: transparent;
+  border-bottom-color: var(--destructive);
+}
+
+/* States ────────────────────────────────────────────────── */
+.root[data-invalid] {
+  border-color: var(--destructive);
+}
+
+.root[data-invalid]:hover:not([data-disabled]):not([data-readonly]),
+.root[data-invalid]:focus-visible,
+.root[data-invalid]:has(:focus-visible) {
+  border-color: var(--destructive);
+}
+
+.root[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.root[data-readonly] {
+  background: var(--bg-subtle);
+  cursor: default;
+}
+
+.root[data-readonly].filled {
+  background: var(--bg-muted);
+}
+
+/* Width fill */
+.fill {
+  width: 100%;
+}
+
+/* Sizes ─────────────────────────────────────────────────────
+   Scroll 규칙: root(padding 있는 컨테이너)엔 overflow를 걸지 않는다.
+   실제 스크롤은 안쪽 .textarea에 걸리므로, root는 padding-inline-end를 0으로 두고
+   textarea 자체가 우측 padding을 갖는다 → 스크롤바가 root 우측 경계선에 딱 붙음. */
+.sizeSm {
+  padding: var(--space-1_5) 0 var(--space-1_5) var(--space-2);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-xs);
+  gap: var(--space-1);
+}
+.sizeSm .textarea { padding-inline-end: var(--space-2); }
+
+.sizeMd {
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  border-radius: var(--radius-sm);
+}
+.sizeMd .textarea { padding-inline-end: var(--space-3); }
+
+.sizeLg {
+  padding: var(--space-2_5) 0 var(--space-2_5) var(--space-3);
+  font-size: var(--text-base);
+  border-radius: var(--radius-md);
+}
+.sizeLg .textarea { padding-inline-end: var(--space-3); }
+
+/* line variant는 좌우 padding이 없음 — textarea 자체도 우측 여백 없이. */
+.root.line .textarea { padding-inline-end: 0; }
+
+/* Inner textarea ────────────────────────────────────────── */
+.textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: var(--lh-base);
+  outline: none;
+  /* 브라우저 기본 그립 대신 커스텀 핸들 사용. */
+  resize: none;
+  display: block;
+}
+
+.textarea::placeholder {
+  color: var(--fg-subtle);
+}
+
+.textarea:disabled {
+  cursor: not-allowed;
+}
+
+/* autoResize 모드 — 사용자 조작 없이 컨텐츠 높이 따라감. */
+.autoResize .textarea {
+  overflow: hidden;
+}
+
+/* Custom resize handle ─────────────────────────────────────
+   Minimalist grabber — bottom-center에 걸치는 얇은 캡슐 하나.
+   - hit-area는 넉넉하게(--space-6 × --space-3), 시각 요소는 매우 얇게
+   - 평소엔 안 보이고 root:hover / focus-within일 때만 살짝 나타남
+   - 드래그(active) 중엔 진해지고 폭이 살짝 커짐 (요즘 Linear/Vercel 톤) */
+.handle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: var(--space-6);
+  height: var(--space-3);
+  display: grid;
+  place-items: center;
+  cursor: ns-resize;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  touch-action: none;
+}
+
+.handle::before {
+  content: "";
+  display: block;
+  width: var(--space-3);
+  height: var(--hairline);
+  border-radius: var(--radius-full);
+  background: var(--fg-subtle);
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    width var(--duration-fast) var(--ease-out),
+    height var(--duration-fast) var(--ease-out);
+}
+
+.root:hover:not([data-disabled]):not([data-readonly]) .handle::before,
+.root:focus-within .handle::before {
+  opacity: 0.5;
+}
+
+.handle:hover::before,
+.handle[data-active="true"]::before {
+  opacity: 1;
+  background: var(--fg-muted);
+  width: var(--space-4);
+  height: calc(var(--hairline) * 2);
+}
+
+.handle:focus-visible {
+  outline: none;
+  border-radius: var(--radius-full);
+  box-shadow: var(--ring-shadow);
+}
+.handle:focus-visible::before {
+  opacity: 1;
+}
+
+.autoResize .handle,
+.root[data-disabled] .handle,
+.root[data-readonly] .handle {
+  display: none;
+}
+
+/* body.textarea-resizing 전역 커서 강제는 globals.css로 이전. */
+
+/* WebKit autofill */
+.textarea:-webkit-autofill,
+.textarea:-webkit-autofill:hover,
+.textarea:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--fg);
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset;
+  caret-color: var(--fg);
+}
+
+.filled .textarea:-webkit-autofill,
+.filled .textarea:-webkit-autofill:hover,
+.filled .textarea:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-subtle) inset;
+}
+
+/* Footer — count 표시 */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: var(--space-1);
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-subtle);
+  user-select: none;
+}
+
+.countOver {
+  color: var(--destructive);
+}
+
+/* FormField wrapper ─────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1_5);
+  min-width: 0;
+}
+
+.field:has(> .root.line) {
+  gap: 0;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-normal);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-muted);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.labelSm { font-size: var(--text-xs); }
+.labelMd,
+.labelLg { font-size: var(--text-sm); }
+
+.field:focus-within .label {
+  color: var(--fg);
+}
+
+.requiredMark {
+  color: var(--destructive);
+  font-weight: var(--font-weight-medium);
+}
+
+.description,
+.errorText {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+.description {
+  color: var(--fg-subtle);
+}
+
+.errorText {
+  color: var(--destructive);
+}
+
+.messageIcon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

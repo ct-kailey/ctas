@@ -1,9 +1,4 @@
-@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
-/* Font 축용 폰트 로드 — display=swap + 필요한 웨이트만.
-   ko: Pretendard(위) + Nanum Myeongjo(point)
-   en: Inter(normal) + Playfair Display(point)
-   ja/zh: system fallback 우선, 필요 시 Noto 계열 추가 */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&family=Nanum+Myeongjo:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap");
+/* Dashboard fonts are self-hosted by next/font/local in app/layout.tsx. */
 @import "./_utils.css";
 
 /* ============================================================
@@ -773,4 +768,3 @@ html[data-focus-ring="off"] {
 /* 전역 element reset, 폰트, 컴포넌트 side-effect 스타일은 ./reset.css로 분리.
    tokens.css는 CSS 변수(토큰·축)만 노출한다. 소비자 프로젝트에서 reset을
    원하면 reset.css를 별도로 import. 데모 앱은 app/globals.css가 import한다. */
-

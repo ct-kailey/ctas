@@ -1,0 +1,23 @@
+/* TableRowSelect
+   ───────────────────────────────────────────────────────────────
+   select 모드 전용 CSS. 레이아웃·사이즈·variant·fade mask는 TableRow.module.css
+   를 그대로 상속해서 공유한다. 여기선 "선택됨" 상태의 시각만 정의.
+
+   원칙
+   - selected 행은 hover보다 뚜렷하게 — primary 톤의 아주 옅은 배경.
+     hover 토큰(--hover, 중성 알파)과 구분돼야 "현재 체크된 상태"가 명확.
+   - selected 위 hover 시엔 톤을 덮지 않는다 — hover가 selected를 지워버리면
+     "지금 선택된 것"이 사라지는 혼동 발생. [[feedback/hover-over-active]] 원칙.
+*/
+
+/* 선택된 행 — hover 톤과 동일한 중성 알파 배경.
+   TableRow(navigate)의 active 상태와 같은 톤 체계 — "지금 포커스된/선택된 행" 신호가
+   컴포넌트 간 일관되게 유지된다. */
+.selected {
+  background: var(--hover);
+}
+
+/* hover가 selected를 덮지 않도록 톤 유지. */
+.selected:hover {
+  background: var(--hover) !important;
+}

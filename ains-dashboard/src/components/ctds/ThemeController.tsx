@@ -106,7 +106,9 @@ export function ThemeController({
     try {
       const saved =
         (localStorage.getItem("ctds-mode") as ThemeMode | null) ||
+        ic.mode ||
         (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Browser preferences load after the first render matches the static HTML.
       setTheme(saved);
       const savedPalette = localStorage.getItem("ctds-palette") as PaletteValue | null;
       if (savedPalette) setPalette(savedPalette);
@@ -151,7 +153,7 @@ export function ThemeController({
       } catch {}
     } catch {}
     setHydrated(true);
-  }, []);
+  }, [ic.mode]);
 
   // Sync -> document + persist
   // hydrated 전에는 스킵 — head 스크립트가 이미 실제 값으로 attr을 세팅해뒀고,

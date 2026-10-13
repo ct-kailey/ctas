@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import { PROJECTS, getProject } from "@/lib/mock";
 import { ProjectView } from "./ProjectView";
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return PROJECTS.map((p) => ({ id: p.id }));
 }

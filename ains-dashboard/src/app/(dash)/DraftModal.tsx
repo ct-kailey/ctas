@@ -52,7 +52,7 @@ export function DraftModal({
       open={target !== null}
       onOpenChange={(open) => !open && onClose()}
       title={target?.draft.label ?? "메일 초안"}
-      description="AINS가 쓴 초안이에요. 고쳐서 Gmail에서 직접 보내 주세요."
+      description="예시 초안입니다. 수정과 복사는 가능하지만 Gmail 연결·실제 발송은 하지 않습니다. 완료 버튼은 이 화면의 예시 알림만 정리합니다."
       footer={
         <>
           <Button
@@ -67,7 +67,7 @@ export function DraftModal({
             leftIcon={<Icon name="envelope" />}
             onClick={() => onSent(target?.alertId)}
           >
-            Gmail에서 보냈어요
+            예시 처리 완료
           </Button>
         </>
       }

@@ -1,0 +1,51 @@
+{
+  "synthetic": true,
+  "description": "Authored test data for a fictional project. No customer records or credentials are included.",
+  "project_name": "샘플 고객포털 · 가상 프로젝트",
+  "nora_workspace_id": "workspace-synthetic-only",
+  "domains": [
+    {
+      "key": "customer-portal",
+      "name": "가상 고객포털",
+      "description": "자료의 발생일과 결정일을 구분하는 테스트용 업무 영역"
+    }
+  ],
+  "records": [
+    {
+      "key": "kickoff",
+      "title": "가상 프로젝트 킥오프 회의",
+      "domain_key": "customer-portal",
+      "record_kind": "conversation",
+      "files": ["meetings/kickoff.md"],
+      "history": {
+        "source_type": "meeting",
+        "occurred_on": "2026-10-01",
+        "decided_on": null,
+        "source_created_at": null,
+        "channel": "가상 프로젝트 회의",
+        "url": "https://example.test/projects/sample-portal/meetings/kickoff",
+        "external_id": "synthetic-portal-kickoff-20261001",
+        "participants": ["lead@example.test", "customer@example.test"],
+        "tags": ["synthetic", "preparation", "meeting"]
+      }
+    },
+    {
+      "key": "agenda",
+      "title": "가상 프로젝트 다음 회의 준비안",
+      "domain_key": "customer-portal",
+      "record_kind": "note",
+      "files": ["meetings/agenda.md"],
+      "history": {
+        "source_type": "editor",
+        "occurred_on": null,
+        "decided_on": null,
+        "source_created_at": "2026-10-02T09:00:00+09:00",
+        "channel": "가상 프로젝트 준비 문서",
+        "url": "https://example.test/projects/sample-portal/meetings/agenda",
+        "external_id": "synthetic-portal-agenda-20261007",
+        "participants": ["lead@example.test"],
+        "tags": ["synthetic", "preparation", "agenda"]
+      }
+    }
+  ]
+}

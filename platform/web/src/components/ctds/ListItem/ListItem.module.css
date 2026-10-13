@@ -1,0 +1,318 @@
+/*
+ * ListItem — row 레벨 수평 anatomy. 수직 리듬은 parent gap/hairline에 위임.
+ *
+ * padding/border/bg는 자체적으로 걸지 않지만, hover bg는 "chrome"이 아니라
+ * "상호작용 피드백"이므로 row 레벨에서 담당.
+ *
+ * 색상 훅 (부모 컨테이너에서 오버라이드):
+ *   --list-item-fg          body 서술 색 (default: --fg)
+ *   --list-item-from-fg     from(누구) 색 (default: --fg-strong)
+ *   --list-item-meta-fg     meta/상대시간 색 (default: --fg-muted)
+ *   --list-item-hover-bg    hover 시 row bg (default: --hover). transparent로 끄기
+ */
+
+.root {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--list-item-fg, var(--fg));
+  text-decoration: none;
+  min-width: 0;
+  /* 좌우 padding 없음 — 가로 anatomy는 flex gap만 담당해서 좌우 비대칭 방지.
+     세로 padding만 걸어 hover hit area 확보. 부모 li가 세로 hairline/padding을
+     담당하면 음의 margin으로 리듬 유지. 좌우로 hover bg를 넓히고 싶으면
+     부모 wrapper에 padding/negative margin을 걸어 조정한다. */
+  padding-block: var(--space-3);
+  margin-block: calc(var(--space-3) * -1);
+  transition: var(--transition-colors);
+}
+
+.inline {
+  align-items: center;
+}
+
+.stacked {
+  align-items: flex-start;
+  /* 두 줄짜리는 세로 호흡을 한 단계 더. margin-block은 root 기본값(-space-3) 유지해
+     실제 레이아웃 박스가 벌어지도록. */
+  padding-block: var(--space-4);
+}
+
+/* row hover — 모든 리스트 항목에서 "지금 이 줄" 신호.
+   pure 좌표에서 끄려면 --list-item-hover-bg: transparent. */
+.root:hover {
+  background: var(--list-item-hover-bg, var(--hover));
+}
+
+.interactive {
+  cursor: pointer;
+}
+
+.interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* Leading — Avatar / Icon / 커스텀 */
+.leading {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+
+/* leading 안쪽에 size=auto인 leadingIcon이 있으면 wrapper를 투명화해서
+   leadingIcon이 root flex의 직접 자식이 되게 한다 — 그래야 align-self: stretch가
+   root content 전체 높이를 받고, root gap이 leadingIcon에 직접 적용됨. */
+.leading:has(.leadingIcon.auto) {
+  display: contents;
+}
+
+/* ListItemLeadingIcon — "배경색 + 아이콘" leading 타입.
+   Avatar와 같은 사이즈 트랙에 올려 리스트에서 섞여도 정렬이 깨지지 않는다.
+   bg/fg는 tone 프리셋 또는 CSS 변수로 자유 조절. */
+.leadingIcon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--leading-icon-bg, var(--bg-muted));
+  color: var(--leading-icon-fg, var(--fg));
+  border-radius: var(--radius-sm);
+}
+
+.leadingIcon.xs { width: var(--space-4);  height: var(--space-4);  border-radius: var(--radius-xs); }
+.leadingIcon.sm { width: var(--space-6);  height: var(--space-6);  border-radius: var(--radius-sm); }
+.leadingIcon.md { width: var(--space-8);  height: var(--space-8);  border-radius: var(--radius-md); }
+.leadingIcon.lg { width: var(--space-12); height: var(--space-12); border-radius: var(--radius-lg); }
+
+/* auto — stacked 두 줄 content 높이에 딱 맞는 정사각 마크.
+   flex 아이템에서 aspect-ratio + align-self: stretch 조합은 width가 min-content로
+   풀려 세로로 길어진다. 그래서 height를 토큰 기반으로 명시해 폭을 그에 묶는다.
+   계산: stacked content 두 줄 = from(text-sm × lh-tight) + body(text-sm × lh-sm) + gap(space-1).
+   오버라이드가 필요하면 --leading-icon-size로 통째로 교체. */
+.leadingIcon.auto {
+  align-self: center;
+  height: var(--leading-icon-size,
+    calc(var(--text-sm) * var(--lh-tight) + var(--lh-sm) + var(--space-1))
+  );
+  aspect-ratio: 1 / 1;
+  width: auto;
+  border-radius: var(--radius-md);
+}
+
+/* tone 프리셋 — subtle bg + solid fg 쌍. */
+.leadingIcon[data-tone="neutral"] {
+  --leading-icon-bg: var(--bg-muted);
+  --leading-icon-fg: var(--fg);
+}
+.leadingIcon[data-tone="primary"] {
+  --leading-icon-bg: var(--primary-subtle);
+  --leading-icon-fg: var(--primary);
+}
+.leadingIcon[data-tone="success"] {
+  --leading-icon-bg: var(--success-subtle);
+  --leading-icon-fg: var(--success);
+}
+.leadingIcon[data-tone="warning"] {
+  --leading-icon-bg: var(--warning-subtle);
+  --leading-icon-fg: var(--warning);
+}
+.leadingIcon[data-tone="danger"] {
+  --leading-icon-bg: var(--destructive-subtle);
+  --leading-icon-fg: var(--destructive);
+}
+.leadingIcon[data-tone="info"] {
+  --leading-icon-bg: var(--info-subtle);
+  --leading-icon-fg: var(--info);
+}
+
+/* Read-state 톤 신호 ──────────────────────────────────
+   dot/badge 없이 텍스트 톤만으로 읽음/안읽음을 표현.
+   - unread: 전체 톤이 가장 진하게 (body=fg-strong), meta는 primary로 "지금"을 강조
+   - read: 전체 톤이 한두 단계 뒤로 물러남
+   - 둘 다 미지정: 중립 — 리드 개념 없는 자리 */
+
+/* unread — meta primary, body/from 가장 진한 톤 */
+.unread .body,
+.unread .target,
+.unread .narrativeBody {
+  color: var(--fg-strong, var(--fg));
+}
+.unread .from {
+  color: var(--fg-strong, var(--fg));
+  font-weight: var(--font-weight-medium);
+}
+.unread .meta {
+  color: var(--primary);
+  font-weight: var(--font-weight-regular);
+}
+
+/* read — 전체 한 단계 뒤로 */
+.read .body,
+.read .target,
+.read .narrativeBody {
+  color: var(--fg-muted);
+}
+.read .from {
+  color: var(--fg-muted);
+  font-weight: var(--font-weight-regular);
+}
+.read .meta,
+.read .verb,
+.read .surface {
+  color: var(--fg-subtle);
+}
+.read .leading {
+  opacity: 0.7;
+}
+
+/* Content wrapper. stacked에서 title↔subtitle gap은 xs(space-1). */
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* 서술 모드 (A): from  body (inline). dash 없이 공백으로만 분리. */
+.narrativeBody {
+  display: inline;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--list-item-fg, var(--fg));
+  font-weight: var(--font-weight-regular);
+  min-width: 0;
+}
+
+.narrativeBody .from {
+  margin-inline-end: var(--space-2);
+}
+
+/* 서술 모드 (B): from · verb · target · surface */
+.actionBody {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1_5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  min-width: 0;
+}
+
+/* stacked: content가 flex-column이라 from·body가 자동 2줄로. */
+.stacked .from {
+  font-size: var(--text-sm);
+  line-height: var(--lh-tight);
+}
+
+.stacked .body {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--list-item-fg, var(--fg));
+}
+
+.from {
+  font-weight: var(--font-weight-medium);
+  color: var(--list-item-from-fg, var(--fg-strong));
+}
+
+.body {
+  color: var(--list-item-fg, var(--fg));
+  font-weight: var(--font-weight-regular);
+}
+
+.verb {
+  color: var(--list-item-meta-fg, var(--fg-muted));
+  font-weight: var(--font-weight-regular);
+}
+
+.target {
+  color: var(--list-item-fg, var(--fg));
+  font-weight: var(--font-weight-regular);
+}
+
+/* 작은 글자(surface, meta)는 본문보다 한 단계 더 연하게 — subtle. */
+.surface {
+  font-size: var(--text-xs);
+  color: var(--list-item-meta-fg, var(--fg-subtle));
+  margin-inline-start: var(--space-1);
+}
+
+/* Meta — 오른쪽 끝 상대시간. 작은 글자라 subtle 톤. */
+.meta {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--list-item-meta-fg, var(--fg-subtle));
+  font-variant-numeric: tabular-nums;
+  align-self: center;
+}
+
+.stacked .meta {
+  align-self: flex-start;
+  margin-top: var(--space-0_5);
+}
+
+/* Trailing — meta 자리 커스텀 */
+.trailing {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--list-item-meta-fg, var(--fg-muted));
+  font-size: var(--text-xs);
+}
+
+/* hoverActions — 평상시 숨김, row hover/focus에서 등장 */
+.hoverActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  width: 0;
+  margin-inline-start: 0;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  transition:
+    width var(--duration-fast) var(--ease-out),
+    margin-inline-start var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+.root:hover .hoverActions,
+.root:focus-visible .hoverActions,
+.root:focus-within .hoverActions {
+  width: auto;
+  margin-inline-start: var(--space-2);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .hoverActions {
+    width: auto;
+    margin-inline-start: var(--space-2);
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* Variant별 default — anatomy는 공통. */
+.activity {
+  /* no-op */
+}
+
+.notification {
+  /* TSX에서 unread default true 처리 */
+}
+
+.mention .body {
+  font-style: italic;
+}
+
+.system .leading {
+  color: var(--fg-muted);
+}

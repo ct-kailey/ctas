@@ -1,0 +1,57 @@
+/* EventChip ──────────────────────────────────────────────────
+   캘린더 셀 안에서 "하루에 쌓이는 일정 하나"를 표현하는 작은 블록.
+   Chip/Badge와 결은 비슷하지만 역할이 다름 — 셀 안에 세로로 여러 개가 쌓이는
+   정보 토큰. 가로 폭은 부모(cell)에 꽉 차고, 넘치는 title은 ellipsis. */
+.root {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-1) var(--space-1_5);
+  border-radius: var(--radius-xs);
+  background: var(--bg-muted);
+  color: var(--fg);
+  font-family: var(--font-normal);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+}
+
+.root[data-faded] { opacity: 0.5; }
+
+.title {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tones — Badge soft와 동일 토큰 체계. 색은 의미 신호로만 쓴다. */
+.root[data-tone="default"] {
+  background: var(--bg-muted);
+  color: var(--fg);
+}
+.root[data-tone="neutral"] {
+  background: var(--secondary-bg);
+  color: var(--secondary-fg);
+}
+.root[data-tone="accent"] {
+  background: var(--primary-subtle);
+  color: var(--secondary-fg);
+}
+.root[data-tone="success"] {
+  background: var(--success-subtle);
+  color: var(--success);
+}
+.root[data-tone="warning"] {
+  background: var(--warning-subtle);
+  color: var(--warning);
+}
+.root[data-tone="danger"] {
+  background: var(--destructive-subtle);
+  color: var(--destructive);
+}
+.root[data-tone="info"] {
+  background: var(--info-subtle);
+  color: var(--info);
+}

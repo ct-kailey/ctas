@@ -1,0 +1,37 @@
+{
+  "kind": "flowRun",
+  "ok": true,
+  "run": {
+    "output": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 미정이다. 담당자 확정이 필요하다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 30초로 설정한다.\"},\"change_id\":\"chg-001\",\"change_type\":\"modified\",\"impacts\":[],\"reason\":\"수치형 제한값 30초가 삭제되고 '미정'으로 바뀌어 요구사항 의미가 실질적으로 변경되었습니다. 담당자 확정 필요 문구가 있어 현재는 최종 정책이 확정되지 않은 상태로 보입니다.\",\"requirement_key\":\"REQ-TIMEOUT-001\",\"risk\":\"high\",\"summary\":\"요청 대기 시간 제한이 30초에서 미정으로 변경되었고, 담당자 확정 필요 문구가 추가됨\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[{\"options\":[\"30초로 유지\",\"30초가 아닌 다른 값으로 변경\",\"별도 운영 정책으로 확정 예정(값을 제공해 주세요)\"],\"question\":\"REQ-TIMEOUT-001의 요청 대기 시간 제한 값을 확정해 주세요. 현재 문구는 '미정'으로 되어 있어 최종 정책을 판단할 수 없습니다.\",\"question_id\":\"q-001\",\"related_change_ids\":[\"chg-001\"],\"requires_customer_decision\":true}],\"request_id\":\"req-policy-now-undecided\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"impact_map에 해당 requirement_key에 대한 구체적 code/API/test 링크가 없어 impacts를 비워 두었습니다.\",\"현재 변경은 값이 '미정'으로 바뀐 정책 미확정 상태이므로 고객 결정이 필요합니다.\"]}",
+    "outputs": [
+      {
+        "agentId": "agent_e48d935704644fbe8a310f97287e45ea",
+        "agentName": "01 변경 분석",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-policy-now-undecided\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-TIMEOUT-001\",\"change_type\":\"modified\",\"risk\":\"high\",\"summary\":\"요청 대기 시간 제한이 30초에서 미정으로 변경되었고, 담당자 확정 필요 문구가 추가됨\",\"before\":{\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 30초로 설정한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"after\":{\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 미정이다. 담당자 확정이 필요하다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"reason\":\"수치형 제한값 30초가 삭제되고 '미정'으로 바뀌어 의미가 실질적으로 변경되었으므로 수정적 변경이며 고위험이다. 담당자 확정 필요 문구는 추가 확인 요구를 나타낸다.\",\"impacts\":[]}],\"questions\":[],\"warnings\":[],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_a87d44bb863a466abe0cf75a8f6fd907",
+        "agentName": "02 영향과 질문",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-policy-now-undecided\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-TIMEOUT-001\",\"change_type\":\"modified\",\"risk\":\"high\",\"summary\":\"요청 대기 시간 제한이 30초에서 미정으로 변경되었고, 담당자 확정 필요 문구가 추가됨\",\"before\":{\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 30초로 설정한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"after\":{\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 미정이다. 담당자 확정이 필요하다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"reason\":\"수치형 제한값 30초가 삭제되고 '미정'으로 바뀌어 요구사항 의미가 실질적으로 변경되었습니다. 담당자 확정 필요 문구가 있어 현재는 최종 정책이 확정되지 않은 상태로 보입니다.\",\"impacts\":[]}],\"questions\":[{\"question_id\":\"q-001\",\"related_change_ids\":[\"chg-001\"],\"question\":\"REQ-TIMEOUT-001의 요청 대기 시간 제한 값을 확정해 주세요. 현재 문구는 '미정'으로 되어 있어 최종 정책을 판단할 수 없습니다.\",\"options\":[\"30초로 유지\",\"30초가 아닌 다른 값으로 변경\",\"별도 운영 정책으로 확정 예정(값을 제공해 주세요)\"],\"requires_customer_decision\":true}],\"warnings\":[\"impact_map에 해당 requirement_key에 대한 구체적 code/API/test 링크가 없어 impacts를 비워 두었습니다.\",\"현재 변경은 값이 '미정'으로 바뀐 정책 미확정 상태이므로 고객 결정이 필요합니다.\"],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_ad65fdbc94cc4d3393fe93afbf1d5dca",
+        "agentName": "03 근거 검증",
+        "text": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 미정이다. 담당자 확정이 필요하다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"요청 대기 시간 제한은 30초로 설정한다.\"},\"change_id\":\"chg-001\",\"change_type\":\"modified\",\"impacts\":[],\"reason\":\"수치형 제한값 30초가 삭제되고 '미정'으로 바뀌어 요구사항 의미가 실질적으로 변경되었습니다. 담당자 확정 필요 문구가 있어 현재는 최종 정책이 확정되지 않은 상태로 보입니다.\",\"requirement_key\":\"REQ-TIMEOUT-001\",\"risk\":\"high\",\"summary\":\"요청 대기 시간 제한이 30초에서 미정으로 변경되었고, 담당자 확정 필요 문구가 추가됨\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[{\"options\":[\"30초로 유지\",\"30초가 아닌 다른 값으로 변경\",\"별도 운영 정책으로 확정 예정(값을 제공해 주세요)\"],\"question\":\"REQ-TIMEOUT-001의 요청 대기 시간 제한 값을 확정해 주세요. 현재 문구는 '미정'으로 되어 있어 최종 정책을 판단할 수 없습니다.\",\"question_id\":\"q-001\",\"related_change_ids\":[\"chg-001\"],\"requires_customer_decision\":true}],\"request_id\":\"req-policy-now-undecided\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"impact_map에 해당 requirement_key에 대한 구체적 code/API/test 링크가 없어 impacts를 비워 두었습니다.\",\"현재 변경은 값이 '미정'으로 바뀐 정책 미확정 상태이므로 고객 결정이 필요합니다.\"]}"
+      }
+    ],
+    "rawStatus": "completed",
+    "status": "ok",
+    "traceId": "trc_b137fa7022864f8ab3649fc5db74acd9",
+    "usage": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 11264,
+      "costUsd": 0.026050049999999998,
+      "inputTokens": 18427,
+      "outputTokens": 2530,
+      "totalTokens": 20957
+    }
+  },
+  "slug": "ains-sism-change-review-openai-v1",
+  "status": "ok"
+}

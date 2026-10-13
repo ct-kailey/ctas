@@ -1,0 +1,146 @@
+/* Callout ─────────────────────────────────────────────────────
+   사이드바·패널·빈 공간에 얹는 소형 안내/홍보 카드.
+   구조: [icon · title · dismiss] / [body] / [actions]
+   패딩·gap은 사진의 밸런스를 재현 — 아이콘 좌우 gap은 타이틀 line-height 보정으로
+   space-3, 헤더-본문-액션은 space-3 리듬. */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1_5);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--fg);
+  border: 1px solid transparent;
+  font-family: var(--font-sans);
+}
+
+/* Variants
+   fill: tone subtle 표면 (8% 알파).
+   outline: 표면 투명 + tone border (32% 알파).
+   tone별로 --callout-subtle / --callout-border를 스왑해서 재사용. */
+.fill {
+  background: var(--callout-subtle);
+}
+.outline {
+  background: transparent;
+  border-color: var(--callout-border);
+}
+
+/* Head: icon | title | dismiss ─────────────────────────────── */
+/* 아이콘은 타이틀 line-height와 같은 높이 박스로 잡아 첫 줄 baseline과 맞춤 */
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: var(--lh-sm);
+  color: var(--callout-accent);
+}
+.icon > svg {
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+}
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+}
+.dismiss {
+  flex-shrink: 0;
+  /* IconButton md(24)와 title line-height(lh-sm=22) 중심을 맞춤 — 살짝 위로 당김. */
+  margin-top: calc((var(--lh-sm) - var(--iconbtn-h-md)) / 2);
+  margin-inline-end: calc(var(--space-1) * -1);
+}
+
+/* Body ─────────────────────────────────────────────────────── */
+.body {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+/* title-body는 같은 텍스트 블록으로 묶여 보이도록 gap을 좁힘 (한 단계 축소). */
+.head + .body {
+  margin-top: calc(var(--space-1) - var(--space-1_5));
+}
+
+/* Actions ─────────────────────────────────────────────────── */
+/* 버튼 간 간격은 space-1 고정 (규칙). */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+/* actionsRight: 좌측 박스(icon+title+body) | 우측 박스(dismiss+actions).
+   두 열이 상단 정렬로 나란히 — dismiss는 title line-height에, actions는 아래로 쌓인다. */
+.actionsRight {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1_5) var(--space-4);
+}
+.actionsRight .head {
+  /* 좌측 박스 head: icon + title만. dismiss는 우측 사이드로 분리되므로 head 자체는 아이콘·타이틀만 담는다. */
+}
+.actionsRight .side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+/* dismiss 없을 때 — actions만 있는 경우 하단 정렬. */
+.actionsRight .sideNoDismiss {
+  justify-content: flex-end;
+}
+.actionsRight .side .actions {
+  justify-content: flex-end;
+}
+/* side 안으로 옮겨진 dismiss는 head baseline 보정 불필요. */
+.actionsRight .side .dismiss {
+  margin-top: 0;
+  margin-inline-end: calc(var(--space-1) * -1);
+}
+.actionsRight .body {
+  grid-column: 1;
+}
+.actionsRight .head {
+  grid-column: 1;
+}
+
+/* Tones ────────────────────────────────────────────────────
+   --callout-accent(아이콘/텍스트 강조 색), --callout-subtle(fill 표면), --callout-border(outline 경계)를
+   톤별로 스왑. 시맨틱 위치는 유지, 색만 톤에 따라 이동. */
+.neutral {
+  --callout-accent: var(--fg-muted);
+  --callout-subtle: var(--bg-subtle);
+  --callout-border: var(--border);
+}
+.brand {
+  --callout-accent: var(--primary);
+  --callout-subtle: var(--primary-subtle);
+  --callout-border: var(--primary-border-color);
+}
+.success {
+  --callout-accent: var(--success);
+  --callout-subtle: var(--success-subtle);
+  --callout-border: var(--success-border-color);
+}
+.warning {
+  --callout-accent: var(--warning);
+  --callout-subtle: var(--warning-subtle);
+  --callout-border: var(--warning-border-color);
+}
+.destructive {
+  --callout-accent: var(--destructive);
+  --callout-subtle: var(--destructive-subtle);
+  --callout-border: var(--destructive-border-color);
+}

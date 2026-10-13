@@ -1,0 +1,37 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: var(--bg-subtle);
+}
+
+.panel {
+  max-width: calc(var(--input-w-lg) * 2);
+  padding: var(--space-8);
+  display: grid;
+  gap: var(--space-4);
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--fg);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.panel h1 {
+  font-size: var(--text-2xl);
+  line-height: var(--lh-2xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.eyebrow {
+  color: var(--fg-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

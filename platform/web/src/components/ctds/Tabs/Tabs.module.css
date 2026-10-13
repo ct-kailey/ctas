@@ -1,0 +1,234 @@
+/* Tabs — 두 variant
+   ─ underline: 하단에 인디케이터 바. 콘텐츠 전환의 지배적 표준.
+   ─ segmented: 연한 배경 컨테이너 안에 pill. 3~4개 옵션 중 하나 선택.
+
+   축 반응:
+   ─ Density → --control-h-* (트리거 높이), --font-scale (라벨), --space-scale (gap)
+   ─ Shape   → segmented의 컨테이너/트리거 radius
+   ─ Motion  → 상태 전환 duration/easing
+*/
+
+/* Root ─────────────────────────────────────────────────────── */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  min-width: 0;
+}
+
+/* List ─────────────────────────────────────────────────────── */
+.list {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* underline: 아래 경계선. 트리거의 하단 바가 이 위에 겹쳐 인디케이터 역할. */
+.listUnderline {
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--border);
+}
+
+/* text: 컨테이너·라인·인디케이터 전부 없음. 순수 텍스트 위계만.
+   페이지 헤더 sub-nav나 카드 안 미니 스위처처럼 "공간을 절대 안 먹는" 탭. */
+.listText {
+  gap: var(--space-4);
+}
+
+/* segmented: 연한 회색 컨테이너. 안에서 pill이 슬라이드.
+   기본 full-width + 트리거 균일 분배가 가장 흔한 유즈케이스.
+   폭을 내용만큼으로 조이고 싶으면 부모에서 width/max-width를 조이거나
+   list에 width:auto를 덮으면 된다. */
+.listSegmented {
+  gap: var(--space-0_5);
+  padding: var(--space-1);
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
+  width: 100%;
+}
+
+/* Trigger 공통 ────────────────────────────────────────────── */
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1_5);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--label-tracking);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--fg-muted);
+  transition:
+    background var(--duration-slow) var(--ease-out),
+    color var(--duration-slow) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+.trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+  position: relative;
+  z-index: var(--z-docked);
+}
+.trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.trigger:hover:not(:disabled) {
+  color: var(--fg);
+}
+.trigger[data-state="active"] {
+  color: var(--fg-strong);
+}
+.trigger:hover:not(:disabled) .icon {
+  opacity: 1;
+}
+.trigger[data-state="active"] .icon {
+  opacity: 1;
+}
+
+/* Sizes — Button 계열과 동일한 --control-h-* 기반 */
+.size_sm .trigger { height: var(--control-h-sm); font-size: var(--label-sm-size); letter-spacing: var(--label-tracking); }
+.size_md .trigger { height: var(--control-h-md); font-size: var(--label-md-size); letter-spacing: var(--label-tracking); }
+.size_lg .trigger { height: var(--control-h-lg); font-size: var(--label-md-size); letter-spacing: var(--label-tracking); }
+
+/* Underline variant ─────────────────────────────────────────
+   개별 트리거의 ::after가 아니라 list에 붙은 단일 .underlineBar가
+   활성 트리거 위치(--tab-indicator-x/w)로 슬라이드. 라인은 텍스트 폭에
+   맞추기 위해 left/right 여백을 트리거 padding과 동일하게 뺀다. */
+.triggerUnderline {
+  padding-inline: var(--space-2);
+  position: relative;
+}
+.size_sm .triggerUnderline { padding-inline: var(--space-1_5); }
+.size_lg .triggerUnderline { padding-inline: var(--space-1_5); }
+
+.listUnderline { position: relative; }
+
+.underlineBar {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--hairline) * -1);
+  height: var(--hairline);
+  width: calc(var(--tab-indicator-w) - var(--space-2) * 2);
+  transform: translateX(calc(var(--tab-indicator-x) + var(--space-2)));
+  background: var(--fg-strong);
+  pointer-events: none;
+}
+.size_sm .underlineBar {
+  width: calc(var(--tab-indicator-w) - var(--space-1_5) * 2);
+  transform: translateX(calc(var(--tab-indicator-x) + var(--space-1_5)));
+}
+.size_lg .underlineBar {
+  width: calc(var(--tab-indicator-w) - var(--space-1_5) * 2);
+  transform: translateX(calc(var(--tab-indicator-x) + var(--space-1_5)));
+}
+/* ready=true 이후에만 transition — 초기 배치는 순간이동. */
+.listUnderline[data-ready="true"] .underlineBar {
+  transition:
+    transform var(--duration-slow) var(--ease-in-out),
+    width var(--duration-slow) var(--ease-in-out);
+}
+
+/* Text variant ─────────────────────────────────────────────
+   장식 없음. 색만으로 위계 표현 — muted(기본) → fg(hover) → fg-strong(active).
+   좌우 패딩도 최소로 잡아 시각적 존재감을 낮춤. */
+.triggerText {
+  padding-inline: var(--space-1);
+}
+.size_sm .triggerText { padding-inline: var(--space-0_5); }
+.size_lg .triggerText { padding-inline: var(--space-1_5); }
+
+.triggerText {
+  transition:
+    color var(--duration-slower) var(--ease-in-out),
+    background var(--duration-slow) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+.triggerText[data-state="active"] {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Segmented variant ────────────────────────────────────────
+   활성 표면(bg + shadow-xs)은 list에 얹힌 .pill이 담당하고, 트리거는
+   색만 바뀐다. pill이 활성 트리거 위치(--tab-indicator-x/w)로 슬라이드. */
+.listSegmented { position: relative; }
+
+.triggerSegmented {
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-sm);
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  z-index: var(--z-raise);
+}
+.size_sm .triggerSegmented { padding-inline: var(--space-2); border-radius: var(--radius-xs); }
+.size_lg .triggerSegmented { padding-inline: var(--space-4); border-radius: var(--radius-sm); }
+
+.size_sm .listSegmented .trigger { height: calc(var(--control-h-sm) - var(--space-1)); }
+.size_md .listSegmented .trigger { height: calc(var(--control-h-md) - var(--space-1)); }
+.size_lg .listSegmented .trigger { height: calc(var(--control-h-lg) - var(--space-1)); }
+
+.triggerSegmented:hover:not(:disabled):not([data-state="active"]) {
+  background: var(--hover);
+}
+.triggerSegmented[data-state="active"] {
+  color: var(--fg-strong);
+}
+
+.pill {
+  position: absolute;
+  top: var(--space-1);
+  bottom: var(--space-1);
+  left: 0;
+  width: var(--tab-indicator-w);
+  transform: translateX(var(--tab-indicator-x));
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+  pointer-events: none;
+  z-index: var(--z-base);
+}
+.size_sm .pill { border-radius: var(--radius-xs); }
+.size_lg .pill { border-radius: var(--radius-sm); }
+.listSegmented[data-ready="true"] .pill {
+  transition:
+    transform var(--duration-slow) var(--ease-in-out),
+    width var(--duration-slow) var(--ease-in-out);
+}
+
+/* Icon / label slots — Button과 동일 규칙 */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+.icon > svg {
+  display: block;
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Panel ───────────────────────────────────────────────────── */
+.panel {
+  min-width: 0;
+}
+.panel:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+  border-radius: var(--radius-xs);
+}

@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "project_id",
+    "context_version",
+    "target_type",
+    "target_id",
+    "input_sha256",
+    "input_snapshot",
+    "sources",
+    "coverage",
+    "member_ids"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "context_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "target_type": {
+      "enum": [
+        "preflight",
+        "validation",
+        "classification"
+      ]
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "input_snapshot": {
+      "type": "object"
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "content",
+          "title",
+          "sha256"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60000
+          },
+          "title": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 300
+          },
+          "sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000
+          }
+        }
+      }
+    },
+    "member_ids": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      }
+    }
+  }
+}

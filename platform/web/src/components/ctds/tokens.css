@@ -1,0 +1,774 @@
+/* Font 축용 폰트 로드 — display=swap + 필요한 웨이트만.
+   ko: Pretendard(위) + Nanum Myeongjo(point)
+   en: Inter(normal) + Playfair Display(point)
+   ja/zh: system fallback 우선, 필요 시 Noto 계열 추가 */
+@import "./_utils.css";
+
+/* ============================================================
+   === TOKENS START ===
+   TOKENS — light
+   Primitives(원자) + Semantic(역할) 토큰 전부.
+   Phase 1.5 스크립트의 파싱 anchor — 이 블록 안의 var 이름이 공식 whitelist.
+   ============================================================ */
+:root {
+  /* === PRIMITIVES START ===
+     원자 토큰. 축 영향 없음. 다른 토큰이 참조하는 기반.
+     소속: --space-*, --radius-*, --radius-checkbox, --hairline, --scrollbar-size,
+           --scroll-fade-size, --control-h-*, --menu-item-h-*, --iconbtn-h-*,
+           --icon-size-*, --input-w-*, --font-normal, --font-code, --font-sans,
+           --font-mono, --font-scale, --text-*, --lh-*, --tracking-*,
+           --font-weight-*, --label-*, --duration-*, --ease-*,
+           --motion-scale, --motion-distance-scale, --transition-*, --z-*,
+           --shadow-*, --sidebar-w*, --topbar-h*, --header-h, --content-max 등.
+     === */
+  /* Density 축: --space-scale이 모든 space 토큰과 control-h를 스케일. */
+  --space-scale: 1;
+  --space-unit: calc(4px * var(--space-scale));
+
+  --space-0:    0;
+  --space-0_5:  calc(var(--space-unit) * 0.5);
+  --space-1:    var(--space-unit);
+  --space-1_5:  calc(var(--space-unit) * 1.5);
+  --space-2:    calc(var(--space-unit) * 2);
+  --space-2_5:  calc(var(--space-unit) * 2.5);
+  --space-3:    calc(var(--space-unit) * 3);
+  --space-4:    calc(var(--space-unit) * 4);
+  --space-5:    calc(var(--space-unit) * 5);
+  --space-6:    calc(var(--space-unit) * 6);
+  --space-8:    calc(var(--space-unit) * 8);
+  --space-10:   calc(var(--space-unit) * 10);
+  --space-12:   calc(var(--space-unit) * 12);
+  --space-16:   calc(var(--space-unit) * 16);
+  --space-20:   calc(var(--space-unit) * 20);
+  --space-24:   calc(var(--space-unit) * 24);
+
+  /* Hairline — border 굵기/얇은 divider 고정 1px. Density·Shape 축 영향 없음. */
+  --hairline: 1px;
+
+  /* Scrollbar 두께 — 축 영향 없음, 얇은 오버레이 정책. */
+  --scrollbar-size: 8px;
+
+  /* Scroll fade — 스크롤 컨테이너 상하단(또는 좌우)에 콘텐츠가 잘려 보일 때
+     가장자리를 부드럽게 페이드. --space-4 상당의 그라디언트. */
+  --scroll-fade-size: var(--space-4);
+
+  /* 컨트롤(버튼/인풋/셀렉트) 표준 높이 — Density 축이 스왑.
+     xs는 밀도 극한(MenuItem hitbox, IconButton xs) 전용. */
+  --control-h-xs: calc(24px * var(--space-scale));
+  --control-h-sm: calc(32px * var(--space-scale));
+  --control-h-md: calc(36px * var(--space-scale));
+  --control-h-lg: calc(40px * var(--space-scale));
+
+  /* LEGACY ALIAS — 신규 코드는 --control-h-* 직접 참조.
+     MenuItem 행 높이는 control 높이와 동일하므로 별칭이 불필요. 점진적 제거 대상. */
+  --menu-item-h-sm: var(--control-h-sm);
+  --menu-item-h-md: var(--control-h-md);
+
+  /* IconButton 전용 높이 — 텍스트 컨트롤보다 좁게.
+     Button/Input과 정책 분리(아이콘 하나에 넓은 hit area는 시각적으로 헐거움).
+     sm=인라인·툴바 초밀도 / md=툴바 기본 / lg=표준. */
+  --iconbtn-h-sm: calc(20px * var(--space-scale));
+  --iconbtn-h-md: calc(24px * var(--space-scale));
+  --iconbtn-h-lg: calc(32px * var(--space-scale));
+
+  /* 컨트롤 안 아이콘 표준 크기 — Density 축이 스왑.
+     라이브러리별 size prop 처리 편차를 CSS로 svg에 강제. */
+  --icon-size-xs: calc(12px * var(--space-scale));
+  --icon-size-sm: calc(16px * var(--space-scale));
+  --icon-size-md: calc(20px * var(--space-scale));
+  --icon-size-lg: calc(24px * var(--space-scale));
+
+  /* Spinner · 로더 표준 크기 — IconButton 박스와 1:1 매칭 (sm=20, md=24, lg=32, xl=40). */
+  --loader-size-sm: calc(20px * var(--space-scale));
+  --loader-size-md: calc(24px * var(--space-scale));
+  --loader-size-lg: calc(32px * var(--space-scale));
+  --loader-size-xl: calc(40px * var(--space-scale));
+
+  /* Loader 성격 — Motion 축이 스왑 ([data-motion] 블록 참고).
+     기본값은 standard와 같은 ring. */
+  --loader-style: ring;
+
+  /* 폼 컨트롤 권장 폭 — Input · Select 등 텍스트 필드 계열이 공유.
+     기본 동작은 부모 폭 채움(fill)이지만, 카드/툴바 안에서 규격을 잡을 때 참조.
+     md = 이메일 · 이름 · 짧은 문장 표준. lg = URL · 설명 · 긴 문장.
+     8px(=space-2) 배수라 Density 축 스케일에도 자연스럽게 반응. */
+  --input-w-md: calc(280px * var(--space-scale));
+  --input-w-lg: calc(400px * var(--space-scale));
+
+  --radius-none: 0;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 36px;
+  --radius-full: 9999px;
+
+  /* 소형 지표 전용 — 16px 고정 사이즈 컨트롤(체크박스 등)용.
+     기본은 --radius-xs를 그대로 따라가되, soft 축에서만 리터럴 6px로 캡.
+     이유: soft의 radius-xs(10px)는 16px 지표에 과해 원처럼 보임. */
+  --radius-checkbox: var(--radius-xs);
+
+  /* 테이블 셀 썸네일(TableCellImage) circle shape 전용.
+     사람 아바타는 Avatar가 --radius-full을 그대로 쓰지만, 썸네일/문서 아이콘 자리에
+     쓰이는 셀 이미지의 완전 원형은 soft 테마에선 과해 어색 — 2xl로 캡. */
+  --radius-image-circle: var(--radius-full);
+
+  /* Font 축 슬롯 — Language 축이 아래에서 스택을 갈아끼움.
+     컴포넌트는 슬롯 이름(--font-normal/code)만 참조.
+     본문·헤딩은 전부 normal, code/pre 만 code. */
+  --font-normal: "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono",
+    Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* LEGACY ALIAS — 신규 코드는 --font-normal / --font-code 직접 참조.
+     Tailwind 관례 네이밍(sans/mono)과의 호환성만 유지. 점진적 제거 대상. */
+  --font-sans: var(--font-normal);
+  --font-mono: var(--font-code);
+
+  /* Density 축의 --font-scale로 전체 타이포 스케일 스왑 (line-height 포함). */
+  --font-scale: 1;
+  --text-3xs:  calc(11px * var(--font-scale));   --lh-3xs:  calc(14px * var(--font-scale));
+  --text-2xs:  calc(12px * var(--font-scale));   --lh-2xs:  calc(16px * var(--font-scale));
+  --text-xs:   calc(13px * var(--font-scale));   --lh-xs:   calc(20px * var(--font-scale));
+  --text-sm:   calc(14.5px * var(--font-scale)); --lh-sm:   calc(22px * var(--font-scale));
+  --text-base: calc(15.5px * var(--font-scale)); --lh-base: calc(26px * var(--font-scale));
+  --text-lg:   calc(18px * var(--font-scale));   --lh-lg:   calc(29px * var(--font-scale));
+  --text-xl:   calc(20px * var(--font-scale));   --lh-xl:   calc(30px * var(--font-scale));
+  --text-2xl:  calc(24px * var(--font-scale));   --lh-2xl:  calc(32px * var(--font-scale));
+  --text-3xl:  calc(30px * var(--font-scale));   --lh-3xl:  calc(38px * var(--font-scale));
+  --text-4xl:  calc(36px * var(--font-scale));   --lh-4xl:  calc(42px * var(--font-scale));
+  --text-5xl:  calc(48px * var(--font-scale));   --lh-5xl:  calc(50px * var(--font-scale));
+
+  /* Font weight */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* Letter spacing */
+  --tracking-tighter: -0.03em;
+  --tracking-tight:   -0.02em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.02em;
+
+  /* Typography preset — 사이즈 토큰과 1:1로 자간이 묶임.
+     컴포넌트는 size/line-height/tracking을 각각 끊어 선언하지 않고
+     이 세트를 함께 참조한다. "text-sm을 쓰는데 자간이 빠진" 상태를 구조적으로 차단.
+     매핑: xs 이하는 normal(가독성), sm/base는 tighter, lg 이상은 tight. */
+  --type-3xs-tracking:  var(--tracking-normal);
+  --type-2xs-tracking:  var(--tracking-normal);
+  --type-xs-tracking:   var(--tracking-normal);
+  --type-sm-tracking:   var(--tracking-tighter);
+  --type-base-tracking: var(--tracking-tighter);
+  --type-lg-tracking:   var(--tracking-tight);
+  --type-xl-tracking:   var(--tracking-tight);
+  --type-2xl-tracking:  var(--tracking-tight);
+  --type-3xl-tracking:  var(--tracking-tight);
+  --type-4xl-tracking:  var(--tracking-tight);
+  --type-5xl-tracking:  var(--tracking-tight);
+
+  /* Semantic type — 역할 중심 조합 토큰.
+     사이즈 스케일(--text-*)은 값, 이 토큰은 "어디에 쓰이는가"를 담는다.
+     Button · MenuItem · Chip · Tab 등 액션 요소의 라벨 전용.
+     두 사이즈: sm(14, 작은 버튼)·md(15, 메뉴·큰 버튼). */
+  --label-font: var(--font-normal);
+  --label-weight: var(--font-weight-medium);
+  --label-tracking: var(--tracking-tighter);
+
+  --label-sm-size: var(--text-sm);
+  --label-sm-line-height: var(--lh-sm);
+  --label-md-size: calc(15px * var(--font-scale));
+  --label-md-line-height: calc(22px * var(--font-scale));
+
+  /* Line height (semantic) — 컨트롤 높이 계산 없이 텍스트만 밀착시킬 때.
+     tight=1.2 : line-height 1은 descender(g·y·p)가 라인 박스 밖으로 삐져나가
+                 overflow:hidden 부모에서 잘리므로, 안전 여유값으로 1.2 사용.
+     사이즈 scale 짝(--lh-sm/md/..)과 다른 "역할" 축 — tight은 UI 컨트롤,
+     snug은 짧은 문장, loose는 본문 상속용. */
+  --lh-tight: 1.2;
+  --lh-snug:  1.25;
+  --lh-loose: 1.5;
+
+  /* === PRIMITIVES END === */
+
+  /* === SEMANTIC START ===
+     역할 토큰. 축 바인딩 받음. 컴포넌트 코드가 참조하는 대상.
+     소속: --hue, --chroma, --lightness, --hue-shift,
+           --tone-chroma, --tone-hue, --bg*, --fg*,
+           --border*, --primary, --primary-hover, --primary-subtle,
+           --secondary-*, --ring*, --icon-color,
+           --success*, --warning*, --destructive*, --info*,
+           --avatar-tint-*, --hover, --tooltip-*, --sidebar-nav-*,
+           --focus-ring-* 등.
+     === */
+  /* ── Theme axes (color) ─────────────────────────────────────
+     Hue 축: 브랜드 컬러(primary/accent/ring)의 색상만 결정.
+     Palette 축: chroma·lightness 스왑.
+     무채색 계열(bg/fg/border)은 별도의 --tone-* 사용해서 hue 스왑의 영향 안 받게 함.
+     ───────────────────────────────────────────────────────── */
+  --hue: 210;          /* Hue 프리셋: ocean */
+  --chroma: 0.15;      /* Palette: standard */
+  --lightness: 0.55;   /* Palette × Mode 조합이 직접 지정 (아래 selector들 참고) */
+  /* Palette가 브랜드 hue를 인접 색조로 이동시킴 (0=원본, +값=warm 방향, -값=cool 방향).
+     calm이면 초록→카키·파랑→슬레이트처럼, pastel이면 초록→민트·오렌지→피치처럼
+     자연스러운 인접 톤으로 재해석. 단순 채도 필터가 아님. */
+  --hue-shift: 0;
+
+  --icon-color:    var(--primary);
+
+  /* secondary variant 기본값. 실제 색상은 Palette 블록에서 재지정.
+     mono는 무채색, 비mono는 primary 8%. */
+  --secondary-bg:       oklch(var(--lightness) var(--chroma) calc(var(--hue) + var(--hue-shift)) / 0.08);
+  --secondary-bg-hover: oklch(var(--lightness) var(--chroma) calc(var(--hue) + var(--hue-shift)) / 0.14);
+  --secondary-fg:       var(--primary);
+
+  /* 무채색 톤 (bg/fg/border 계열이 사용). 살짝의 hue 틴트만 부여 → 순수 회색보다 자연스러움 */
+  --tone-hue: 260;
+  --tone-chroma: 0.005;
+
+  /* 테마 중립 fixed 색 — 어두운 오버레이 위 로더·배지처럼
+     라이트/다크 공통으로 흰색이어야 하는 자리 전용 */
+  --fixed-white: #fff;
+  --fixed-black: #000;
+
+  /* semantic — light mode */
+  --bg:            oklch(1     var(--tone-chroma) var(--tone-hue));
+  --bg-subtle:     oklch(0.978 var(--tone-chroma) var(--tone-hue));
+  --bg-muted:      oklch(0.955 var(--tone-chroma) var(--tone-hue));
+  --fg-strong:     oklch(0.12  var(--tone-chroma) var(--tone-hue));
+  --fg:            oklch(0.22  var(--tone-chroma) var(--tone-hue));
+  /* muted/subtle/disabled은 fg 톤의 알파 — 색 있는 배경 위에서도 자연스럽게 섞임.
+     라이트: 어두운 잉크(≈0.18)를 낮은 알파로 얹음. */
+  --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.60);
+  --fg-subtle:     oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.42);
+  --fg-disabled:   oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.26);
+  /* border는 배경 대비 알파 기반 hairline — 겹치면 자연스럽게 짙어짐.
+     라이트 모드: 어두운 잉크 톤(≈rgb(18,24,38))을 낮은 알파로 얹음. */
+  --border:        oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.08);
+  --border-strong: oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.14);
+
+  /* primary — 브랜드 컬러. Hue × Palette 축이 여기 반영됨.
+     실제 hue는 (--hue + --hue-shift)로, Palette가 인접 색조로 이동시킬 수 있음.
+     primary 위 텍스트/아이콘은 var(--bg) 사용 (라이트=흰색, 다크=거의 검정).
+     별도 --primary-fg 토큰을 두지 않는 이유: bg가 항상 primary 반대편 극단에 있어 자동으로 대비 충분. */
+  --primary:       oklch(var(--lightness) var(--chroma) calc(var(--hue) + var(--hue-shift)));
+  --ring:          oklch(var(--lightness) var(--chroma) calc(var(--hue) + var(--hue-shift)) / 0.35);
+  --ring-width:    var(--space-0_5);
+  --ring-offset:   var(--space-0_5);
+  /* 박스 바깥 --ring-offset 만큼 --bg 여백을 만든 뒤, 그 바깥으로 --ring-width 굵기 링. */
+  --ring-shadow:   0 0 0 var(--ring-offset) var(--bg),
+                   0 0 0 calc(var(--ring-offset) + var(--ring-width)) var(--ring);
+  --ring-shadow-invalid: 0 0 0 var(--ring-offset) var(--bg),
+                         0 0 0 calc(var(--ring-offset) + var(--ring-width))
+                         color-mix(in oklab, var(--destructive) 35%, transparent);
+
+  /* status — hue 고정 (성공은 항상 초록, 경고는 항상 주황 등).
+     Palette 축의 --chroma/--lightness와 분리된 --status-chroma/--status-lightness를 사용해
+     경고색이 팔레트 때문에 디자인 컬러처럼 보이는 문제를 방지.
+     팔레트 그룹별로 아래에서 살짝씩 다르게 지정 (vivid/standard=표준, calm=약간 순화, pastel=약간 연화). */
+  --status-chroma:     0.17;
+  --status-lightness:  0.55;
+  --success:       oklch(var(--status-lightness) var(--status-chroma) 145);
+  --warning:       oklch(var(--status-lightness) var(--status-chroma) 70);
+  --destructive:   oklch(var(--status-lightness) var(--status-chroma) 20);
+  --info:          oklch(var(--status-lightness) var(--status-chroma) 230);
+  /* status foreground — status fill 위 텍스트. 항상 밝게 유지 (light/dark 공통) */
+  --destructive-fg: oklch(0.985 var(--tone-chroma) var(--tone-hue));
+  --success-fg:     oklch(0.985 var(--tone-chroma) var(--tone-hue));
+  --warning-fg:     oklch(0.15  var(--tone-chroma) var(--tone-hue));
+  --info-fg:        oklch(0.985 var(--tone-chroma) var(--tone-hue));
+
+  /* status/primary hover — 채워진 색(X)이 hover 상태일 때 어두워진 버전.
+     공식: X 88% + fg 12%. 검정 오버레이 얹으면 채도가 죽어 별도 파생 토큰 유지. */
+  --primary-hover:     color-mix(in oklab, var(--primary) 88%, var(--fg) 12%);
+  --destructive-hover: color-mix(in oklab, var(--destructive) 88%, var(--fg) 12%);
+  --success-hover:     color-mix(in oklab, var(--success) 88%, var(--fg) 12%);
+  --warning-hover:     color-mix(in oklab, var(--warning) 88%, var(--fg) 12%);
+  --info-hover:        color-mix(in oklab, var(--info) 88%, var(--fg) 12%);
+
+  /* status/primary subtle — 컬러 힌트가 필요한 soft 표면 (Badge, Callout, IconButton destructive hover 등).
+     공식: X 8% transparent. */
+  --primary-subtle:     color-mix(in oklab, var(--primary) 8%, transparent);
+  --destructive-subtle: color-mix(in oklab, var(--destructive) 8%, transparent);
+  --success-subtle:     color-mix(in oklab, var(--success) 8%, transparent);
+  --warning-subtle:     color-mix(in oklab, var(--warning) 8%, transparent);
+  --info-subtle:        color-mix(in oklab, var(--info) 8%, transparent);
+
+  /* status/primary border — subtle 표면과 짝을 이루는 경계 (Callout outline 등).
+     공식: X 32% transparent. */
+  --primary-border-color:     color-mix(in oklab, var(--primary) 32%, transparent);
+  --destructive-border-color: color-mix(in oklab, var(--destructive) 32%, transparent);
+  --success-border-color:     color-mix(in oklab, var(--success) 32%, transparent);
+  --warning-border-color:     color-mix(in oklab, var(--warning) 32%, transparent);
+  --info-border-color:        color-mix(in oklab, var(--info) 32%, transparent);
+
+  /* interactive / overlay
+     --hover: 컴포넌트 hover 시 표면·그림자에 얹는 공통 오버레이.
+     라이트=검정 3%, 다크=흰색 3%. 데이터 테이블·리스트 등 반복 행에서
+     "너무 두드러지지 않는" 톤. */
+  --hover: oklch(0 0 0 / 0.03);
+  /* tooltip: Mode 반전. 라이트에선 다크 bg + 밝은 fg, 다크에선 라이트 bg + 어두운 fg.
+     페이지 전체 톤과 반대로 떠서 "일시 노출" 성격을 명확히. 다크 모드 재선언은 아래 블록. */
+  --tooltip-bg:   oklch(0.18 0.005 260);
+  --tooltip-fg:   oklch(1 0 0);
+  /* scrim: 이미지·모달 위에 얹는 다크 오버레이 표면.
+     mode 무관하게 검정 계열 반투명 — "빛을 가리는" 성격이라 반전 안 함.
+     scrim-fg는 그 위에 놓이는 텍스트·아이콘 색으로 항상 흰색. */
+  --scrim:        oklch(0 0 0 / 0.55);
+  --scrim-fg:     oklch(1 0 0);
+
+  /* shadow 색: oklch(L C H) 세 성분. 알파는 shadow 단계별 상수.
+     테마가 override 하면 전체 그림자 톤이 스왑 (예: --shadow-color: 0.15 0.03 40 → warm tint shadow). */
+  --shadow-color: 0 0 0;
+
+  --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-md: 0 6px 16px -4px oklch(var(--shadow-color) / 0.07),
+    0 2px 6px -2px oklch(var(--shadow-color) / 0.04);
+  --shadow-lg: 0 12px 20px -6px oklch(var(--shadow-color) / 0.1),
+    0 4px 8px -4px oklch(var(--shadow-color) / 0.06);
+  --shadow-xl: 0 24px 40px -12px oklch(var(--shadow-color) / 0.16);
+  --shadow-inner: inset 0 1px 2px oklch(var(--shadow-color) / 0.06);
+  /* drop-shadow 전용 단일 shadow (SVG·filter 컨텍스트에서 콤마 shadow 불가) */
+  --shadow-drop: 0 var(--space-1) 12px oklch(var(--shadow-color) / 0.16);
+
+  /* Motion 축: --motion-scale이 모든 duration을 스케일, --ease-emphasized가 성격을 결정.
+     Motion=standard일 때 아래 값이 그대로 사용됨. */
+  --motion-scale: 1;
+  --motion-distance-scale: 1;
+
+  /* Base duration 값은 2026 웹 표준(Vercel 150-250ms · Linear 100-350ms) 참고.
+     150ms 미만은 flicker처럼 느껴진다는 임계 존재. Motion 축이 --motion-scale로 조절. */
+  --duration-fast:   calc(80ms  * var(--motion-scale));   /* hover, tap · 최소 임계 100ms 근처 */
+  --duration-base:   calc(160ms * var(--motion-scale));   /* 표준 상호작용 */
+  --duration-slow:   calc(240ms * var(--motion-scale));   /* 오버레이 등장 */
+  --duration-slower: calc(360ms * var(--motion-scale));   /* 페이지/뷰 전환 */
+
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Interaction transition presets — 컴포넌트 hover/press/focus의 톤을 통일한다.
+     원칙:
+       - 색·보더는 slow  → hover가 스르륵 물들며 소음이 적음
+       - focus ring은 fast → 키보드 사용자에게 즉각 피드백
+       - press(transform)는 base → 진입·해제 대칭
+     모든 인터랙티브 컴포넌트(Button/IconButton/MenuItem/Input/Tabs 등)는
+     이 3종을 조합해서 쓸 것. transition 값을 컴포넌트에 직접 적지 말고
+     반드시 이 토큰을 경유. */
+  --transition-colors:
+    background var(--duration-slow) var(--ease-out),
+    color var(--duration-slow) var(--ease-out),
+    border-color var(--duration-slow) var(--ease-out);
+  --transition-ring: box-shadow var(--duration-fast) var(--ease-out);
+  --transition-press: transform var(--duration-base) var(--ease-out);
+
+  --z-base: 0;
+  /* 로컬 스택 조정용 최소 상대 z. 컴포넌트 내부에서 형제끼리
+     "위에 얹기"가 필요할 때 이 토큰을 쓴다(리터럴 1/2 대체). */
+  --z-raise: 1;
+  --z-raised: 2;
+  --z-docked: 10;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-overlay: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-toast: 1600;
+  --z-tooltip: 1700;
+
+  --sidebar-w: 260px;
+  --sidebar-w-collapsed: calc(var(--control-h-lg) + var(--space-4));
+  --topbar-h-sm: var(--space-12);
+  --topbar-h-md: var(--space-16);
+  --topbar-h: var(--topbar-h-md);
+  /* Sidebar Brand — symbol/wordmark 최대 높이(상한).
+     각각 아이콘/로고 SVG가 이 값을 넘지 않도록 CSS로 강제. */
+  --sidebar-brand-symbol-max: var(--control-h-lg);
+  --sidebar-brand-wordmark-max: var(--control-h-md);
+  --content-max: 800px;
+  /* UserMessage bubble 가로 상한 — 채팅 트랙 폭의 ~70%.
+     AI 응답은 트랙 폭을 가득 쓰지만 user bubble은 상한을 둬서
+     오른쪽 정렬 "말풍선" 리듬을 유지(iMessage/ChatGPT/Claude 표준). */
+  --user-message-max: calc(var(--content-max) * 0.72);
+  /* anchor 섹션 스크롤 오프셋 — Topbar 제거로 0. 유지 사유: 변수 참조처가 섹션
+     scroll-margin-top/스크롤 padding 2곳이라 token 하나로 바꾸는 게 안전. */
+  --header-h: 0px;
+  /* === SEMANTIC END === */
+}
+/* === TOKENS END === */
+
+/* ============================================================
+   === AXES START ===
+   축 셀렉터 블록. 각 축의 값별 토큰 스왑.
+   소속: html[data-focus-ring], [data-palette], [data-shape], [data-density],
+         [data-motion], [data-lang], [data-mode="dark"],
+         @media (prefers-reduced-motion).
+   ============================================================ */
+/* Focus-ring 축: html[data-focus-ring="off"]면 링 숨김.
+   모든 컴포넌트는 var(--ring-shadow)만 참조하면 자동 반응. */
+html[data-focus-ring="off"] {
+  --ring-shadow: none;
+  --ring-shadow-invalid: none;
+}
+
+/* ── Palette 축 ─────────────────────────────────────────────
+   OKLCH의 chroma·lightness + hue-shift를 세트로 스왑.
+   단순 채도 필터가 아니라 팔레트 스타일 자체를 바꿈:
+   - mono:     채도 0. 무채색 지배. 아이콘·secondary도 fg 톤.
+   - vivid:    원본 hue, 진한 채도, 표준 명도. 강렬한 브랜드 톤.
+   - standard: 원본 hue, 중간 채도. 무난한 기본.
+   - calm:     +18° hue-shift(warm쪽), 중간 채도, 살짝 낮은 명도. 깊고 차분한 톤 (버건디/청록/포레스트).
+               초록→카키/포레스트, 파랑→틸/슬레이트, 오렌지→테라코타/버건디 계열.
+   - pastel:   -12° hue-shift(cool쪽), 중간 채도, 밝은 명도. 부드럽지만 색감이 살아있는 톤.
+               초록→민트/세이지, 오렌지→피치, 파랑→베이비블루 계열.
+   Mode(dark)는 아래 [data-mode="dark"][data-palette="*"]에서 lightness만 별도 지정. */
+[data-palette="mono"]     { --chroma: 0;    --lightness: 0.18; --hue-shift:   0; }
+[data-palette="vivid"]    { --chroma: 0.20; --lightness: 0.58; --hue-shift:   0; }
+[data-palette="standard"] { --chroma: 0.14; --lightness: 0.55; --hue-shift:   0; }
+[data-palette="calm"]     { --chroma: 0.12; --lightness: 0.52; --hue-shift:  18; }
+[data-palette="pastel"]   { --chroma: 0.13; --lightness: 0.75; --hue-shift: -12; }
+
+/* status 축은 팔레트별로 거의 고정 — 경고색이 디자인 컬러처럼 보이지 않도록 최소 강도 보장.
+   그룹별 미세 차이만 허용 (vivid/standard=표준, calm=약간 순화, pastel=약간 연화).
+   mono는 상태색만큼은 유색 유지(사용자 안전 신호). */
+[data-palette="mono"],
+[data-palette="vivid"],
+[data-palette="standard"] { --status-chroma: 0.17; --status-lightness: 0.55; }
+[data-palette="calm"]     { --status-chroma: 0.17; --status-lightness: 0.53; }
+[data-palette="pastel"]   { --status-chroma: 0.16; --status-lightness: 0.58; }
+
+/* Palette별 color-usage 효과 — 과거 Accent 축이 담당하던 토큰을 Palette로 흡수.
+   - mono:     표면·secondary 무채색, 아이콘도 fg-muted. primary는 CTA/상태 등 소수 지점에만.
+   - 비mono:   아이콘·포커스·nav-active·secondary 전부 primary 톤. */
+[data-palette="mono"] {
+  --icon-color:         var(--fg-muted);
+  --selected-fg:        var(--fg);
+  --secondary-bg:       var(--bg-muted);
+  --secondary-bg-hover: color-mix(in oklab, var(--bg-muted) 70%, var(--fg) 30%);
+  --secondary-fg:       var(--fg);
+}
+[data-palette="vivid"],
+[data-palette="standard"],
+[data-palette="calm"],
+[data-palette="pastel"] {
+  --icon-color:         var(--primary);
+  --selected-fg:        var(--primary);
+  --secondary-bg:       oklch(var(--lightness) var(--chroma) calc(var(--hue) + var(--hue-shift)) / 0.08);
+  --secondary-bg-hover: oklch(var(--lightness) var(--chroma) calc(var(--hue) + var(--hue-shift)) / 0.14);
+  --secondary-fg:       var(--primary);
+}
+
+/* ── Avatar 이니셜 팔레트 ─────────────────────────────────
+   유저·팀 이름 해시로 자동 매핑되는 10색 순환.
+   Radix Colors의 step 3(subtle bg) + step 11(low-contrast text) 조합 참고 —
+   배경은 눈에 편한 연한 tint, 텍스트는 같은 hue의 진한 톤으로 높은 가독성.
+   축 영향 안 받는 고정 팔레트 (사용자 식별용이라 흔들리지 않는 게 맞음). */
+:root {
+  /* tomato   */ --avatar-tint-0-bg: oklch(0.928 0.038  27); --avatar-tint-0-fg: oklch(0.545 0.190  32);
+  /* orange   */ --avatar-tint-1-bg: oklch(0.925 0.055  70); --avatar-tint-1-fg: oklch(0.545 0.155  55);
+  /* amber    */ --avatar-tint-2-bg: oklch(0.925 0.055  90); --avatar-tint-2-fg: oklch(0.500 0.115  75);
+  /* grass    */ --avatar-tint-3-bg: oklch(0.935 0.055 140); --avatar-tint-3-fg: oklch(0.525 0.135 145);
+  /* teal     */ --avatar-tint-4-bg: oklch(0.930 0.048 175); --avatar-tint-4-fg: oklch(0.500 0.100 180);
+  /* cyan     */ --avatar-tint-5-bg: oklch(0.930 0.045 210); --avatar-tint-5-fg: oklch(0.545 0.135 225);
+  /* blue     */ --avatar-tint-6-bg: oklch(0.930 0.045 255); --avatar-tint-6-fg: oklch(0.520 0.170 260);
+  /* violet   */ --avatar-tint-7-bg: oklch(0.925 0.050 295); --avatar-tint-7-fg: oklch(0.510 0.180 285);
+  /* plum     */ --avatar-tint-8-bg: oklch(0.920 0.055 330); --avatar-tint-8-fg: oklch(0.520 0.180 330);
+  /* pink     */ --avatar-tint-9-bg: oklch(0.925 0.048 355); --avatar-tint-9-fg: oklch(0.545 0.190 355);
+}
+
+/* ── Shape 축 ───────────────────────────────────────────────
+   radius + shadow 세트로 스왑. border 굵기는 1px 고정(축 영향 없음).
+   기본은 standard (soft와 crisp의 산술 중간, :root 값과 동일). */
+[data-shape="soft"] {
+  --radius-xs:  10px;
+  --radius-sm:  12px;
+  --radius-md:  14px;
+  --radius-lg:  16px;
+  --radius-xl:  16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 44px;
+
+  /* soft에서 radius-xs(10px)는 16px 체크박스에 과함 — 6px로 캡 */
+  --radius-checkbox: 6px;
+
+  /* soft 테마는 전반적으로 둥글어서 썸네일 circle이 완전 원이면 과함 — 2xl로 캡 */
+  --radius-image-circle: var(--radius-2xl);
+
+  --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 2px 6px -1px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-md: 0 8px 20px -4px oklch(var(--shadow-color) / 0.08), 0 3px 8px -3px oklch(var(--shadow-color) / 0.04);
+  --shadow-lg: 0 16px 32px -8px oklch(var(--shadow-color) / 0.14), 0 6px 12px -6px oklch(var(--shadow-color) / 0.06);
+  --shadow-xl: 0 32px 60px -14px oklch(var(--shadow-color) / 0.20);
+}
+
+/* standard — soft와 crisp의 산술 중간. 무난한 표준값. */
+[data-shape="standard"] {
+  --radius-xs:  6px;
+  --radius-sm:  8px;
+  --radius-md:  10px;
+  --radius-lg:  12px;
+  --radius-xl:  14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 36px;
+
+  --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-md: 0 6px 16px -4px oklch(var(--shadow-color) / 0.07), 0 2px 6px -2px oklch(var(--shadow-color) / 0.04);
+  --shadow-lg: 0 12px 20px -6px oklch(var(--shadow-color) / 0.10), 0 4px 8px -4px oklch(var(--shadow-color) / 0.06);
+  --shadow-xl: 0 24px 40px -12px oklch(var(--shadow-color) / 0.16);
+}
+
+/* ── Density 축 ─────────────────────────────────────────────
+   --space-scale 로 --space-* 와 --control-h-* 를 스왑.
+   --font-scale 로 --text-* / --lh-* 를 스왑 (위계 유지 위해 폭 좁게). */
+[data-density="compact"]     { --space-scale: 0.94; --font-scale: 0.98; }
+[data-density="default"]     { --space-scale: 1;    --font-scale: 1;    }
+[data-density="comfortable"] { --space-scale: 1.06; --font-scale: 1.02; }
+
+/* ── Motion 축 ──────────────────────────────────────────────
+   Vercel/Linear 스타일 참고 — 짧고 매끈함. Base=160ms 기준.
+   차이는 이징 곡선에서 나옴(속도는 세 프리셋 다 근접).
+   none은 축을 통한 강제 off, prefers-reduced-motion은 아래에서 별도 강제. */
+[data-motion="bouncy"] {
+  --motion-scale: 1.2;                                           /* ~192ms · 오버슛 여운만큼 */
+  --motion-distance-scale: 1.1;
+  --ease-emphasized: cubic-bezier(0.34, 1.4, 0.64, 1);           /* 절제된 오버슛 spring */
+  --loader-style: dots-bounce;                                   /* 통통한 로더 — bouncy 성격 */
+}
+[data-motion="standard"] {
+  --motion-scale: 1;                                             /* 160ms */
+  --motion-distance-scale: 1;
+  --ease-emphasized: cubic-bezier(0.32, 0.72, 0, 1);             /* Linear/Vercel ease-out */
+  --loader-style: ring;                                          /* 표준 회전 ring */
+}
+[data-motion="calm"] {
+  --motion-scale: 0.9;                                           /* ~144ms · flat 곡선이라 짧아도 안전 */
+  --motion-distance-scale: 0.9;
+  --ease-emphasized: cubic-bezier(0.4, 0, 0.2, 1);               /* 표준 ease-out · 심심할수록 차분 */
+  --loader-style: dots-fade;                                     /* 위치 이동 없는 미니멀 dot fade */
+}
+[data-motion="none"] {
+  --motion-scale: 0;
+  --motion-distance-scale: 0;
+  --loader-style: ring;                                          /* 로더는 접근성 예외: 로딩 신호는 유지 */
+}
+[data-motion="none"] *,
+[data-motion="none"] *::before,
+[data-motion="none"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+/* 접근성 우선 — 사용자 OS 설정이 축 값을 이김 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-scale: 0;
+    --motion-distance-scale: 0;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* 접근성 우선 — OS 하이콘트라스트 모드(macOS Increase Contrast, Windows High Contrast)
+   를 쓰는 사용자에겐 border·text 대비를 상향한다. 축 값은 안 건드리고 토큰만 override —
+   컴포넌트 코드는 변경 없이 자동 적용.
+   라이트: alpha 0.08/0.14 → 0.42/0.6, muted fg 0.50 → 0.32.
+   다크:   alpha 0.08/0.16 → 0.50/0.72, muted fg 0.65 → 0.80. */
+@media (prefers-contrast: more) {
+  :root {
+    --border:        oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.42);
+    --border-strong: oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.60);
+    --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.82);
+    --fg-subtle:     oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.66);
+  }
+  :root[data-mode="dark"] {
+    --border:        oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.50);
+    --border-strong: oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.72);
+    --fg-muted:      oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.80);
+    --fg-subtle:     oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.60);
+  }
+}
+
+/* 레거시 브라우저 폴백 — oklch/color-mix 미지원 환경(Safari <16.4, Chrome <119,
+   Firefox <113)에서 색상이 검정으로 깨지지 않게 중립 회색 테마로 폴백.
+   Palette·Hue 축은 비활성. 다크/라이트는 각각 색만 뒤집음. */
+@supports not (color: oklch(0 0 0)) {
+  :root {
+    --bg:            #ffffff;
+    --bg-subtle:     #f6f6f6;
+    --bg-muted:      #ececec;
+    --bg-elev-1:     #ffffff;
+    --bg-elev-2:     #ffffff;
+    --fg:            #1a1a1a;
+    --fg-strong:     #0a0a0a;
+    --fg-muted:      #666666;
+    --fg-subtle:     #999999;
+    --fg-disabled:   #c0c0c0;
+    --border:        rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.14);
+    --primary:       #1a1a1a;
+  }
+  :root[data-mode="dark"] {
+    --bg:            #0f0f0f;
+    --bg-subtle:     #1a1a1a;
+    --bg-muted:      #262626;
+    --bg-elev-1:     #171717;
+    --bg-elev-2:     #1f1f1f;
+    --fg:            #f0f0f0;
+    --fg-strong:     #ffffff;
+    --fg-muted:      #a0a0a0;
+    --fg-subtle:     #7a7a7a;
+    --fg-disabled:   #4a4a4a;
+    --border:        rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --primary:       #f0f0f0;
+  }
+}
+
+/* ── Font 축 — Language ─────────────────────────────────────
+   슬롯(--font-normal/code)의 스택을 언어별로 스왑.
+   프로젝트마다 여기서 바꾸면 됨. */
+[data-lang="ko"] {
+  --font-normal: "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, system-ui, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+[data-lang="en"] {
+  --font-normal: "Pretendard Variable", "Inter", -apple-system, BlinkMacSystemFont, system-ui,
+    "Segoe UI", Roboto, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+[data-lang="ja"] {
+  --font-normal: "Hiragino Sans", "Yu Gothic", "Noto Sans JP",
+    -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+[data-lang="zh"] {
+  --font-normal: "PingFang SC", "Microsoft YaHei", "Noto Sans SC",
+    -apple-system, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, monospace;
+}
+
+[data-shape="crisp"] {
+  --radius-xs:  3px;
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  10px;
+  --radius-xl:  14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 22px;
+
+  --shadow-xs: 0 1px 0 oklch(var(--shadow-color) / 0.06);
+  --shadow-sm: 0 1px 2px oklch(var(--shadow-color) / 0.08), 0 0 0 1px oklch(var(--shadow-color) / 0.04);
+  --shadow-md: 0 2px 4px oklch(var(--shadow-color) / 0.10), 0 0 0 1px oklch(var(--shadow-color) / 0.06);
+  --shadow-lg: 0 4px 8px oklch(var(--shadow-color) / 0.12), 0 0 0 1px oklch(var(--shadow-color) / 0.06);
+  --shadow-xl: 0 8px 16px oklch(var(--shadow-color) / 0.16), 0 0 0 1px oklch(var(--shadow-color) / 0.06);
+}
+
+/* [data-mode="dark"]는 루트뿐 아니라 하위 스코프에서도 유효.
+   라이트 모드 페이지 내 국소적으로 어두운 표면이 필요할 때 컨테이너에 감싸면
+   그 서브트리의 --bg/--fg/--border/--shadow가 다크로 자동 반전된다.
+   IconButton 등 컴포넌트는 별도 tone prop 없이 기존 시맨틱 토큰을 그대로 사용. */
+:root[data-mode="dark"],
+[data-mode="dark"] {
+  --bg:            oklch(0.20 var(--tone-chroma) var(--tone-hue));
+  --bg-subtle:     oklch(0.25 var(--tone-chroma) var(--tone-hue));
+  --bg-muted:      oklch(0.31 var(--tone-chroma) var(--tone-hue));
+  --fg-strong:     oklch(1.0   var(--tone-chroma) var(--tone-hue));
+  --fg:            oklch(0.95  var(--tone-chroma) var(--tone-hue));
+  /* 다크: 밝은 잉크(≈0.95)를 낮은 알파로 얹음. */
+  --fg-muted:      oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.60);
+  --fg-subtle:     oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.40);
+  --fg-disabled:   oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.24);
+  /* 다크 모드: fg 톤(밝은 잉크)을 낮은 알파로 얹음. */
+  --border:        oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.08);
+  --border-strong: oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.16);
+
+  /* primary / status는 :root의 정의를 그대로 사용 — --lightness가 아래에서 재정의되어 자동 반영됨 */
+
+  --hover: oklch(1 0 0 / 0.06);
+  /* tooltip은 Mode 반전 — 다크 모드에선 밝은 bg + 어두운 fg. */
+  --tooltip-bg:   oklch(0.95 var(--tone-chroma) var(--tone-hue));
+  --tooltip-fg:   oklch(0.18 var(--tone-chroma) var(--tone-hue));
+
+  /* 다크도 --shadow-color는 검정 유지 — 그림자는 "빛의 반대". 알파만 상향해 어두운 bg 위에서도 보이게. */
+  --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.4);
+  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.5);
+  --shadow-md: 0 6px 16px -4px oklch(var(--shadow-color) / 0.45), 0 2px 6px -2px oklch(var(--shadow-color) / 0.3);
+  --shadow-lg: 0 12px 20px -6px oklch(var(--shadow-color) / 0.55);
+  --shadow-xl: 0 24px 40px -12px oklch(var(--shadow-color) / 0.6);
+  --shadow-drop: 0 var(--space-1) 12px oklch(var(--shadow-color) / 0.6);
+
+  /* Avatar 이니셜 팔레트 — 다크: 배경은 어두운 tint, 텍스트는 밝은 tint */
+  /* tomato   */ --avatar-tint-0-bg: oklch(0.320 0.075  27); --avatar-tint-0-fg: oklch(0.850 0.100  30);
+  /* orange   */ --avatar-tint-1-bg: oklch(0.325 0.075  60); --avatar-tint-1-fg: oklch(0.860 0.100  70);
+  /* amber    */ --avatar-tint-2-bg: oklch(0.320 0.065  85); --avatar-tint-2-fg: oklch(0.880 0.110  90);
+  /* grass    */ --avatar-tint-3-bg: oklch(0.325 0.070 140); --avatar-tint-3-fg: oklch(0.860 0.100 145);
+  /* teal     */ --avatar-tint-4-bg: oklch(0.320 0.060 180); --avatar-tint-4-fg: oklch(0.860 0.080 180);
+  /* cyan     */ --avatar-tint-5-bg: oklch(0.325 0.065 220); --avatar-tint-5-fg: oklch(0.860 0.095 220);
+  /* blue     */ --avatar-tint-6-bg: oklch(0.325 0.075 255); --avatar-tint-6-fg: oklch(0.850 0.110 260);
+  /* violet   */ --avatar-tint-7-bg: oklch(0.325 0.080 290); --avatar-tint-7-fg: oklch(0.850 0.115 290);
+  /* plum     */ --avatar-tint-8-bg: oklch(0.320 0.075 325); --avatar-tint-8-fg: oklch(0.850 0.110 325);
+  /* pink     */ --avatar-tint-9-bg: oklch(0.325 0.075 355); --avatar-tint-9-fg: oklch(0.860 0.115 355);
+}
+
+/* ── Dark × Shape ───────────────────────────────────────────
+   [data-shape="soft|crisp"]의 shadow 알파는 라이트 기준. 다크 모드에서 shape 재정의가
+   라이트 알파를 상속하지 않도록, 다크+shape 조합에서 다크 수준으로 알파 상향.
+   standard는 [data-mode="dark"] 블록이 이미 커버. */
+:root[data-mode="dark"][data-shape="soft"],
+[data-mode="dark"][data-shape="soft"] {
+  --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.4);
+  --shadow-sm: 0 2px 6px -1px oklch(var(--shadow-color) / 0.5), 0 1px 2px oklch(var(--shadow-color) / 0.3);
+  --shadow-md: 0 8px 20px -4px oklch(var(--shadow-color) / 0.5), 0 3px 8px -3px oklch(var(--shadow-color) / 0.3);
+  --shadow-lg: 0 16px 32px -8px oklch(var(--shadow-color) / 0.55), 0 6px 12px -6px oklch(var(--shadow-color) / 0.35);
+  --shadow-xl: 0 32px 60px -14px oklch(var(--shadow-color) / 0.6);
+}
+
+:root[data-mode="dark"][data-shape="crisp"],
+[data-mode="dark"][data-shape="crisp"] {
+  --shadow-xs: 0 1px 0 oklch(var(--shadow-color) / 0.4);
+  --shadow-sm: 0 1px 2px oklch(var(--shadow-color) / 0.5), 0 0 0 1px oklch(var(--shadow-color) / 0.3);
+  --shadow-md: 0 2px 4px oklch(var(--shadow-color) / 0.5), 0 0 0 1px oklch(var(--shadow-color) / 0.35);
+  --shadow-lg: 0 4px 8px oklch(var(--shadow-color) / 0.55), 0 0 0 1px oklch(var(--shadow-color) / 0.35);
+  --shadow-xl: 0 8px 16px oklch(var(--shadow-color) / 0.6), 0 0 0 1px oklch(var(--shadow-color) / 0.35);
+}
+
+/* ── Palette × Dark Mode ────────────────────────────────────
+   다크에서는 브랜드/스테이터스 컬러의 명도를 올리고 채도도 살짝 올려서 톤 유지.
+   hue-shift는 :root 값을 그대로 상속 (calm의 카키 톤, pastel의 민트 톤 유지). */
+:root[data-mode="dark"][data-palette="mono"],     [data-mode="dark"][data-palette="mono"]     { --lightness: 0.98; --chroma: 0;    }
+:root[data-mode="dark"][data-palette="vivid"],    [data-mode="dark"][data-palette="vivid"]    { --lightness: 0.72; --chroma: 0.20; }
+:root[data-mode="dark"][data-palette="standard"], [data-mode="dark"][data-palette="standard"] { --lightness: 0.68; --chroma: 0.15; }
+:root[data-mode="dark"][data-palette="calm"],     [data-mode="dark"][data-palette="calm"]     { --lightness: 0.72; --chroma: 0.14; }
+:root[data-mode="dark"][data-palette="pastel"],   [data-mode="dark"][data-palette="pastel"]   { --lightness: 0.80; --chroma: 0.12; }
+
+/* status × dark: 다크 배경에서도 경고색이 선명하게 인지되도록 명도만 상향, 채도 로직은 라이트와 동일 그룹핑 유지 */
+:root[data-mode="dark"][data-palette="mono"],
+:root[data-mode="dark"][data-palette="vivid"],
+:root[data-mode="dark"][data-palette="standard"],
+[data-mode="dark"][data-palette="mono"],
+[data-mode="dark"][data-palette="vivid"],
+[data-mode="dark"][data-palette="standard"] { --status-chroma: 0.17; --status-lightness: 0.68; }
+:root[data-mode="dark"][data-palette="calm"],
+[data-mode="dark"][data-palette="calm"]     { --status-chroma: 0.17; --status-lightness: 0.70; }
+:root[data-mode="dark"][data-palette="pastel"],
+[data-mode="dark"][data-palette="pastel"]   { --status-chroma: 0.16; --status-lightness: 0.72; }
+/* === AXES END === */
+
+/* 전역 element reset, 폰트, 컴포넌트 side-effect 스타일은 ./reset.css로 분리.
+   tokens.css는 CSS 변수(토큰·축)만 노출한다. 소비자 프로젝트에서 reset을
+   원하면 reset.css를 별도로 import. 데모 앱은 app/globals.css가 import한다. */
+

@@ -1,0 +1,19 @@
+/* CTDS 글로벌 유틸 — 컴포넌트가 참조하는 전역 클래스.
+   tokens.css가 이 파일을 import하므로 사용자 플젝에서도 자동 로드.
+
+   접근성 유틸의 1px/-1px 값은 "픽셀 토큰"이 아니라 스크린리더 공식 트릭이라
+   CTDS 토큰 훅의 EXEMPT_FILES에 등록돼 예외 처리. */
+
+/* 스크린리더만 읽는 숨김 — SelectableCard, Checkbox 등 네이티브 input을 가리고
+   커스텀 UI 그리는 컴포넌트가 사용. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,63 @@
+/* Radio ────────────────────────────────────────────────────────
+   폼 · 필터에서 단일 선택을 표시하는 컨트롤.
+   외곽 원 = box-shadow inset, 안쪽 도트 = radial-gradient (indicator의
+   같은 배경 레이어에 그려지므로 서브픽셀 어긋남이 없다). 접근성 = <input type="radio">.
+   FilterButton type="radio"도 indicator를 재사용한다. */
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+  color: var(--fg);
+  font-family: var(--label-font);
+  font-size: var(--label-md-size);
+  letter-spacing: var(--label-tracking);
+  line-height: var(--lh-tight);
+}
+.root[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.indicator {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  background:
+    radial-gradient(circle at center, transparent 0, transparent 25%, transparent 26%),
+    var(--bg);
+  transition:
+    box-shadow var(--duration-slow) var(--ease-out),
+    background var(--duration-slow) var(--ease-out);
+}
+
+/* Focus */
+.input:focus-visible + .indicator {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* Hover — 링만 selected-fg로 은은하게 물듦 (checked면 이미 채워져 있어 무시) */
+.root:hover:not([data-disabled="true"]) .input:not(:checked) + .indicator {
+  box-shadow: inset 0 0 0 1px var(--selected-fg);
+}
+
+/* Checked — 링 + 안쪽 도트 (radial-gradient) 켬. 색은 Accent 축에 따라 mono=fg, 나머지=primary */
+.input:checked + .indicator {
+  box-shadow: inset 0 0 0 1px var(--selected-fg);
+  background:
+    radial-gradient(circle at center, var(--selected-fg) 0, var(--selected-fg) 30%, transparent 31%),
+    var(--bg);
+}
+
+/* Standalone indicator (FilterButton 내부) */
+.indicator[data-checked="true"] {
+  box-shadow: inset 0 0 0 1px var(--selected-fg);
+  background:
+    radial-gradient(circle at center, var(--selected-fg) 0, var(--selected-fg) 30%, transparent 31%),
+    var(--bg);
+}

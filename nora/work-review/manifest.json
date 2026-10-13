@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "slug": "ains-work-review-v1",
+  "name": "AINS 업무 사전 검증·결과 검수 v1",
+  "publication_status": "published",
+  "published_version_id": "gv_7d37d247266c488388bf15e687d2ab36",
+  "published_ordinal": 2,
+  "published_at": "2026-10-12T05:03:45.456206Z",
+  "agents": {
+    "analyze": "agent_b944772a527a4c9f8f25e0eb24d6ba38",
+    "finalize": "agent_206f2465554e4678bdd1228bab8f6f73"
+  },
+  "trigger_id": "trg_2e813458ad9f4382b5bbd44bc91db3e7",
+  "api": {
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/flows/ains-work-review-v1",
+    "variable": "work_request"
+  },
+  "native_approval": {
+    "requires_approval": true
+  },
+  "external_tools": []
+}

@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "slug": "ains-main-context-review-v1",
+  "name": "AINS Main Context 검토·병합 후보 v1",
+  "publication_status": "published",
+  "published_version_id": "gv_24a457c3acd244f7b78836c7f96c7683",
+  "published_at": "2026-10-12T03:15:12.156512Z",
+  "agents": {
+    "analyze": "agent_8f286a5281754ba4b44c3f4c269e3089",
+    "finalize": "agent_0ef7bdbe7bf445ddbf722509059e44d7"
+  },
+  "trigger_id": "trg_1b50a7d3cb254455818f81b1d692b4c3",
+  "model": "gpt-5.4-mini",
+  "api": {
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/flows/ains-main-context-review-v1",
+    "content_type": "multipart/form-data",
+    "variable": "context_request",
+    "http_verified": true
+  },
+  "auth": {
+    "kind": "header_token",
+    "header": "Authorization",
+    "secret_provisioned": true
+  },
+  "native_approval": {
+    "agent_id": "agent_0ef7bdbe7bf445ddbf722509059e44d7",
+    "requires_approval": true,
+    "webhook_configured": true,
+    "server_restart_resume_verified": false
+  },
+  "memory": {
+    "auto_session_disabled": true,
+    "attached_spaces": []
+  },
+  "external_tools": [],
+  "verification": {
+    "live_gate_verified": true,
+    "live_approve_verified": true,
+    "live_reject_verified": true,
+    "live_approve_transport": "published REST invocation + HTTP approval",
+    "live_reject_transport": "published REST invocation + MCP rejection",
+    "approved_candidate_unchanged": true,
+    "client_tests_passed": 38,
+    "synthetic_only": true,
+    "schema_validation_boundary": "AINS fail-closed; Nora outputRules observed fail-soft",
+    "approved_trace_id": "trc_599a9cabff614ad4b3846be6817cdf9d"
+  },
+  "publication_version": 4
+}

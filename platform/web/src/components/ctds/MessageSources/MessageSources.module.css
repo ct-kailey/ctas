@@ -1,0 +1,58 @@
+/* MessageSources — AIMessage 액션바 inline chip.
+   [□□□ 겹친 favicon] Sources +N 형태. 작고 가벼운 chip. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1_5);
+  padding: var(--space-1_5) var(--space-3) var(--space-1_5) var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: 1;
+  transition: var(--transition-colors);
+}
+.root:hover {
+  background: var(--bg-subtle);
+  color: var(--fg-strong);
+}
+.root:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* favicon stack — 서로 살짝 겹침 (negative margin).
+   각 favicon은 box-shadow로 bg와 같은 cutout 링을 둘러 겹침 경계를 명확히. */
+.stack {
+  display: inline-flex;
+  align-items: center;
+}
+.favicon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-4);
+  height: var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--bg-muted);
+  box-shadow: 0 0 0 var(--hairline) var(--bg);
+  overflow: hidden;
+  margin-left: calc(var(--space-1) * -1);
+  flex: 0 0 auto;
+}
+.favicon:first-child {
+  margin-left: 0;
+}
+
+.label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-0_5);
+}
+.extra {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}

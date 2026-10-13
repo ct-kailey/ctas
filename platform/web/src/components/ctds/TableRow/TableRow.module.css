@@ -1,0 +1,365 @@
+/* TableRow
+   ───────────────────────────────────────────────────────────────
+   navigate 모드. 행 전체가 클릭 요소 (anchor 또는 role=button).
+   TableHeader와 짝 — 같은 columns/order/widths 스펙을 공유.
+
+   시각 원칙
+   - line  : 행 하단 hairline. hover 시 전체 행 배경(hover).
+   - plate : 라운드 라인 안쪽 셀. hover 시 라운드 안쪽만 bg 변화.
+   - sm/md/lg : 세로 폭 + 셀 폰트 크기만 차이. padding은 공유.
+   - active : 현재 보고 있는 상세의 선택 상태. hover보다 한 톤 아래.
+   - disabled : 톤 다운 + pointer-events none.
+
+   토큰만 사용 — 색/시간/폰트 리터럴 금지.
+*/
+
+.root {
+  display: flex;
+  align-items: stretch;
+  /* Header와 완전히 동일한 width/min-width 공식.
+     flex 컬럼 셀에 inline max-width:0 + width:0 을 걸어 콘텐츠가 max-content 계산에
+     참여하지 못하게 끊어낸다. 그래야 Row의 .root max-content 합이 Header와 일치. */
+  width: max-content;
+  min-width: 100%;
+  color: var(--fg);
+  text-decoration: none;
+  background: transparent;
+  transition: var(--transition-colors);
+  /* 폰트는 세 사이즈 공통 — 폰트가 바뀌면 테이블 리듬이 흔들린다. */
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* ── Size ───────────────────────────────────────────────────
+   세로 폭(min-height)만 사이즈 따라 스왑. 테이블 행의 "밀도"가 사이즈의 본질.
+   sm/md는 아주 가까운 두 밀도 — 데이터량이 많을 때 sm, 기본은 md.
+   lg는 이미지(아바타/썸네일)가 셀에 들어가는 경우 전용.
+   Density 축은 space-* 가 자동 반영. */
+.sizeSm { min-height: var(--space-10); }                             /* 40 */
+.sizeMd { min-height: calc(var(--space-10) + var(--space-2)); }      /* 48 */
+.sizeLg { min-height: var(--space-16); }                             /* 64 */
+
+/* ── Variant: line ─────────────────────────────────────────
+   행 하단 hairline — 테이블의 default 흐름. header line variant와 짝. */
+.line {
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+/* 마지막 행은 하단 hairline 없이 — 상위 컨테이너에서 :last-child 적용. */
+.line:last-child {
+  border-bottom: none;
+}
+
+/* line variant 내부 셀 좌우 패딩. 콘텐츠가 셀 경계(세로선 위치)에서 떨어져
+   있도록 안쪽에 숨구멍을 둔다. */
+.line .cell {
+  padding-inline: var(--space-2);
+}
+
+/* 첫 셀의 왼쪽 / 마지막 셀의 오른쪽만 테이블 가장자리에 바짝 붙게 padding 0.
+   가장자리 콘텐츠가 shell 경계에서 띄워 보이지 않도록. */
+.line .cellSlot:first-child .cell {
+  padding-inline-start: 0;
+}
+.line .cellSlot:last-child .cell {
+  padding-inline-end: 0;
+}
+
+/* 셀 간 추가 column-gap 없음 — 셀 자체 좌우 padding이 셀 사이 간격을 모두 담당. */
+
+/* ── Variant: plate ────────────────────────────────────────
+   라운드 라인. 셀 간격감이 느껴지되 행 자체는 pill처럼 보임.
+   hover/active 배경은 라운드 안쪽에서만 발생.
+   padding은 TableHeader.plate와 동일(space-1 사면 균일)로 — 안쪽 셀들의 가로
+   origin을 헤더와 정확히 맞춰 열이 어긋나지 않도록 보장. */
+.plate {
+  border-radius: var(--radius-lg);
+  padding: var(--space-1);
+}
+
+/* ── Interactive states ────────────────────────────────────
+   anchor/button 역할일 때만 hover/active cursor 반응.
+   active 상태는 hover보다 약한 톤 — hover가 active를 덮어쓰지 않도록
+   active에선 bg를 먼저 깔고 hover 시엔 shadow만 추가. */
+.root[role="row"][aria-selected]:not(.disabled),
+a.root:not(.disabled),
+.root[tabindex]:not(.disabled) {
+  cursor: pointer;
+}
+
+/* hover: 전체 행 bg. active 상태 위에서 hover 시엔 bg를 덮지 않고
+   미세한 ring/강조만 — "hover가 active를 덮어쓰지 않는다" 원칙. */
+a.root:not(.disabled):hover,
+.root[tabindex]:not(.disabled):hover {
+  background: var(--hover);
+}
+
+.active {
+  background: var(--hover);
+}
+
+.active:hover {
+  background: var(--hover) !important; /* hover가 active를 덮지 않도록 유지. */
+}
+
+/* focus-visible — 행 외곽 ring. 키보드 탐색 가시화. */
+a.root:not(.disabled):focus-visible,
+.root[tabindex]:not(.disabled):focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+  border-radius: var(--radius-sm);
+}
+
+.plate:focus-visible {
+  border-radius: var(--radius-lg);
+}
+
+/* ── Disabled ──────────────────────────────────────────── */
+.disabled {
+  color: var(--fg-disabled);
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* ── CellSlot ──────────────────────────────────────────
+   Header의 .cellSlot과 동일한 flex item 역할 + 추가로 contain: inline-size.
+   자식(.cell → .cellInner → 긴 nowrap 텍스트)의 가로 intrinsic size가
+   부모 .root의 width:max-content 계산에 전파되지 않도록 가로축만 격리한다.
+   이게 없으면 Row마다 콘텐츠 길이가 달라서 root 폭이 달라지고 셀 폭이 어긋남.
+   세로축은 격리 안 함 — min-height/stretch 정상 작동.
+   Header는 라벨이 짧아 전파돼도 min-width 하한에서 끊겨 눈에 안 띔. Row는 필수. */
+.cellSlot {
+  display: flex;
+  flex-shrink: 0;
+  min-width: 0;
+  contain: inline-size;
+}
+
+/* ── Pinned cellSlot ───────────────────────────────────
+   position: sticky는 inline style로 걸림. 배경만 깔아 스크롤되는 셀이 비치지
+   않게 함.
+   contain: inline-size 해제 — 가로 격리가 sticky anchor 계산을 깨 pinned
+   셀 경계가 실제 스크롤 위치와 안 맞는 원인. 세로 늘어남 격리는 유지 안 해도 OK. */
+.cellSlot[data-pinned] {
+  background: var(--bg);
+  contain: none;
+}
+
+/* pinned 경계 — scroll shadow 대신 상시 hairline으로 "여기까지 고정 영역"을 분명히.
+   좌측 pinned → 우측 경계, 우측 pinned → 좌측 경계.
+   border 대신 inset box-shadow로 그어 sticky 레이어 subpixel 겹침(두 줄처럼
+   보이는 Chrome 렌더 현상) 회피 + 셀 폭에 영향 안 줌. */
+.cellSlot[data-pinned="left"] {
+  box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--border);
+}
+.cellSlot[data-pinned="right"] {
+  box-shadow: inset var(--hairline) 0 0 var(--border);
+}
+
+/* selectable + pinned 조합일 때 selectCell이 "실질적 좌측 pinned의 선두" 역할이라
+   selectCell에도 우측 경계를 그어 톤 일치. */
+.selectCell {
+  box-shadow: inset calc(var(--hairline) * -1) 0 0 var(--border);
+}
+
+/* ── Cell ───────────────────────────────────────────────
+   Header의 .cell과 1:1 동일. slot 안쪽 width:100%로 가득 채우는 콘텐츠 그릇.
+   display:inline-flex 는 Header 그대로 따라감 — flex vs inline-flex 차이가
+   intrinsic 폭 계산에 미묘하게 영향할 수 있어 완전 동일하게 유지.
+
+   mask-image를 cell에 걸어 콘텐츠 overflow 끝단이 자연스럽게 fade.
+   cellInner가 아닌 cell에 걸어 ::selection 하이라이트는 자식(cellInner) 레벨에서
+   정상 렌더되도록. 색 하드코딩 없이 어떤 행 배경(hover/active/selected) 위에서도
+   띠 없이 작동.
+   fade 영역은 2단: 바깥 --space-2(=8px)는 완전 투명, 그 안쪽 --space-3(=12px)은
+   점진적 그라데이션. 합쳐서 20px 폭의 자연스러운 소실 — 좁은 fade가 "뚝 끊긴다"는
+   인상을 주는 걸 방지. */
+.cell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding-inline: var(--space-2);
+  height: 100%;
+  color: inherit;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    #000 0,
+    #000 calc(100% - var(--space-2) - var(--space-3)),
+    transparent calc(100% - var(--space-2)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 0,
+    #000 calc(100% - var(--space-2) - var(--space-3)),
+    transparent calc(100% - var(--space-2)),
+    transparent 100%
+  );
+}
+
+/* cellInner — 실제 콘텐츠 래퍼. 한 줄 nowrap. mask는 부모 .cell에 걸려 있어
+   콘텐츠 끝단이 자연스럽게 fade. cellInner 자체엔 mask/overflow 조작 없음 —
+   ::selection 하이라이트가 정상 동작하도록 유지. */
+.cellInner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* 우측 정렬 셀 — 숫자가 왼쪽부터 사라지도록 cell mask 방향도 좌측으로 뒤집음. */
+.cell[data-align="end"] .cellInner {
+  font-variant-numeric: tabular-nums;
+  justify-content: flex-end;
+}
+
+.cell[data-align="end"] {
+  mask-image: linear-gradient(
+    to left,
+    #000 0,
+    #000 calc(100% - var(--space-2) - var(--space-3)),
+    transparent calc(100% - var(--space-2)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to left,
+    #000 0,
+    #000 calc(100% - var(--space-2) - var(--space-3)),
+    transparent calc(100% - var(--space-2)),
+    transparent 100%
+  );
+}
+
+/* 가운데 정렬 — 양쪽 fade. */
+.cell[data-align="center"] .cellInner {
+  justify-content: center;
+}
+
+.cell[data-align="center"] {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    transparent var(--space-2),
+    #000 calc(var(--space-2) + var(--space-3)),
+    #000 calc(100% - var(--space-2) - var(--space-3)),
+    transparent calc(100% - var(--space-2)),
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    transparent var(--space-2),
+    #000 calc(var(--space-2) + var(--space-3)),
+    #000 calc(100% - var(--space-2) - var(--space-3)),
+    transparent calc(100% - var(--space-2)),
+    transparent 100%
+  );
+}
+
+/* ── Wrap mode ─────────────────────────────────────────
+   긴 셀 콘텐츠를 줄바꿈으로 전부 보여주는 모드.
+   - 행 min-height 해제: 콘텐츠 높이대로 자람.
+   - cell 상단 정렬 + 세로 padding + height:auto: 여러 줄 사이 리듬 유지.
+   - fade mask 제거: 전체 가시화가 목적.
+   - cellInner + 하위 요소의 white-space/min-width 전부 해제: TableCellText/Number 등
+     포맷터가 자체 nowrap을 들고 있어 universal selector로 뚫어야 함. descendant
+     selector는 .cellInner 하위에만 적용돼 selectCell(Checkbox) 영향 없음. */
+.wrap {
+  min-height: 0;
+}
+
+.wrap + .wrap {
+  margin-top: 0;
+}
+
+.wrap .cell {
+  overflow: visible;
+  align-items: flex-start;
+  height: auto;
+  padding-block: var(--space-2);
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+.wrap .cellInner {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  align-items: flex-start;
+}
+
+.wrap .cellInner * {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ── Select cell (leading checkbox) ────────────────────
+   line variant: 좌측 정렬 — 테이블이 경계에 바짝 붙는 톤이라 체크박스도 좌측에 붙임.
+   plate variant: 가운데 정렬 — pill 안쪽 좌 padding(space-1)과 체크박스 사이가 너무
+   붙어 보이는 걸 방지.
+
+   position: sticky — 좌측 pinned 컬럼과 짝. 가로스크롤 시에도 체크박스가 좌측에
+   유지되도록. 가로스크롤 없으면 sticky는 아무 효과도 안 내므로 모든 테이블에
+   안전하게 적용 가능.
+   배경(--bg)과 z-index — sticky 상태에서 뒤 셀 콘텐츠가 비치지 않도록. */
+.selectCell {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-raise);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  width: var(--iconbtn-h-lg);
+  background: var(--bg);
+}
+
+/* row hover/active 톤을 selectCell에도 — ::before 오버레이로 깔아 opacity transition
+   가능하게. background 직접 변경은 gradient 때문에 CSS가 보간을 못 해서 즉시 교체돼
+   row 트랜지션과 안 맞춰짐. opacity transition은 row의 background transition과 동일한
+   duration/ease라 자연스레 함께 움직임. */
+.selectCell::before,
+.cellSlot[data-pinned]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hover);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+a.root:not(.disabled):hover .selectCell::before,
+.root[tabindex]:not(.disabled):hover .selectCell::before,
+.active .selectCell::before,
+a.root:not(.disabled):hover .cellSlot[data-pinned]::before,
+.root[tabindex]:not(.disabled):hover .cellSlot[data-pinned]::before,
+.active .cellSlot[data-pinned]::before {
+  opacity: 1;
+}
+
+/* selectCell 안쪽 콘텐츠(Checkbox)는 ::before 위에 올라가야 함. */
+.selectCell > * {
+  position: relative;
+  z-index: var(--z-raise);
+}
+
+/* plate: 체크박스 영역엔 bg 깔지 않음 — plate pill 자체가 bg를 가져 selectCell이
+   별도 bg면 pill 안에 네모가 뜸. sticky는 유지하되 투명으로. */
+.plate .selectCell {
+  justify-content: center;
+  width: var(--control-h-sm);
+  background: transparent;
+}
+
+a.plate.root:not(.disabled):hover .selectCell,
+.plate.root[tabindex]:not(.disabled):hover .selectCell,
+.plate.active .selectCell {
+  background: transparent;
+}

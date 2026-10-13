@@ -1,0 +1,24 @@
+/* Foreground roles keep the selected CTDS palette intact. The contrast helper
+   resolves fixed black/white against actual rendered palette colors. */
+:root {
+  --ains-primary-fg: var(--bg);
+  --ains-primary-hover-fg: var(--bg);
+  --ains-primary-text: var(--fg);
+}
+/* AINS calm palette: muted khaki at the default hue. Keep status colors
+   independent and retain the CTDS light/dark lightness values. */
+html:root[data-mode][data-palette="calm"] {
+  --chroma: 0.05;
+}
+.appearance-settings { display: flex; flex-direction: column; gap: var(--space-5); }
+.appearance-description { color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.appearance-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.appearance-fields .field { min-width: 0; margin: 0; }
+.appearance-sample { padding-block: var(--space-5); border-top: var(--hairline) solid var(--border); border-bottom: var(--hairline) solid var(--border); }
+.appearance-sample-title, .appearance-sample-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.appearance-sample-title > svg { width: var(--icon-size-sm); height: var(--icon-size-sm); color: var(--fg-muted); }
+.appearance-sample-title > strong { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }
+.appearance-sample > p { margin-block: var(--space-3); color: var(--fg-muted); font-size: var(--text-xs); }
+.appearance-feedback { color: var(--fg); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.appearance-trigger { flex-shrink: 0; }
+@media (max-width: 540px) { .appearance-fields { grid-template-columns: minmax(0, 1fr); } }

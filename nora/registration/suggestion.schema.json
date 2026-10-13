@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Human-confirmed registration suggestion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "domain_id", "document_id", "record_kind", "confidence", "reason"],
+  "properties": {
+    "action": { "enum": ["new_document", "new_revision"] },
+    "domain_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "document_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+    "record_kind": { "enum": ["specification", "conversation", "decision", "work_item", "note"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 2000 }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$" }
+  }
+}

@@ -1,0 +1,33 @@
+/* Responsive breakpoints remain structural constants: CSS custom properties do not resolve in media queries. */
+.insights-workspace { display: grid; gap: var(--space-6) }
+.insight-daily { padding: var(--space-6); border: var(--hairline) solid var(--border); background: var(--bg-subtle); border-radius: var(--radius-lg) }
+.insight-daily h3 { margin: var(--space-2_5) 0 }
+.insight-daily-links { display: grid; gap: var(--space-1); margin: var(--space-4) 0 }
+.insight-daily-links button { display: flex; gap: var(--space-3); align-items: center; text-align: left }
+.insight-daily-links button:where(:not([data-ctds]):not([data-ctds-control])) { background: none; border: 0; padding: var(--space-1_5) 0; color: inherit }
+.insight-daily-links button span { font-size: var(--text-2xs); color: var(--fg-muted); white-space: nowrap; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.insight-daily-links svg { flex-shrink: 0 }
+.insight-toolbar { display: flex; gap: var(--space-2_5); flex-wrap: wrap }
+.insight-toolbar select:where(:not([data-ctds]):not([data-ctds-control])) { border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2_5); background: var(--bg) }
+.insight-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-4) }
+.insight-card { border: var(--hairline) solid var(--border); border-top: calc(var(--hairline) * 3) solid var(--border); border-radius: var(--radius-md); padding: var(--space-5); overflow-wrap: anywhere }
+.insight-card.severity-high { border-top-color: var(--destructive-border-color) }
+.insight-card.severity-medium { border-top-color: var(--warning-border-color) }
+.insight-card h4 { font-size: var(--text-base); margin: var(--space-3) 0 var(--space-2); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
+.insight-card p { white-space: pre-wrap; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); letter-spacing: var(--type-sm-tracking) }
+.insight-action { font-size: var(--text-sm); line-height: var(--lh-sm); padding: var(--space-3); background: var(--bg-subtle); border-radius: var(--radius-sm); letter-spacing: var(--type-sm-tracking) }
+.insight-evidence { display: flex; gap: var(--space-1_5); flex-wrap: wrap; margin: var(--space-3) 0 }
+.insight-evidence button { display: flex; gap: var(--space-1); text-align: left }
+.insight-evidence button:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; background: none; color: var(--fg); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.insight-card footer { display: flex; align-items: center; gap: var(--space-3) }
+.insight-projects { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-4) 0 }
+.insight-projects label { font-size: var(--text-sm); display: flex; gap: var(--space-1_5); align-items: center; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.insight-patterns article { padding: var(--space-4) 0; border-top: var(--hairline) solid var(--border); margin-top: var(--space-4) }
+.insight-patterns p { font-size: var(--text-sm); line-height: var(--lh-sm); white-space: pre-wrap; letter-spacing: var(--type-sm-tracking) }
+.insight-patterns details { padding: var(--space-2) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.insights-workspace small { color: var(--fg-muted); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+@media(max-width:800px){
+.insight-grid { grid-template-columns: 1fr }
+.insight-daily { padding: var(--space-4) }
+.insight-toolbar { width: 100% }
+}

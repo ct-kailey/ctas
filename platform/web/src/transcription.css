@@ -1,0 +1,80 @@
+/* Responsive breakpoints remain structural constants: CSS custom properties do not resolve in media queries. */
+/* AINS page column widths and scroll limits; CTDS controls visual tokens. */
+:root { --ains-transcription-measure-215: 215px; --ains-transcription-measure-360: 360px; --ains-transcription-measure-460: 460px; --ains-transcription-measure-180: 180px; --ains-transcription-measure-320: 320px; --ains-transcription-measure-300: 300px; --ains-transcription-measure-185: 185px }
+.stt-workspace { min-width: 0 }
+.stt-intro { display: flex; align-items: center; justify-content: space-between; padding: var(--space-6) var(--space-8); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); margin-bottom: var(--space-6) }
+.stt-intro h2 { font-family: var(--font-normal); font-size: var(--text-2xl); font-weight: var(--font-weight-medium); line-height: var(--lh-2xl); margin: var(--space-3) 0; letter-spacing: var(--type-2xl-tracking) }
+.stt-intro p,.stt-help { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); letter-spacing: var(--type-sm-tracking) }
+.stt-icon { padding: var(--space-6); border: var(--hairline) solid var(--border); color: var(--fg-muted); border-radius: var(--radius-full) }
+.stt-upload { padding: var(--space-6); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); margin: var(--space-5) 0 }
+.stt-upload summary { display: flex; gap: var(--space-2); align-items: center; cursor: pointer; font-size: var(--text-sm); font-weight: var(--font-weight-medium); color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.stt-upload form { margin-top: var(--space-6) }
+.stt-upload fieldset { border: 0; padding: 0; min-width: 0 }
+.stt-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-4) }
+.stt-help { margin: var(--space-3) 0 }
+.stt-list-heading { display: flex; align-items: center; justify-content: space-between; margin: var(--space-6) 0 var(--space-4); gap: var(--space-4) }
+.stt-list-heading h3 { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
+.stt-list-heading h3 span { color: var(--fg-muted); margin-left: var(--space-2); font-weight: var(--font-weight-regular) }
+.stt-layout { display: grid; grid-template-columns: var(--ains-transcription-measure-215) minmax(0,1fr); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg); overflow: hidden }
+.stt-layout>aside { background: var(--bg-subtle); padding: var(--space-3); border-right: var(--hairline) solid var(--border) }
+.stt-layout>aside>button { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); text-align: left; width: 100%; margin-bottom: var(--space-2) }
+.stt-layout>aside>button:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-4) var(--space-3); border: var(--hairline) solid transparent; background: transparent; border-radius: var(--radius-xs) }
+.stt-layout>aside>button[aria-pressed=true]:where(:not([data-ctds]):not([data-ctds-control])) { border-color: var(--primary-border-color); background: var(--primary-subtle) }
+.stt-layout>aside strong { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--font-weight-medium); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
+.stt-layout>aside small { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-detail { padding: var(--space-6); min-width: 0 }
+.stt-detail>header { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-detail>h3 { font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--font-weight-medium); margin: var(--space-4) 0; overflow-wrap: anywhere; letter-spacing: var(--type-xl-tracking) }
+.stt-audio { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap }
+.stt-audio audio { max-width: 100%; height: var(--control-h-lg) }
+.stt-audio a { display: flex; align-items: center; gap: var(--space-1_5) }
+.stt-audio a:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); color: var(--ains-primary-text); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-5); margin: var(--space-6) 0 }
+.stt-columns>section { min-width: 0 }
+.stt-columns h4 { font-size: var(--text-sm); font-weight: var(--font-weight-medium); margin-bottom: var(--space-4); color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.stt-columns h4 small { display: block; font-weight: var(--font-weight-regular); font-size: var(--text-2xs); color: var(--fg-muted); margin-top: var(--space-1_5); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-columns textarea { width: 100%; resize: vertical }
+.stt-columns textarea { min-height: var(--ains-transcription-measure-360)}
+.stt-columns textarea:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.stt-original { font-size: var(--text-sm); line-height: var(--lh-sm); max-height: var(--ains-transcription-measure-460); overflow: auto; background: var(--bg-subtle); padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
+.stt-original>p,.stt-preserve { white-space: pre-wrap }
+.stt-segment { padding: var(--space-2_5) 0 var(--space-4); border-bottom: var(--hairline) solid var(--border) }
+.stt-segment:last-child { border: 0 }
+.stt-segment>div { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2) }
+.stt-segment button { display: flex; align-items: center; gap: var(--space-1); text-decoration: underline; text-underline-offset: var(--space-0_5) }
+.stt-segment button:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; background: transparent; padding: 0; color: var(--fg-muted); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-segment small { color: var(--fg-muted); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-segment label { margin-left: auto; font-size: var(--text-2xs); color: var(--fg-muted); display: flex; align-items: center; gap: var(--space-1); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-segment input,.stt-check input { width: var(--icon-size-sm); flex-shrink: 0 }
+.stt-segment input:where(:not([data-ctds]):not([data-ctds-control])), .stt-check input:where(:not([data-ctds]):not([data-ctds-control])) { height: var(--icon-size-sm) }
+.stt-segment p { white-space: pre-wrap }
+.stt-review { background: var(--bg-subtle); border: var(--hairline) solid var(--border); padding: var(--space-5); border-radius: var(--radius-xs) }
+.stt-check { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-muted); line-height: var(--lh-sm); margin: var(--space-4) 0; letter-spacing: var(--type-sm-tracking) }
+.stt-check input { margin-top: var(--space-0_5) }
+.stt-actions { display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center; justify-content: flex-end; margin-top: var(--space-5) }
+.stt-actions>span { font-size: var(--text-2xs); color: var(--fg-muted); margin-right: auto; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-recovery { padding: var(--space-5); background: var(--warning-subtle); border: var(--hairline) solid var(--warning-border-color); border-radius: var(--radius-xs); margin: var(--space-5) 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--warning); letter-spacing: var(--type-sm-tracking) }
+.stt-recovery>small { display: block; font-size: var(--text-2xs); overflow-wrap: anywhere; margin-top: var(--space-2); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.stt-original:focus-within { outline: var(--hairline) solid var(--ring) }
+@media(max-width:1100px){
+.stt-layout { grid-template-columns: var(--ains-transcription-measure-180) minmax(0,1fr) }
+.stt-columns { grid-template-columns: 1fr }
+.stt-original { max-height: var(--ains-transcription-measure-320) }
+.stt-columns textarea { min-height: var(--ains-transcription-measure-300)}
+}
+@media(max-width:650px){
+.stt-intro { padding: var(--space-6) }
+.stt-intro h2 { font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
+.stt-icon { display: none }
+.stt-form-grid { grid-template-columns: 1fr }
+.stt-upload { padding: var(--space-4) }
+.stt-layout { grid-template-columns: 1fr }
+.stt-layout>aside { display: flex; overflow-x: auto; gap: var(--space-2); border-right: 0; border-bottom: var(--hairline) solid var(--border) }
+.stt-layout>aside>button { flex: 0 0 var(--ains-transcription-measure-185); margin-bottom: 0 }
+.stt-detail { padding: var(--space-4) }
+.stt-detail>h3 { font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
+.stt-review { padding: var(--space-4) }
+.stt-actions { align-items: stretch; flex-direction: column }
+.stt-actions>span { margin-right: 0 }
+.stt-audio audio { width: 100% }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "./docs/ctds/ains-theme.schema.json",
+  "theme": "spare",
+  "mode": "light",
+  "palette": "calm",
+  "hue": 100,
+  "shape": "standard",
+  "iconFamily": "lucide",
+  "density": "default",
+  "motion": "calm",
+  "lang": "ko",
+  "focusRing": "on",
+  "voice": "neutral"
+}

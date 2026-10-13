@@ -1,0 +1,72 @@
+/* MessageState — AI 응답 중 "뭘 하고 있는지" 라인.
+   Lottie/Spinner 리더 + 통통거리는 라벨. done=true면 ✓ 로 전환, 라벨 정적. */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  font-weight: var(--font-weight-medium);
+}
+.root[data-done] {
+  color: var(--fg);
+  font-weight: var(--font-weight-regular);
+}
+
+/* 리더 폭 — Spinner size=sm(20px)과 통일. 아이콘/스피너 전환해도 라벨 위치 안 흔들림. */
+.leadIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--loader-size-sm);
+  height: var(--loader-size-sm);
+  color: var(--primary);
+  flex: 0 0 auto;
+}
+.root[data-done] .leadIcon {
+  color: var(--success);
+}
+
+.leadSpinner {
+  color: var(--primary);
+  flex: 0 0 auto;
+  /* Spinner sm = 20px = loader-size-sm. 폭 명시해 동일 width 보장. */
+  width: var(--loader-size-sm);
+  height: var(--loader-size-sm);
+}
+
+/* 통통거리는 라벨 — 글자 수에 비례한 cycle, 각 글자 index 지연으로 wave. */
+.label {
+  display: inline-flex;
+  align-items: center;
+}
+.bounceChar {
+  display: inline-block;
+  animation: msgstate-char-bounce calc(var(--duration-slower) * 10) var(--ease-in-out) infinite;
+}
+.bounceSpace {
+  display: inline-block;
+  white-space: pre;
+}
+/* bounce는 cycle 앞 35%까지만 (올라감 17.5%→피크→내려옴 35%), 나머지 65%는 쉼.
+   cycle을 2배로 늘렸으니 bounce 자체 속도는 그대로, 다음 wave까지 간격만 길어짐. */
+@keyframes msgstate-char-bounce {
+  0%, 35%, 100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  17.5% {
+    transform: translateY(calc(-1.5px * var(--motion-distance-scale))); /* lint-hardcoded: ignore */
+    opacity: 1;
+  }
+}
+
+/* done일 땐 애니 정지 (bounce span도 opacity 1 static) */
+.root[data-done] .bounceChar,
+.root[data-done] .bounceSpace {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}

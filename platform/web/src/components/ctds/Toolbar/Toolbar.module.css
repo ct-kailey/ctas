@@ -1,0 +1,72 @@
+/* Root ───────────────────────────────────────────────
+   가로 action 줄. IconButton·Button·텍스트 트리거를 품는다.
+   표현은 variant가 쥐고, 내부 구조(gap/정렬)만 공통.
+   단일 size — IconButton md(24)에 맞춘 bar 높이.
+
+   ▸ Toolbar 내부 로컬 override: IconButton md 히트박스를 살짝 넓힌다.
+     기본 24 → 28. 아이콘 자체 크기는 그대로 두고 주변 여유만 확장해서
+     클릭 영역이 넉넉해지도록. */
+.root {
+  --iconbtn-h-md: var(--control-h-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-h-md);
+  width: max-content;
+  padding-block: var(--space-1_5);
+  padding-inline: var(--space-2);
+  color: var(--fg);
+  box-sizing: border-box;
+}
+
+/* stretch=true : 콘텐츠 폭이 아니라 부모 폭을 꽉 채움 (attached의 기본값). */
+.root[data-stretch] {
+  display: flex;
+  width: 100%;
+}
+
+/* Variants ──────────────────────────────────────────── */
+
+/* floating — 떠 있는 알약.
+   bg-elevated + 얕은 그림자 + 큰 radius. 콘텐츠 위에 살짝 떠 있는 느낌.
+   무게감은 hairline이 쥐고, 그림자는 분리감만 더한다. */
+.root[data-variant="floating"] {
+  background: var(--bg-elevated, var(--bg));
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+/* attached — 콘텐츠에 붙은 bar.
+   자체 bg 없음 + 하단 hairline만. 에디터 상단·문서 chrome. */
+.root[data-variant="attached"] {
+  background: transparent;
+  border: 0;
+  border-bottom: var(--hairline) solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Group ─────────────────────────────────────────────── */
+.group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0_5);
+  flex-shrink: 0;
+}
+
+/* Divider ───────────────────────────────────────────────
+   세로 hairline. 그룹 사이 시각 구분.
+   굵기 --hairline 고정, 상/하 margin으로 아이콘 라인에서 살짝 안쪽. */
+.divider {
+  width: var(--hairline);
+  align-self: stretch;
+  background: var(--border);
+  margin-inline: var(--space-1);
+  margin-block: var(--space-1_5);
+}
+
+/* Spacer ───────────────────────────────────────────── */
+.spacer {
+  flex: 1 1 auto;
+}

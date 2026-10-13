@@ -1,0 +1,177 @@
+/* Spinner — 공통 바깥 박스
+   variant 지정 → data-variant로 분기
+   variant 미지정 → [data-motion="…"] 조상 셀렉터로 자동 매핑 (Motion 축 추종)
+
+   색은 currentColor로 묶여 부모 color를 그대로 승계 (Palette/Hue 축 호환). */
+
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: var(--loader-size, var(--loader-size-sm));
+  height: var(--loader-size, var(--loader-size-sm));
+  flex-shrink: 0;
+}
+
+.sm { --loader-size: var(--loader-size-sm); }
+.md { --loader-size: var(--loader-size-md); }
+.lg { --loader-size: var(--loader-size-lg); }
+.xl { --loader-size: var(--loader-size-xl); }
+
+/* 자식 전부 기본 숨김 — 활성 variant만 켬. */
+.ring,
+.dot,
+.pulse {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────
+   공통 variant 규칙 (키: ring / dots-bounce / dots-fade / pulse)
+   아래는 "활성 variant → 어떤 자식을 어떻게 보이게 할지"만 정의.
+   무엇이 활성 variant인가는 더 아래 "매칭" 섹션이 결정.
+   ───────────────────────────────────────────────────────── */
+
+/* ring */
+.v-ring .ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: m-spin calc(var(--duration-slower) * 2) linear infinite; /* lint-hardcoded: ignore */
+}
+
+/* dots 공통 */
+.v-dots {
+  width: auto;
+  min-width: var(--loader-size);
+  gap: calc(var(--loader-size) * 0.22);
+}
+.v-dots .dot {
+  display: block;
+  width: calc(var(--loader-size) * 0.32);
+  height: calc(var(--loader-size) * 0.32);
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* dots-bounce */
+.v-dots-bounce .dot {
+  animation: m-dots-bounce calc(var(--duration-slower) * 1.5) var(--ease-in-out) infinite;
+}
+.v-dots-bounce .dot:nth-child(3) {
+  animation-delay: calc(var(--duration-base) * -1);
+}
+.v-dots-bounce .dot:nth-child(4) {
+  animation-delay: calc(var(--duration-slow) * -1);
+}
+
+/* dots-fade */
+.v-dots-fade .dot {
+  animation: m-dots-fade calc(var(--duration-slower) * 1.5) var(--ease-in-out) infinite;
+}
+.v-dots-fade .dot:nth-child(3) {
+  animation-delay: calc(var(--duration-base) * -1);
+}
+.v-dots-fade .dot:nth-child(4) {
+  animation-delay: calc(var(--duration-slow) * -1);
+}
+
+/* pulse */
+.v-pulse .pulse {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+  animation: m-pulse calc(var(--duration-slower) * 2) var(--ease-in-out) infinite;
+}
+
+/* ─────────────────────────────────────────────────────────
+   Lottie variants — 전부 정사각 bounds. LottiePlayer가 preserveAspectRatio=slice로
+   비정사각 캔버스를 가장자리 잘라 cover. visualScale/offset은 매니페스트에서.
+   ───────────────────────────────────────────────────────── */
+.v-lottie {
+  overflow: hidden;
+  position: relative;
+}
+
+/* 안쪽 로티 박스를 scale 배수만큼 "실제로" 크게 그려서 wrapper를 꽉 채우게 함.
+   transform:scale은 lottie-react wrapper에서 letterbox가 생겨 체감이 반감되므로 사용하지 않음.
+   offset은 중앙 기준 translate(%) — 상위 bounds 비율 기반 (ex. 5% = 아래로 bounds의 5% 밀기). */
+.lottieFill {
+  position: absolute;
+  width: calc(100% * var(--lottie-scale, 1));
+  height: calc(100% * var(--lottie-scale, 1));
+  left: 50%;
+  top: 50%;
+  transform:
+    translate(-50%, -50%)
+    translate(var(--lottie-offset-x, 0), var(--lottie-offset-y, 0));
+}
+
+/* ─────────────────────────────────────────────────────────
+   v-auto — variant 미지정 시 Motion 축을 따라감.
+   조상 data-motion 값에 따라 분기. 기본(미지정)은 ring.
+   ───────────────────────────────────────────────────────── */
+
+.v-auto .ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation: m-spin calc(var(--duration-slower) * 2) linear infinite; /* lint-hardcoded: ignore */
+}
+
+[data-motion="bouncy"] .v-auto .ring,
+[data-motion="calm"] .v-auto .ring {
+  display: none;
+  animation: none;
+}
+
+[data-motion="bouncy"] .v-auto,
+[data-motion="calm"] .v-auto {
+  width: auto;
+  min-width: var(--loader-size);
+  gap: calc(var(--loader-size) * 0.22);
+}
+
+[data-motion="bouncy"] .v-auto .dot,
+[data-motion="calm"] .v-auto .dot {
+  display: block;
+  width: calc(var(--loader-size) * 0.32);
+  height: calc(var(--loader-size) * 0.32);
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* bouncy → dots-bounce */
+[data-motion="bouncy"] .v-auto .dot {
+  animation: m-dots-bounce calc(var(--duration-slower) * 1.5) var(--ease-in-out) infinite;
+}
+[data-motion="bouncy"] .v-auto .dot:nth-child(3) {
+  animation-delay: calc(var(--duration-base) * -1);
+}
+[data-motion="bouncy"] .v-auto .dot:nth-child(4) {
+  animation-delay: calc(var(--duration-slow) * -1);
+}
+
+/* calm → dots-fade */
+[data-motion="calm"] .v-auto .dot {
+  animation: m-dots-fade calc(var(--duration-slower) * 1.5) var(--ease-in-out) infinite;
+}
+[data-motion="calm"] .v-auto .dot:nth-child(3) {
+  animation-delay: calc(var(--duration-base) * -1);
+}
+[data-motion="calm"] .v-auto .dot:nth-child(4) {
+  animation-delay: calc(var(--duration-slow) * -1);
+}
+
+/* AINS accessibility: retain a visible loading cue without animation. */
+[data-motion="none"] .root > * {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .root > * { animation: none; }
+}

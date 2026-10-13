@@ -1,0 +1,15 @@
+'use strict';
+const express=require('express');
+const {createWorkAI,secretMatches}=require('./work-ai-ledger');
+function mountWorkAIWebhook(app,{pool,workAI={}}){const ledger=createWorkAI({pool,enabled:workAI.enabled,client:workAI.client});
+ // Capability route is server-to-server only, mounted before cookie/Origin middleware.
+ app.post('/api/nora-work-approvals/:secret',(req,res,next)=>secretMatches(req.params.secret,workAI.webhookSecret)?next():res.status(404).json({error:{code:'NOT_FOUND',message:'Not found'}}),express.json({limit:'1mb'}),async(req,res)=>res.json(await ledger.receiveWebhook(req.body)));
+}
+function mountWorkAIRoutes(router,{pool,write,review,workAI={}}){const ledger=createWorkAI({pool,enabled:workAI.enabled,client:workAI.client});
+ router.get('/work-ai/runs',async(req,res)=>res.json(await ledger.list(req.params.p,req.user.id)));
+ router.get('/work-ai/runs/:id',async(req,res)=>res.json({run:await ledger.get(req.params.p,req.params.id,req.user.id)}));
+ router.post('/work-ai/runs',write,async(req,res)=>res.status(202).json({run:await ledger.create(req.params.p,req.user.id,req.body)}));
+ router.post('/work-ai/runs/:id/decision',review,async(req,res)=>res.json({run:await ledger.decide(req.params.p,req.params.id,req.user.id,req.body)}));
+ router.post('/work-ai/runs/:id/apply',review,async(req,res)=>res.status(201).json(await ledger.apply(req.params.p,req.params.id,req.user.id,req.body)));
+}
+module.exports={mountWorkAIWebhook,mountWorkAIRoutes};

@@ -1,0 +1,37 @@
+{
+  "kind": "flowRun",
+  "ok": true,
+  "run": {
+    "output": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 초과이면 검토 대상으로 분류한다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 이상이면 검토 대상으로 분류한다.\"},\"change_id\":\"chg-001\",\"change_type\":\"modified\",\"impacts\":[],\"reason\":\"임계값 80점의 포함 여부가 변경되어 분류 결과의 경계가 달라졌습니다. 결과 집합에 직접 영향을 주는 substantive boundary change로 판단됩니다.\",\"requirement_key\":\"REQ-BOUNDARY-001\",\"risk\":\"high\",\"summary\":\"경계 조건이 ‘이상’에서 ‘초과’로 변경됨\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[],\"request_id\":\"req-inclusive-to-exclusive\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"REQ-BOUNDARY-001에 대한 impact_map 매핑이 없어 구체적인 코드/API/테스트 링크를 확인할 수 없습니다.\"]}",
+    "outputs": [
+      {
+        "agentId": "agent_e48d935704644fbe8a310f97287e45ea",
+        "agentName": "01 변경 분석",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-inclusive-to-exclusive\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-BOUNDARY-001\",\"change_type\":\"modified\",\"risk\":\"high\",\"summary\":\"경계 조건이 ‘이상’에서 ‘초과’로 변경됨\",\"before\":{\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 이상이면 검토 대상으로 분류한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"after\":{\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 초과이면 검토 대상으로 분류한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"reason\":\"임계값 80점의 포함 여부가 변경되어 분류 기준의 경계가 달라졌습니다. 이는 결과 집합에 직접 영향을 주는 substantive boundary change이므로 high risk 수정으로 분류합니다.\",\"impacts\":[]}],\"questions\":[],\"warnings\":[],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_a87d44bb863a466abe0cf75a8f6fd907",
+        "agentName": "02 영향과 질문",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-inclusive-to-exclusive\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-BOUNDARY-001\",\"change_type\":\"modified\",\"risk\":\"high\",\"summary\":\"경계 조건이 ‘이상’에서 ‘초과’로 변경됨\",\"before\":{\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 이상이면 검토 대상으로 분류한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"after\":{\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 초과이면 검토 대상으로 분류한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"reason\":\"임계값 80점의 포함 여부가 변경되어 분류 결과의 경계가 달라졌습니다. 결과 집합에 직접 영향을 주는 substantive boundary change로 판단됩니다.\",\"impacts\":[]}],\"questions\":[],\"warnings\":[\"REQ-BOUNDARY-001에 대한 impact_map 매핑이 없어 구체적인 코드/API/테스트 링크를 확인할 수 없습니다.\"],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_ad65fdbc94cc4d3393fe93afbf1d5dca",
+        "agentName": "03 근거 검증",
+        "text": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 초과이면 검토 대상으로 분류한다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"검증 점수가 80점 이상이면 검토 대상으로 분류한다.\"},\"change_id\":\"chg-001\",\"change_type\":\"modified\",\"impacts\":[],\"reason\":\"임계값 80점의 포함 여부가 변경되어 분류 결과의 경계가 달라졌습니다. 결과 집합에 직접 영향을 주는 substantive boundary change로 판단됩니다.\",\"requirement_key\":\"REQ-BOUNDARY-001\",\"risk\":\"high\",\"summary\":\"경계 조건이 ‘이상’에서 ‘초과’로 변경됨\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[],\"request_id\":\"req-inclusive-to-exclusive\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"REQ-BOUNDARY-001에 대한 impact_map 매핑이 없어 구체적인 코드/API/테스트 링크를 확인할 수 없습니다.\"]}"
+      }
+    ],
+    "rawStatus": "completed",
+    "status": "ok",
+    "traceId": "trc_81443fdb2a17428ca6ed47f9d81ac5a7",
+    "usage": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 10752,
+      "costUsd": 0.02295615,
+      "inputTokens": 17497,
+      "outputTokens": 2006,
+      "totalTokens": 19503
+    }
+  },
+  "slug": "ains-sism-change-review-openai-v1",
+  "status": "ok"
+}

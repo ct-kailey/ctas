@@ -1,0 +1,190 @@
+/* SplitButton — 붙어있지만 클릭 영역이 분리된 2-part 버튼.
+   구조: <div.root> [ button.main | span.divider | button.menu ]
+
+   설계:
+   - 배경·보더는 root가 담당 → main/menu 사이 시각적 갭 없음
+   - hover 시 각 part의 배경만 얹혀서 절반 강조
+   - divider는 root 위에 얹히는 hairline (currentColor × 알파)
+*/
+
+.root {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  overflow: hidden;
+  /* Button과 outer 높이를 맞추기 위해 root가 height를 잡고 border를 안쪽으로 포함.
+     size class(sm/md/lg)에서 --split-h를 세팅한다. */
+  box-sizing: border-box;
+  height: var(--split-h);
+  transition:
+    background var(--duration-slow) var(--ease-out),
+    border-color var(--duration-slow) var(--ease-out);
+  /* variant class가 background / border-color / color 설정 */
+}
+.root.fullWidth {
+  display: flex;
+  width: 100%;
+}
+
+/* 공통 part — 배경/보더 없음. 크기와 hover 강조만. */
+.part {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--font-normal);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--label-tracking);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 0;
+  transition:
+    background var(--duration-slow) var(--ease-out),
+    color var(--duration-slow) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+.part:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+  position: relative;
+  z-index: var(--z-docked);
+}
+/* Press feedback: 반쪽 컨테이너는 제자리, 아이콘·라벨만 미세하게 눌림.
+   - transform은 emphasized 대신 ease-out 계열 사용 (스프링 오버슛이 press엔 뚝딱 느낌)
+   - 진입·해제 모두 base 지속 → 대칭 부드러움
+   - opacity(hover)는 emphasized로 감각적 변화 유지 */
+.part .icon,
+.part .label {
+  transition:
+    transform var(--duration-base) var(--ease-out);
+}
+.part .icon {
+  transition:
+    transform var(--duration-base) var(--ease-out),
+    opacity var(--duration-slow) var(--ease-out);
+}
+.part:active:not(:disabled) .icon,
+.part:active:not(:disabled) .label {
+  transform: translateY(var(--space-0_5));
+}
+/* Hover 시 아이콘 밝기 상승 (0.75 → 1.0). "살아나는" 미세한 반응. */
+.part:hover:not(:disabled) .icon {
+  opacity: 1;
+}
+.part:disabled,
+.part[data-loading="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.main { flex: 1 1 auto; }
+.menu { flex: 0 0 auto; }
+
+/* Sizes — Button과 동일 토큰. root가 --split-h를 잡고 part는 stretch로 채움.
+   (part에 height를 걸면 border 두께가 outer에 더해져 Button보다 2px 커지므로 root에 몰아둔다.) */
+.sm { --split-h: var(--control-h-sm); --btn-icon-size: var(--space-4); }
+.sm .part { font-size: var(--text-xs); gap: var(--space-1_5); }
+.sm .main { padding-inline: var(--space-2); }
+.sm .menu { padding-inline: var(--space-1_5); }
+
+.md { --split-h: var(--control-h-md); --btn-icon-size: var(--space-4); }
+.md .part { font-size: var(--text-sm); gap: var(--space-1); }
+.md .main { padding-inline: var(--space-2); }
+.md .menu { padding-inline: var(--space-1_5); }
+
+.lg { --split-h: var(--control-h-lg); --btn-icon-size: var(--space-4); }
+.lg .part { font-size: var(--text-sm); gap: var(--space-1_5); }
+.lg .main { padding-inline: var(--space-4); }
+.lg .menu { padding-inline: var(--space-2); }
+
+/* Divider — 세로 hairline, 위아래 여백 유지.
+   각 variant가 --split-divider로 색·알파 결정 (아이콘/텍스트와 별개 톤). */
+.divider {
+  align-self: stretch;
+  margin-block: var(--space-2);
+  border-left: 1px solid var(--split-divider, currentColor);
+  pointer-events: none;
+  flex: 0 0 auto;
+  transition: border-color var(--duration-slow) var(--ease-out);
+}
+/* 어느 한쪽이 hover되면 divider를 살짝 옅게 → 하나의 덩어리로 뭉치는 느낌. */
+.root:has(.part:hover:not(:disabled)) .divider {
+  border-color: transparent;
+}
+
+/* Icon / label slots.
+   슬롯을 고정 정사각으로 강제 → SVG viewBox 여백이 라이브러리·아이콘마다
+   달라도 슬롯 밖 레이아웃은 균일. SVG는 슬롯을 100% 채움. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--btn-icon-size);
+  height: var(--btn-icon-size);
+  opacity: 0.75;
+}
+.icon > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Variants ─────────────────────────────────────────────────────
+   root가 배경·보더·기본 색 결정. --split-divider는 divider 전용.
+   part hover는 반투명 오버레이로 절반만 강조. */
+
+/* primary — 채움 브랜드. 텍스트 --bg. divider·hover는 시맨틱 토큰으로. */
+.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--bg);
+  --split-divider: var(--border);
+}
+.primary .part:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+/* inverse — 흑백 반전. hover는 fg-strong으로 통째 갈아엎음. */
+.inverse {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
+  --split-divider: var(--border);
+}
+.inverse .part:hover:not(:disabled) {
+  background: var(--fg-strong);
+}
+
+/* secondary — primary 8% 표면 + primary 텍스트. hover는 --secondary-bg-hover 시맨틱. */
+.secondary {
+  background: var(--secondary-bg);
+  border-color: transparent;
+  color: var(--secondary-fg);
+  --split-divider: var(--border);
+}
+.secondary .part:hover:not(:disabled) {
+  background: var(--secondary-bg-hover);
+}
+
+/* outline — 경계만 */
+.outline {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--fg);
+  --split-divider: var(--border);
+}
+.outline .part:hover:not(:disabled) {
+  background: var(--hover);
+}
+

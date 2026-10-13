@@ -1,0 +1,241 @@
+/* Base ─────────────────────────────────────────────────────── */
+.root {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--label-tracking);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid transparent;
+  /* 인터랙션 트랜지션은 globals.css의 시맨틱 프리셋 3종 조합.
+     값 튜닝은 --transition-* 토큰에서만. */
+  transition: var(--transition-colors), var(--transition-ring), var(--transition-press);
+}
+
+.root:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* Press: 진입·해제 모두 base + ease-out → 대칭 부드러움 */
+.root:active:not(:disabled) {
+  transform: translateY(var(--space-0_5));
+}
+
+/* Hover 시 아이콘 밝기 상승 (0.75 → 1.0) */
+.root:hover:not(:disabled) .icon {
+  opacity: 1;
+}
+.icon {
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+
+/* Disabled — variant 무관 통일 스타일.
+   회색 버튼(--bg-muted) + 실버 글자(--fg-disabled) + 투명 보더.
+   loading은 opacity로 유지 (스피너 컨텍스트 보존). */
+.root:disabled:not([data-loading="true"]) {
+  cursor: not-allowed;
+  background: var(--bg-muted);
+  color: var(--fg-disabled);
+  border-color: transparent;
+  box-shadow: none;
+}
+.root:disabled[data-loading="true"] {
+  cursor: progress;
+}
+.root:disabled:not([data-loading="true"]) .icon {
+  opacity: 1;
+}
+/* Loading — 라벨/아이콘은 보이지만 톤 다운, Spinner가 중앙에 overlay.
+   폭을 유지하기 위해 label·icon은 visibility로 숨김(공간 보존). */
+.root[data-loading="true"] {
+  cursor: not-allowed;
+  position: relative;
+}
+.root[data-loading="true"] .label,
+.root[data-loading="true"] .icon,
+.root[data-loading="true"] .badge {
+  visibility: hidden;
+}
+.root[data-loading="true"] .spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: currentColor;
+}
+
+/* Full width ─────────────────────────────────────────────────── */
+.fullWidth {
+  width: 100%;
+}
+
+/* Sizes ──────────────────────────────────────────────────────── */
+/* Size는 높이·패딩·타이포·gap·radius 담당.
+   Shape 축(soft/standard/crisp)이 각 --radius-*의 실제 값을 스왑. */
+.xs {
+  height: var(--control-h-xs);
+  padding-inline: var(--space-1);
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-xs);
+  --btn-icon-size: var(--space-3);
+}
+.sm {
+  height: var(--control-h-sm);
+  padding-inline: var(--space-2);
+  gap: var(--space-1_5);
+  font-size: var(--label-sm-size);
+  border-radius: var(--radius-xs);
+  --btn-icon-size: var(--space-4);
+}
+.md {
+  height: var(--control-h-md);
+  padding-inline: var(--space-2);
+  gap: var(--space-1);
+  font-size: var(--label-md-size);
+  border-radius: var(--radius-sm);
+  --btn-icon-size: var(--space-4);
+}
+.lg {
+  height: var(--control-h-lg);
+  padding-inline: var(--space-4);
+  gap: var(--space-1_5);
+  font-size: var(--label-md-size);
+  border-radius: var(--radius-md);
+  --btn-icon-size: var(--space-5);
+}
+
+
+/* Icon / label slots ─────────────────────────────────────────── */
+/* 아이콘 슬롯을 고정 정사각 박스로 강제. SVG viewBox 내부 여백이
+   라이브러리·아이콘마다 달라도 슬롯 밖 레이아웃(gap·padding)은 항상 균일.
+   슬롯 안에서 SVG는 100% 채움. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--btn-icon-size);
+  height: var(--btn-icon-size);
+  /* 아이콘은 텍스트보다 한 단계 옅게 (Silver 톤).
+     currentColor 위에 opacity로 조절해서 filled/ghost 모두 대응. */
+  opacity: 0.75;
+}
+.icon > svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+}
+/* Badge 슬롯: 라벨 오른쪽 트레일링. Badge 컴포넌트가 자체 색·radius를 가지므로
+   슬롯은 정렬만 담당. gap은 sizeClass 기본값(--space-1~2) 사용. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+/* 아이콘 크기는 Button.tsx가 Icon size prop으로 직접 주입.
+   여기서 CSS로 강제 축소하면 stroke가 뭉개져 두꺼워 보임. */
+
+/* Variants ───────────────────────────────────────────────────── */
+/* primary — 채움, 브랜드 컬러. AINS는 실제 팔레트의 대비에 맞는 전경 토큰을 선택.
+   border-color는 transparent — background와 같은 색을 1px border로 쓰면
+   Chromium 서브픽셀 렌더링이 상단 edge를 밝게 띄워 "흰 입체 바" 착시가 생김. */
+.primary {
+  background: var(--primary);
+  color: var(--ains-primary-fg, var(--bg));
+  border-color: transparent;
+}
+.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  color: var(--ains-primary-hover-fg, var(--bg));
+  border-color: transparent;
+}
+
+/* inverse — 흑백 반전. mono Accent 프리셋에서 CTA 외 강조 버튼용.
+   라이트: 검정 배경/흰 텍스트, 다크: 흰 배경/검정 텍스트. Hue 축과 무관. */
+.inverse {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: transparent;
+}
+.inverse:hover:not(:disabled) {
+  background: var(--fg-strong);
+  border-color: transparent;
+}
+
+/* secondary — primary 8% 알파 표면 + primary 텍스트.
+   Accent=mono일 때는 무채색(--bg-muted + --fg)으로 자동 폴백. */
+.secondary {
+  background: var(--secondary-bg);
+  color: var(--secondary-fg);
+  border-color: transparent;
+}
+.secondary:hover:not(:disabled) {
+  background: var(--secondary-bg-hover);
+}
+
+/* outline — 경계만 */
+.outline {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+.outline:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+/* ghost — 무게 최소, hover에만 표면 */
+.ghost {
+  background: transparent;
+  color: var(--fg);
+  border-color: transparent;
+}
+.ghost:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+/* destructive — 위험 액션. 평상시 destructive 8% 알파 + destructive 텍스트,
+   hover 시 solid 빨강 배경 + fg로 전환 (진짜 위험함을 강조). */
+.destructive {
+  background: var(--destructive-subtle);
+  color: var(--destructive);
+  border-color: transparent;
+}
+.destructive:hover:not(:disabled) {
+  background: var(--destructive);
+  color: var(--destructive-fg);
+  border-color: var(--destructive);
+}
+
+/* destructive-ghost — 평상시 fg 텍스트(위험 아님을 감춤),
+   hover 시 destructive 톤(8% 배경 + destructive 텍스트)으로 전환. */
+.destructiveGhost {
+  background: transparent;
+  color: var(--fg);
+  border-color: transparent;
+}
+.destructiveGhost:hover:not(:disabled) {
+  background: var(--destructive-subtle);
+  color: var(--destructive);
+}
+
+/* Loading spinner slot ───────────────────────────────────────── */
+.spinner {
+  display: inline-flex;
+}
+/* 투명·배경 위 variant는 로딩 스피너를 muted gray로 — primary 색이 흰 배경 위에서
+   혼자 둥둥 떠 보이는 걸 막는다. */
+.outline .spinner,
+.ghost .spinner {
+  color: var(--fg-muted);
+}

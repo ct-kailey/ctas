@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0",
+  "request_id": "req-numeric-5-to-50",
+  "project_id": "project-sism-synthetic",
+  "baseline": {
+    "schema_version": "1.0",
+    "project_id": "project-sism-synthetic",
+    "document_id": "doc-numeric-5-to-50",
+    "revision_id": "rev-001",
+    "source": {
+      "filename": "numeric-5-to-50-rev-001.txt",
+      "mime_type": "text/plain",
+      "sha256": "5c279976b21628a6a673ef0f8a2a41798dc5832e199ede023b56bea413924a49"
+    },
+    "segments": [
+      {
+        "segment_id": "seg-001",
+        "requirement_key": "REQ-APPROVAL-001",
+        "text": "처리 건수가 5건 이상이면 추가 승인을 요청한다.",
+        "locator": {
+          "kind": "paragraph",
+          "label": "문단 1"
+        },
+        "extraction_status": "ok"
+      }
+    ],
+    "extraction": {
+      "complete": true,
+      "warnings": []
+    }
+  },
+  "current": {
+    "schema_version": "1.0",
+    "project_id": "project-sism-synthetic",
+    "document_id": "doc-numeric-5-to-50",
+    "revision_id": "rev-002",
+    "source": {
+      "filename": "numeric-5-to-50-rev-002.txt",
+      "mime_type": "text/plain",
+      "sha256": "eb6e9b28982c4a25df973c8b5706655eaa347680c3ec7632010b4d17ace529f6"
+    },
+    "segments": [
+      {
+        "segment_id": "seg-001",
+        "requirement_key": "REQ-APPROVAL-001",
+        "text": "처리 건수가 50건 이상이면 추가 승인을 요청한다.",
+        "locator": {
+          "kind": "paragraph",
+          "label": "문단 1"
+        },
+        "extraction_status": "ok"
+      }
+    ],
+    "extraction": {
+      "complete": true,
+      "warnings": []
+    }
+  },
+  "domain_pack": {
+    "id": "sism",
+    "version": "1.0",
+    "glossary": []
+  },
+  "impact_map": []
+}

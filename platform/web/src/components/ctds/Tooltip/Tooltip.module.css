@@ -1,0 +1,42 @@
+.content {
+  position: relative;
+  color: var(--tooltip-fg);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  max-width: 240px;
+  white-space: pre-line;
+  user-select: none;
+  z-index: var(--z-tooltip);
+  /* 배경/그림자는 SVG path에 걸림 */
+  filter: drop-shadow(var(--shadow-drop));
+  /* 앵커(트리거) 엣지에서 자라나는 느낌을 위해 Radix가 계산한 원점 사용 */
+  transform-origin: var(--radix-tooltip-content-transform-origin);
+}
+
+/* In · Out 애니메이션은 전역 유틸 `.m-float`가 담당한다.
+   Tooltip.tsx에서 Content className에 "m-float"을 concat해 발동.
+   Radix Tooltip은 delayed-open · closed state를 데이터 어트리뷰트로 노출하므로
+   유틸이 그대로 매칭한다. */
+
+/* SVG shape: content 크기에 딱 맞게 절대 위치 */
+.shape {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.shapePath {
+  fill: var(--tooltip-bg);
+}
+
+/* 텍스트 레이어: SVG 위에 올라감. side별로 tail 크기만큼 패딩을 밀어줌 */
+.text {
+  position: relative;
+  padding: var(--space-1) var(--space-2);
+}
+.content[data-side="top"] .text    { padding-bottom: calc(var(--space-1) + var(--tail)); }
+.content[data-side="bottom"] .text { padding-top: calc(var(--space-1) + var(--tail)); }
+.content[data-side="left"] .text   { padding-right: calc(var(--space-2) + var(--tail)); }
+.content[data-side="right"] .text  { padding-left: calc(var(--space-2) + var(--tail)); }
+
+/* keyframes(m-emerge-*)는 globals.css의 Motion 프리미티브에서 정의됨 */

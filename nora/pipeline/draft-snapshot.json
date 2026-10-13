@@ -1,0 +1,113 @@
+{
+  "addedStages": [
+    "trigger",
+    "enrich"
+  ],
+  "edges": [
+    {
+      "created_at": "2026-09-25T15:17:36.749993Z",
+      "from_node_id": "n_6ea1b0229b4b4948a1f10a1805142afd",
+      "from_port": null,
+      "from_side": null,
+      "id": "e_a3eebd3751f24faba2398f2b9e98dc7f",
+      "instance_id": "pipe_69176e8b946449329ab1a98b927b66cf",
+      "label": null,
+      "match_mode": null,
+      "tenant_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+      "to_node_id": "n_8b16455360c142cda0759e1153c31c68",
+      "to_side": null
+    },
+    {
+      "created_at": "2026-09-25T15:17:36.749993Z",
+      "from_node_id": "n_8b16455360c142cda0759e1153c31c68",
+      "from_port": null,
+      "from_side": null,
+      "id": "e_e070f5bfda964c2caeb07c7ccfca3246",
+      "instance_id": "pipe_69176e8b946449329ab1a98b927b66cf",
+      "label": null,
+      "match_mode": null,
+      "tenant_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+      "to_node_id": "n_13c2398d9a10499a9b3745b4a9cf40a3",
+      "to_side": null
+    }
+  ],
+  "id": "pipe_69176e8b946449329ab1a98b927b66cf",
+  "name": "AINS SI/SM Document Intake v1",
+  "nodes": [
+    {
+      "config": {
+        "code": "(() => {\n// Nora enr_script body. Incoming record is the sandbox global `args`.\n// Return fields merge into the input; throwing fails this single-record run.\nconst document = args;\nconst fail = (code, path) => { throw new Error(`SISM_${code}: ${path}`); };\nconst isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);\nconst checkObject = (value, path) => { if (!isObject(value)) fail('INVALID_OBJECT', path); };\nconst checkKeys = (value, allowed, path) => {\n  for (const key of Object.keys(value)) if (!allowed.includes(key)) fail('UNEXPECTED_FIELD', `${path}.${key}`);\n};\nconst checkString = (value, path, max, allowEmpty = false) => {\n  if (typeof value !== 'string' || [...value].length > max || (!allowEmpty && value.trim().length === 0)) fail('INVALID_STRING', path);\n};\nconst checkId = (value, path) => {\n  checkString(value, path, 200);\n};\nconst bytes = value => {\n  let size = 0;\n  for (const character of value) {\n    const point = character.codePointAt(0);\n    size += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;\n  }\n  return size;\n};\n\ncheckObject(document, 'document');\ncheckKeys(document, ['schema_version', 'project_id', 'document_id', 'revision_id', 'source', 'segments', 'extraction', 'normalization'], 'document');\nif (bytes(JSON.stringify(document)) > 2000000) fail('PAYLOAD_TOO_LARGE', 'document');\nif (document.schema_version !== '1.0') fail('SCHEMA_VERSION', 'schema_version');\nfor (const field of ['project_id', 'document_id', 'revision_id']) checkId(document[field], field);\ncheckObject(document.source, 'source');\ncheckKeys(document.source, ['filename', 'mime_type', 'sha256'], 'source');\ncheckString(document.source.filename, 'source.filename', 512);\ncheckString(document.source.mime_type, 'source.mime_type', 128);\nif (typeof document.source.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(document.source.sha256)) fail('INVALID_SHA256', 'source.sha256');\nif (!Array.isArray(document.segments) || document.segments.length < 1 || document.segments.length > 200) fail('INVALID_SEGMENTS', 'segments');\nlet textLength = 0;\nconst ids = new Set();\nconst requirementKeys = new Set();\nconst locatorKinds = new Set(['page', 'slide', 'sheet', 'paragraph', 'text']);\nfor (let index = 0; index < document.segments.length; index++) {\n  const segment = document.segments[index];\n  const path = `segments[${index}]`;\n  checkObject(segment, path);\n  checkKeys(segment, ['segment_id', 'requirement_key', 'text', 'locator', 'extraction_status', 'normalized_text'], path);\n  checkId(segment.segment_id, `${path}.segment_id`);\n  if (ids.has(segment.segment_id)) fail('DUPLICATE_SEGMENT_ID', `${path}.segment_id`);\n  ids.add(segment.segment_id);\n  if (segment.requirement_key !== null) {\n    checkString(segment.requirement_key, `${path}.requirement_key`, 256);\n    if (requirementKeys.has(segment.requirement_key)) fail('AMBIGUOUS_REQUIREMENT_KEY', `${path}.requirement_key`);\n    requirementKeys.add(segment.requirement_key);\n  }\n  checkString(segment.text, `${path}.text`, 100000);\n  if (segment.normalized_text !== undefined) checkString(segment.normalized_text, `${path}.normalized_text`, 100000, true);\n  textLength += [...segment.text].length;\n  if (textLength > 100000) fail('TEXT_TOO_LARGE', 'segments.text');\n  checkObject(segment.locator, `${path}.locator`);\n  checkKeys(segment.locator, ['kind', 'label'], `${path}.locator`);\n  if (!locatorKinds.has(segment.locator.kind)) fail('INVALID_LOCATOR', `${path}.locator.kind`);\n  checkString(segment.locator.label, `${path}.locator.label`, 512);\n  if (!['ok', 'needs_review'].includes(segment.extraction_status)) fail('INVALID_EXTRACTION_STATUS', `${path}.extraction_status`);\n}\ncheckObject(document.extraction, 'extraction');\ncheckKeys(document.extraction, ['complete', 'warnings'], 'extraction');\nif (typeof document.extraction.complete !== 'boolean') fail('INVALID_EXTRACTION', 'extraction.complete');\nif (!Array.isArray(document.extraction.warnings) || document.extraction.warnings.length > 200) fail('INVALID_WARNINGS', 'extraction.warnings');\nfor (let index = 0; index < document.extraction.warnings.length; index++) checkString(document.extraction.warnings[index], `extraction.warnings[${index}]`, 2000);\nif (document.normalization !== undefined) {\n  checkObject(document.normalization, 'normalization');\n  checkKeys(document.normalization, ['status', 'warnings', 'segment_count'], 'normalization');\n  if (!['ready', 'needs_review'].includes(document.normalization.status)) fail('INVALID_NORMALIZATION', 'normalization.status');\n  if (!Number.isInteger(document.normalization.segment_count) || document.normalization.segment_count !== document.segments.length) fail('INVALID_NORMALIZATION', 'normalization.segment_count');\n  if (!Array.isArray(document.normalization.warnings)) fail('INVALID_NORMALIZATION', 'normalization.warnings');\n  for (let index = 0; index < document.normalization.warnings.length; index++) checkString(document.normalization.warnings[index], `normalization.warnings[${index}]`, 2000);\n}\nreturn {};\n\n})();\n// Preserve text, source hash, identifiers, and locators verbatim.\n// Deliberately do not perform NFKC, punctuation, digit, unit, or operator rewrites.\nconst document = args;\nconst warnings = [...document.extraction.warnings];\nif (!document.extraction.complete) warnings.push('Document extraction is incomplete; source review is required.');\nconst segments = document.segments.map(segment => {\n  const normalized_text = segment.text.replace(/\\r\\n?/g, '\\n')\n    .split('\\n').map(line => line.replace(/[ \\t\\u00a0]+/g, ' ').trim()).join('\\n').trim();\n  if (segment.extraction_status === 'needs_review') warnings.push(`Segment ${segment.segment_id}: extraction requires source review.`);\n  if (!normalized_text) warnings.push(`Segment ${segment.segment_id}: extracted text is empty.`);\n  return {...segment, normalized_text};\n});\nreturn {\n  segments,\n  normalization: {\n    status: warnings.length > 0 ? 'needs_review' : 'ready',\n    warnings: [...new Set(warnings)],\n    segment_count: segments.length\n  }\n};\n",
+        "lang": "javascript",
+        "retry_max": 0,
+        "target_field": "",
+        "timeout_s": 15
+      },
+      "created_at": "2026-09-25T15:17:36.749993Z",
+      "icon": "code",
+      "id": "n_13c2398d9a10499a9b3745b4a9cf40a3",
+      "instance_id": "pipe_69176e8b946449329ab1a98b927b66cf",
+      "locked": false,
+      "notes": "Revalidates each record before adding normalized_text, because Nora retains failed records on mixed batch execution. Caller MUST accept only one Document object, reject any stage.artifacts.failed > 0, and validate output schema. Preserves original text/hash/locators; normalizes whitespace only.",
+      "order": 2,
+      "output_ports": [],
+      "palette_id": "enr_script",
+      "stage": "enrich",
+      "sublabel": null,
+      "tenant_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+      "title": "Preserve and Normalize Text",
+      "tone": "tool",
+      "updated_at": "2026-09-25T15:25:24.501327Z",
+      "x": null,
+      "y": null
+    },
+    {
+      "config": {
+        "auth": "bearer",
+        "path_hint": "ains-sism-document-intake-v1"
+      },
+      "created_at": "2026-09-25T15:17:36.749993Z",
+      "icon": "globe",
+      "id": "n_6ea1b0229b4b4948a1f10a1805142afd",
+      "instance_id": "pipe_69176e8b946449329ab1a98b927b66cf",
+      "locked": false,
+      "notes": "Accepts extracted Document envelope v1.0. Binary extraction is performed by the local adapter. Bearer secret must be provisioned before external invocation.",
+      "order": 0,
+      "output_ports": [],
+      "palette_id": "trg_http_api",
+      "stage": "trigger",
+      "sublabel": null,
+      "tenant_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+      "title": "Document Envelope API",
+      "tone": "trigger",
+      "updated_at": "2026-09-25T15:25:24.501327Z",
+      "x": null,
+      "y": null
+    },
+    {
+      "config": {
+        "code": "// Nora enr_script body. Incoming record is the sandbox global `args`.\n// Return fields merge into the input; throwing fails this single-record run.\nconst document = args;\nconst fail = (code, path) => { throw new Error(`SISM_${code}: ${path}`); };\nconst isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);\nconst checkObject = (value, path) => { if (!isObject(value)) fail('INVALID_OBJECT', path); };\nconst checkKeys = (value, allowed, path) => {\n  for (const key of Object.keys(value)) if (!allowed.includes(key)) fail('UNEXPECTED_FIELD', `${path}.${key}`);\n};\nconst checkString = (value, path, max, allowEmpty = false) => {\n  if (typeof value !== 'string' || [...value].length > max || (!allowEmpty && value.trim().length === 0)) fail('INVALID_STRING', path);\n};\nconst checkId = (value, path) => {\n  checkString(value, path, 200);\n};\nconst bytes = value => {\n  let size = 0;\n  for (const character of value) {\n    const point = character.codePointAt(0);\n    size += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;\n  }\n  return size;\n};\n\ncheckObject(document, 'document');\ncheckKeys(document, ['schema_version', 'project_id', 'document_id', 'revision_id', 'source', 'segments', 'extraction', 'normalization'], 'document');\nif (bytes(JSON.stringify(document)) > 2000000) fail('PAYLOAD_TOO_LARGE', 'document');\nif (document.schema_version !== '1.0') fail('SCHEMA_VERSION', 'schema_version');\nfor (const field of ['project_id', 'document_id', 'revision_id']) checkId(document[field], field);\ncheckObject(document.source, 'source');\ncheckKeys(document.source, ['filename', 'mime_type', 'sha256'], 'source');\ncheckString(document.source.filename, 'source.filename', 512);\ncheckString(document.source.mime_type, 'source.mime_type', 128);\nif (typeof document.source.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(document.source.sha256)) fail('INVALID_SHA256', 'source.sha256');\nif (!Array.isArray(document.segments) || document.segments.length < 1 || document.segments.length > 200) fail('INVALID_SEGMENTS', 'segments');\nlet textLength = 0;\nconst ids = new Set();\nconst requirementKeys = new Set();\nconst locatorKinds = new Set(['page', 'slide', 'sheet', 'paragraph', 'text']);\nfor (let index = 0; index < document.segments.length; index++) {\n  const segment = document.segments[index];\n  const path = `segments[${index}]`;\n  checkObject(segment, path);\n  checkKeys(segment, ['segment_id', 'requirement_key', 'text', 'locator', 'extraction_status', 'normalized_text'], path);\n  checkId(segment.segment_id, `${path}.segment_id`);\n  if (ids.has(segment.segment_id)) fail('DUPLICATE_SEGMENT_ID', `${path}.segment_id`);\n  ids.add(segment.segment_id);\n  if (segment.requirement_key !== null) {\n    checkString(segment.requirement_key, `${path}.requirement_key`, 256);\n    if (requirementKeys.has(segment.requirement_key)) fail('AMBIGUOUS_REQUIREMENT_KEY', `${path}.requirement_key`);\n    requirementKeys.add(segment.requirement_key);\n  }\n  checkString(segment.text, `${path}.text`, 100000);\n  if (segment.normalized_text !== undefined) checkString(segment.normalized_text, `${path}.normalized_text`, 100000, true);\n  textLength += [...segment.text].length;\n  if (textLength > 100000) fail('TEXT_TOO_LARGE', 'segments.text');\n  checkObject(segment.locator, `${path}.locator`);\n  checkKeys(segment.locator, ['kind', 'label'], `${path}.locator`);\n  if (!locatorKinds.has(segment.locator.kind)) fail('INVALID_LOCATOR', `${path}.locator.kind`);\n  checkString(segment.locator.label, `${path}.locator.label`, 512);\n  if (!['ok', 'needs_review'].includes(segment.extraction_status)) fail('INVALID_EXTRACTION_STATUS', `${path}.extraction_status`);\n}\ncheckObject(document.extraction, 'extraction');\ncheckKeys(document.extraction, ['complete', 'warnings'], 'extraction');\nif (typeof document.extraction.complete !== 'boolean') fail('INVALID_EXTRACTION', 'extraction.complete');\nif (!Array.isArray(document.extraction.warnings) || document.extraction.warnings.length > 200) fail('INVALID_WARNINGS', 'extraction.warnings');\nfor (let index = 0; index < document.extraction.warnings.length; index++) checkString(document.extraction.warnings[index], `extraction.warnings[${index}]`, 2000);\nif (document.normalization !== undefined) {\n  checkObject(document.normalization, 'normalization');\n  checkKeys(document.normalization, ['status', 'warnings', 'segment_count'], 'normalization');\n  if (!['ready', 'needs_review'].includes(document.normalization.status)) fail('INVALID_NORMALIZATION', 'normalization.status');\n  if (!Number.isInteger(document.normalization.segment_count) || document.normalization.segment_count !== document.segments.length) fail('INVALID_NORMALIZATION', 'normalization.segment_count');\n  if (!Array.isArray(document.normalization.warnings)) fail('INVALID_NORMALIZATION', 'normalization.warnings');\n  for (let index = 0; index < document.normalization.warnings.length; index++) checkString(document.normalization.warnings[index], `normalization.warnings[${index}]`, 2000);\n}\nreturn {};\n",
+        "lang": "javascript",
+        "retry_max": 0,
+        "target_field": "",
+        "timeout_s": 15
+      },
+      "created_at": "2026-09-25T15:17:36.749993Z",
+      "icon": "code",
+      "id": "n_8b16455360c142cda0759e1153c31c68",
+      "instance_id": "pipe_69176e8b946449329ab1a98b927b66cf",
+      "locked": false,
+      "notes": "Strict required-field, identifier, SHA-256 format, locator, extraction, size and duplicate-segment validation. Throws on invalid input. Does not authenticate project ownership or recompute original binary hash; caller must enforce project scope.",
+      "order": 1,
+      "output_ports": [],
+      "palette_id": "enr_script",
+      "stage": "enrich",
+      "sublabel": null,
+      "tenant_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+      "title": "Validate Document Envelope",
+      "tone": "tool",
+      "updated_at": "2026-09-25T15:25:24.501327Z",
+      "x": null,
+      "y": null
+    }
+  ]
+}

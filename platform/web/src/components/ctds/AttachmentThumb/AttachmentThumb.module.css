@@ -1,0 +1,134 @@
+/* AttachmentThumb — 정사각 썸네일.
+   비율은 FileIcon과 동일 (radius 0.25, glyph 0.60). 사이즈 리터럴은 라인별 ignore. */
+
+.root {
+  --at-size: 40px; /* lint-hardcoded: ignore */
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--at-size);
+  height: var(--at-size);
+  border-radius: calc(var(--at-size) * 0.25);
+  flex: 0 0 auto;
+  user-select: none;
+  transition: var(--transition-colors);
+  /* overflow:hidden X — bg clip과 img radius는 각자 처리.
+     Remove 버튼이 바깥으로 overlap되도록. */
+}
+
+.sizeSm { --at-size: 32px; /* lint-hardcoded: ignore */ }
+.sizeMd { --at-size: 40px; /* lint-hardcoded: ignore */ }
+.sizeLg { --at-size: 56px; /* lint-hardcoded: ignore */ }
+
+/* 이미지 — 다크/라이트 공통 검정 보더(이미지 가장자리 분리).
+   <img>에 inset shadow 걸면 이미지 픽셀이 덮어버리므로 부모에 outline 사용. */
+.hasImage {
+  background: var(--bg-subtle);
+  outline: 3px solid rgb(0 0 0 / 0.16); /* lint-hardcoded: ignore */
+  outline-offset: -3px;
+}
+
+/* Image glyph placeholder — src 없을 때. 색은 TSX의 CSS 변수로 주입. */
+.placeholder {
+  background: var(--at-ph-bg-light);
+  color: var(--at-ph-fg-light);
+}
+:global([data-mode="dark"]) .placeholder {
+  background: var(--at-ph-bg-dark);
+  color: var(--at-ph-fg-dark);
+}
+.img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+
+/* image-square glyph — FileIcon의 generic과 동일 size × 0.60 */
+.glyph {
+  width: calc(var(--at-size) * 0.60);
+  height: calc(var(--at-size) * 0.60);
+}
+
+/* Loading — bg-muted ↔ 더 어두운 톤 사이를 미묘하게 흐르는 그라데이션 + 중앙 흰색 lottie spinner.
+   Spinner colorBind가 .loading의 color(=fixed-white)를 상속받아 흰색으로 recolor된다. */
+.loading {
+  background: var(--bg-muted);
+  color: var(--fixed-white);
+  overflow: hidden;
+}
+.loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    var(--bg-muted) 0%,
+    color-mix(in oklch, var(--fg) 18%, var(--bg-muted)) 50%,
+    var(--bg-muted) 100%
+  );
+  background-size: 220% 220%;
+  border-radius: inherit;
+  animation: at-shimmer calc(var(--duration-slower) * 6) var(--ease-in-out) infinite;
+}
+@keyframes at-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+/* Spinner는 pulse 위 레이어로 중앙 고정, wide 로티도 꽉 차 보이게 scale-up */
+.loading > span[role="status"] {
+  position: relative;
+  z-index: var(--z-raise);
+  transform: scale(1.6);
+  transform-origin: center;
+}
+
+/* Remove 버튼 — hover 시만 노출. 코너 overlap. */
+.removeBtn {
+  position: absolute;
+  top: calc(var(--at-size) * -0.12);
+  right: calc(var(--at-size) * -0.12);
+  width: calc(var(--at-size) * 0.42);
+  height: calc(var(--at-size) * 0.42);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--fg) 15%, transparent),
+    var(--shadow-xs);
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.9);
+  transition:
+    var(--transition-colors),
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+  z-index: var(--z-raise);
+}
+.root[data-removable]:hover .removeBtn,
+.removeBtn:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+.removeBtn:hover {
+  background: var(--bg-subtle);
+}
+.removeBtn:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklch, var(--fg) 15%, transparent),
+    var(--ring);
+}
+.removeIcon {
+  width: 62%;
+  height: 62%;
+}

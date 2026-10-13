@@ -1,4 +1,13 @@
 @import "../components/ctds/tokens.css";
 @import "../components/ctds/reset.css";
 
-/* 색·폰트·간격은 전부 CTDS tokens.css가 담당한다. 여기서 덮어쓰지 않는다. */
+/* AINS brand defaults only: retain all CTDS component and status tokens. */
+:root[data-palette="calm"],
+:root[data-mode="dark"][data-palette="calm"] {
+  --chroma: 0.05;
+}
+
+:root[data-lang="ko"],
+:root[data-lang="en"] {
+  --font-normal: var(--font-dashboard-pretendard), system-ui, sans-serif;
+}

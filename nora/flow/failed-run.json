@@ -1,0 +1,26 @@
+{
+  "kind": "flowRun",
+  "ok": false,
+  "run": {
+    "error": "`gemini-3.5-flash` is an OCR-only model — attach an image for it to transcribe, or pick a chat/VLM model instead.",
+    "failure": {
+      "code": "run.failed",
+      "message": "`gemini-3.5-flash` is an OCR-only model — attach an image for it to transcribe, or pick a chat/VLM model instead.",
+      "retryable": false
+    },
+    "output": null,
+    "rawStatus": "error",
+    "status": "failed",
+    "traceId": "trc_6d4b1b92c571414aaf1d818c5f33896c",
+    "usage": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 0,
+      "costUsd": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "totalTokens": 0
+    }
+  },
+  "slug": "ains-sism-change-review-v1",
+  "status": "failed"
+}

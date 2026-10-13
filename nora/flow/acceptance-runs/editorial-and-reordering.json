@@ -1,0 +1,37 @@
+{
+  "kind": "flowRun",
+  "ok": true,
+  "run": {
+    "output": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"한 번에 첨부 가능한 파일의 최대 개수는 5개이다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"},\"segment_id\":\"seg-002\",\"text\":\"파일은 한 번에 최대 5개까지 첨부할 수 있다.\"},\"change_id\":\"chg-001\",\"change_type\":\"editorial\",\"impacts\":[],\"reason\":\"요구사항 키가 동일하고, 최대 5개라는 수치와 첨부 가능 개수 제한의 의미가 그대로 유지됩니다. 문장 구성만 재서술되었습니다.\",\"requirement_key\":\"REQ-FILE-001\",\"risk\":\"medium\",\"summary\":\"첨부 파일 수 제한 문구의 어순과 표현만 바뀌었고 의미는 동일합니다.\"},{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"},\"segment_id\":\"seg-002\",\"text\":\"접수 시각 내림차순으로 처리 목록을 표시한다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"처리 목록은 접수 시각 내림차순으로 표시한다.\"},\"change_id\":\"chg-002\",\"change_type\":\"editorial\",\"impacts\":[],\"reason\":\"요구사항 키가 동일하고, 접수 시각 내림차순 표시라는 핵심 의미가 유지됩니다. 문장 구조만 변경되었습니다.\",\"requirement_key\":\"REQ-LIST-001\",\"risk\":\"medium\",\"summary\":\"처리 목록 표시 문구의 어순과 표현만 바뀌었고 의미는 동일합니다.\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[],\"request_id\":\"req-editorial-and-reordering\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"impact_map에 concrete code/API/test 링크가 제공되지 않아, 각 변경의 영향은 일반적인 검토 관점으로만 기재했습니다.\",\"현재 변경은 모두 editorial로 판단되며, 정책상 추가 고객 질문은 필요하지 않습니다.\"]}",
+    "outputs": [
+      {
+        "agentId": "agent_e48d935704644fbe8a310f97287e45ea",
+        "agentName": "01 변경 분석",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-editorial-and-reordering\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-FILE-001\",\"change_type\":\"editorial\",\"risk\":\"medium\",\"summary\":\"첨부 파일 수 제한 문구의 어순만 바뀌고 의미는 동일합니다.\",\"before\":{\"segment_id\":\"seg-002\",\"text\":\"파일은 한 번에 최대 5개까지 첨부할 수 있다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"}},\"after\":{\"segment_id\":\"seg-001\",\"text\":\"한 번에 첨부 가능한 파일의 최대 개수는 5개이다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"reason\":\"요구사항 키가 동일하고, 최대 개수 5개라는 수치와 첨부 가능 개수 제한의 의미가 그대로 유지됩니다. 표현만 재서술되었습니다.\",\"impacts\":[]},{\"change_id\":\"chg-002\",\"requirement_key\":\"REQ-LIST-001\",\"change_type\":\"editorial\",\"risk\":\"medium\",\"summary\":\"처리 목록 표시 문구의 어순만 바뀌고 의미는 동일합니다.\",\"before\":{\"segment_id\":\"seg-001\",\"text\":\"처리 목록은 접수 시각 내림차순으로 표시한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"after\":{\"segment_id\":\"seg-002\",\"text\":\"접수 시각 내림차순으로 처리 목록을 표시한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"}},\"reason\":\"요구사항 키가 동일하고, 접수 시각 내림차순 표시라는 핵심 의미가 유지됩니다. 문장 구조만 바뀌었습니다.\",\"impacts\":[]}],\"questions\":[],\"warnings\":[],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_a87d44bb863a466abe0cf75a8f6fd907",
+        "agentName": "02 영향과 질문",
+        "text": "{\"schema_version\":\"1.0\",\"request_id\":\"req-editorial-and-reordering\",\"project_id\":\"project-sism-synthetic\",\"status\":\"needs_review\",\"changes\":[{\"change_id\":\"chg-001\",\"requirement_key\":\"REQ-FILE-001\",\"change_type\":\"editorial\",\"risk\":\"medium\",\"summary\":\"첨부 파일 수 제한 문구의 어순과 표현만 바뀌었고 의미는 동일합니다.\",\"before\":{\"segment_id\":\"seg-002\",\"text\":\"파일은 한 번에 최대 5개까지 첨부할 수 있다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"}},\"after\":{\"segment_id\":\"seg-001\",\"text\":\"한 번에 첨부 가능한 파일의 최대 개수는 5개이다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"reason\":\"요구사항 키가 동일하고, 최대 5개라는 수치와 첨부 가능 개수 제한의 의미가 그대로 유지됩니다. 문장 구성만 재서술되었습니다.\",\"impacts\":[]},{\"change_id\":\"chg-002\",\"requirement_key\":\"REQ-LIST-001\",\"change_type\":\"editorial\",\"risk\":\"medium\",\"summary\":\"처리 목록 표시 문구의 어순과 표현만 바뀌었고 의미는 동일합니다.\",\"before\":{\"segment_id\":\"seg-001\",\"text\":\"처리 목록은 접수 시각 내림차순으로 표시한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"}},\"after\":{\"segment_id\":\"seg-002\",\"text\":\"접수 시각 내림차순으로 처리 목록을 표시한다.\",\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"}},\"reason\":\"요구사항 키가 동일하고, 접수 시각 내림차순 표시라는 핵심 의미가 유지됩니다. 문장 구조만 변경되었습니다.\",\"impacts\":[]}],\"questions\":[],\"warnings\":[\"impact_map에 concrete code/API/test 링크가 제공되지 않아, 각 변경의 영향은 일반적인 검토 관점으로만 기재했습니다.\",\"현재 변경은 모두 editorial로 판단되며, 정책상 추가 고객 질문은 필요하지 않습니다.\"],\"approval\":{\"status\":\"not_requested\",\"baseline_publication_allowed\":false}}"
+      },
+      {
+        "agentId": "agent_ad65fdbc94cc4d3393fe93afbf1d5dca",
+        "agentName": "03 근거 검증",
+        "text": "{\"approval\":{\"baseline_publication_allowed\":false,\"status\":\"not_requested\"},\"changes\":[{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"한 번에 첨부 가능한 파일의 최대 개수는 5개이다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"},\"segment_id\":\"seg-002\",\"text\":\"파일은 한 번에 최대 5개까지 첨부할 수 있다.\"},\"change_id\":\"chg-001\",\"change_type\":\"editorial\",\"impacts\":[],\"reason\":\"요구사항 키가 동일하고, 최대 5개라는 수치와 첨부 가능 개수 제한의 의미가 그대로 유지됩니다. 문장 구성만 재서술되었습니다.\",\"requirement_key\":\"REQ-FILE-001\",\"risk\":\"medium\",\"summary\":\"첨부 파일 수 제한 문구의 어순과 표현만 바뀌었고 의미는 동일합니다.\"},{\"after\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 2\"},\"segment_id\":\"seg-002\",\"text\":\"접수 시각 내림차순으로 처리 목록을 표시한다.\"},\"before\":{\"locator\":{\"kind\":\"paragraph\",\"label\":\"문단 1\"},\"segment_id\":\"seg-001\",\"text\":\"처리 목록은 접수 시각 내림차순으로 표시한다.\"},\"change_id\":\"chg-002\",\"change_type\":\"editorial\",\"impacts\":[],\"reason\":\"요구사항 키가 동일하고, 접수 시각 내림차순 표시라는 핵심 의미가 유지됩니다. 문장 구조만 변경되었습니다.\",\"requirement_key\":\"REQ-LIST-001\",\"risk\":\"medium\",\"summary\":\"처리 목록 표시 문구의 어순과 표현만 바뀌었고 의미는 동일합니다.\"}],\"project_id\":\"project-sism-synthetic\",\"questions\":[],\"request_id\":\"req-editorial-and-reordering\",\"schema_version\":\"1.0\",\"status\":\"needs_review\",\"warnings\":[\"impact_map에 concrete code/API/test 링크가 제공되지 않아, 각 변경의 영향은 일반적인 검토 관점으로만 기재했습니다.\",\"현재 변경은 모두 editorial로 판단되며, 정책상 추가 고객 질문은 필요하지 않습니다.\"]}"
+      }
+    ],
+    "rawStatus": "completed",
+    "status": "ok",
+    "traceId": "trc_e1a5be0609db4482a49ea8b502ba1e73",
+    "usage": {
+      "cacheCreationTokens": 0,
+      "cacheReadTokens": 12288,
+      "costUsd": 0.030410100000000002,
+      "inputTokens": 20502,
+      "outputTokens": 3136,
+      "totalTokens": 23638
+    }
+  },
+  "slug": "ains-sism-change-review-openai-v1",
+  "status": "ok"
+}

@@ -1,0 +1,17 @@
+{
+  "name": "nora-sism-integration",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nora SI/SM document and requirement review integration",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test ../tests/*.test.js",
+    "test:schema": "node --test ../tests/schema-validator.test.js"
+  },
+  "dependencies": {
+    "ajv": "8.20.0"
+  }
+}

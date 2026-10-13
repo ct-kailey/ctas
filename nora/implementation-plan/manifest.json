@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "slug": "ains-implementation-plan-v1",
+  "name": "AINS Evidence-grounded Implementation Plan v1",
+  "publication_status": "published",
+  "publication_version": 2,
+  "published_version_id": "gv_109b9acb515b42eb861ee6a78cc89f19",
+  "agent_id": "agent_7b5a38e781174c44b55db1aeaba19c41",
+  "model": "gpt-5.4-mini",
+  "model_params": {
+    "reasoning_effort": "low"
+  },
+  "auth": {
+    "kind": "header_token",
+    "header": "Authorization",
+    "secret_provisioned": true
+  },
+  "api": {
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/flows/ains-implementation-plan-v1",
+    "http_verified": true,
+    "content_type": "multipart/form-data",
+    "fields": [
+      "input",
+      "variables"
+    ],
+    "variable": "implementation_request",
+    "authorization": "raw token in Authorization header"
+  },
+  "native_tool_limit": {
+    "declared": [],
+    "hard_disable_verified": false
+  },
+  "trigger_id": "trg_1845e228fd9746f087c10dfd7a682f81",
+  "published_at": "2026-09-28T04:21:52.765835Z",
+  "verification": {
+    "acceptance_passed": 7,
+    "acceptance_total": 7,
+    "tests_passed": 40,
+    "tool_calls_observed": 0,
+    "memory_reads_observed": 0,
+    "memory_writes_observed": 0
+  }
+}

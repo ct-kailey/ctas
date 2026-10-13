@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "theme": { "const": "spare" },
+    "mode": { "enum": ["light", "dark"] },
+    "palette": { "enum": ["mono", "vivid", "standard", "calm", "pastel"] },
+    "hue": { "type": "number", "minimum": 0, "maximum": 360 },
+    "shape": { "enum": ["soft", "standard", "crisp"] },
+    "iconFamily": { "const": "lucide" },
+    "density": { "enum": ["compact", "default", "comfortable"] },
+    "motion": { "enum": ["bouncy", "standard", "calm", "none"] },
+    "lang": { "const": "ko" },
+    "focusRing": { "const": "on" },
+    "voice": { "const": "neutral" }
+  },
+  "required": ["theme", "mode", "palette", "hue", "shape", "iconFamily", "density", "motion", "lang", "focusRing", "voice"],
+  "additionalProperties": false
+}

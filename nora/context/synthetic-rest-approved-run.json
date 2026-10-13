@@ -1,0 +1,26 @@
+{
+  "traceId": "trc_599a9cabff614ad4b3846be6817cdf9d",
+  "usage": {
+    "inputTokens": 5115,
+    "outputTokens": 935,
+    "cacheReadTokens": 3072,
+    "cacheCreationTokens": 0,
+    "totalTokens": 6050,
+    "costUsd": 0.008274150000000001
+  },
+  "output": "{\"context_version\":3,\"items\":[{\"alternatives\":[{\"label\":\"이메일 인증\",\"reason\":\"합의됨\",\"status\":\"accepted\"}],\"certainty\":\"agreed\",\"conflicts_with\":[],\"content\":\"관리자 로그인은 이메일 인증 방식으로 구현한다.\",\"evidence\":[{\"quote\":\"고객과 담당자는 관리자 로그인을 이메일 인증으로 구현하기로 합의했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"decision\",\"rationale\":\"고객과 담당자가 구현 방식에 합의했다.\",\"scope\":\"in_scope\",\"title\":\"관리자 로그인 인증 방식은 이메일 인증으로 구현\"},{\"alternatives\":[{\"label\":\"SMS 인증 사용\",\"reason\":\"비용 때문에 제외됨\",\"status\":\"rejected\"}],\"certainty\":\"agreed\",\"conflicts_with\":[],\"content\":\"관리자 로그인에서 SMS 인증은 사용하지 않는다.\",\"evidence\":[{\"quote\":\"SMS 인증은 비용 때문에 제외했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"decision\",\"rationale\":\"비용 때문에 제외하기로 했다.\",\"scope\":\"in_scope\",\"title\":\"SMS 인증은 제외\"},{\"alternatives\":[{\"label\":\"다음 회의에서 결정\",\"reason\":\"결정 시점을 다음 회의로 미룸\",\"status\":\"open\"}],\"certainty\":\"proposed\",\"conflicts_with\":[],\"content\":\"알림 발송 채널은 다음 회의에서 결정한다.\",\"evidence\":[{\"quote\":\"알림 발송 채널은 다음 회의에서 정하기로 했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"question\",\"rationale\":\"현재 회의에서는 채널을 정하지 않았다.\",\"scope\":\"unknown\",\"title\":\"알림 발송 채널 미정\"}],\"project_id\":\"synthetic-context-project\",\"request_id\":\"context-rest-approved-v2-synthetic-20261012\",\"schema_version\":\"1.0\",\"summary\":\"회의록에 따르면 관리자 로그인은 이메일 인증으로 구현하기로 합의했고, 비용 이유로 SMS 인증은 제외했다. 알림 발송 채널은 다음 회의에서 정하기로 해 아직 미정이다.\",\"warnings\":[]}",
+  "outputs": [
+    {
+      "agentId": "agent_8f286a5281754ba4b44c3f4c269e3089",
+      "agentName": "근거 분석 · Context 후보 작성",
+      "text": "{\"context_version\":3,\"items\":[{\"alternatives\":[{\"label\":\"이메일 인증\",\"reason\":\"합의됨\",\"status\":\"accepted\"}],\"certainty\":\"agreed\",\"conflicts_with\":[],\"content\":\"관리자 로그인은 이메일 인증 방식으로 구현한다.\",\"evidence\":[{\"quote\":\"고객과 담당자는 관리자 로그인을 이메일 인증으로 구현하기로 합의했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"decision\",\"rationale\":\"고객과 담당자가 구현 방식에 합의했다.\",\"scope\":\"in_scope\",\"title\":\"관리자 로그인 인증 방식은 이메일 인증으로 구현\"},{\"alternatives\":[{\"label\":\"SMS 인증 사용\",\"reason\":\"비용 때문에 제외됨\",\"status\":\"rejected\"}],\"certainty\":\"agreed\",\"conflicts_with\":[],\"content\":\"관리자 로그인에서 SMS 인증은 사용하지 않는다.\",\"evidence\":[{\"quote\":\"SMS 인증은 비용 때문에 제외했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"decision\",\"rationale\":\"비용 때문에 제외하기로 했다.\",\"scope\":\"in_scope\",\"title\":\"SMS 인증은 제외\"},{\"alternatives\":[{\"label\":\"다음 회의에서 결정\",\"reason\":\"결정 시점을 다음 회의로 미룸\",\"status\":\"open\"}],\"certainty\":\"proposed\",\"conflicts_with\":[],\"content\":\"알림 발송 채널은 다음 회의에서 결정한다.\",\"evidence\":[{\"quote\":\"알림 발송 채널은 다음 회의에서 정하기로 했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"question\",\"rationale\":\"현재 회의에서는 채널을 정하지 않았다.\",\"scope\":\"unknown\",\"title\":\"알림 발송 채널 미정\"}],\"project_id\":\"synthetic-context-project\",\"request_id\":\"context-rest-approved-v2-synthetic-20261012\",\"schema_version\":\"1.0\",\"summary\":\"회의록에 따르면 관리자 로그인은 이메일 인증으로 구현하기로 합의했고, 비용 이유로 SMS 인증은 제외했다. 알림 발송 채널은 다음 회의에서 정하기로 해 아직 미정이다.\",\"warnings\":[]}"
+    },
+    {
+      "agentId": "agent_0ef7bdbe7bf445ddbf722509059e44d7",
+      "agentName": "검토 승인 후 후보 반환",
+      "text": "{\"context_version\":3,\"items\":[{\"alternatives\":[{\"label\":\"이메일 인증\",\"reason\":\"합의됨\",\"status\":\"accepted\"}],\"certainty\":\"agreed\",\"conflicts_with\":[],\"content\":\"관리자 로그인은 이메일 인증 방식으로 구현한다.\",\"evidence\":[{\"quote\":\"고객과 담당자는 관리자 로그인을 이메일 인증으로 구현하기로 합의했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"decision\",\"rationale\":\"고객과 담당자가 구현 방식에 합의했다.\",\"scope\":\"in_scope\",\"title\":\"관리자 로그인 인증 방식은 이메일 인증으로 구현\"},{\"alternatives\":[{\"label\":\"SMS 인증 사용\",\"reason\":\"비용 때문에 제외됨\",\"status\":\"rejected\"}],\"certainty\":\"agreed\",\"conflicts_with\":[],\"content\":\"관리자 로그인에서 SMS 인증은 사용하지 않는다.\",\"evidence\":[{\"quote\":\"SMS 인증은 비용 때문에 제외했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"decision\",\"rationale\":\"비용 때문에 제외하기로 했다.\",\"scope\":\"in_scope\",\"title\":\"SMS 인증은 제외\"},{\"alternatives\":[{\"label\":\"다음 회의에서 결정\",\"reason\":\"결정 시점을 다음 회의로 미룸\",\"status\":\"open\"}],\"certainty\":\"proposed\",\"conflicts_with\":[],\"content\":\"알림 발송 채널은 다음 회의에서 결정한다.\",\"evidence\":[{\"quote\":\"알림 발송 채널은 다음 회의에서 정하기로 했다.\",\"source_id\":\"synthetic-meeting-1\"}],\"kind\":\"question\",\"rationale\":\"현재 회의에서는 채널을 정하지 않았다.\",\"scope\":\"unknown\",\"title\":\"알림 발송 채널 미정\"}],\"project_id\":\"synthetic-context-project\",\"request_id\":\"context-rest-approved-v2-synthetic-20261012\",\"schema_version\":\"1.0\",\"summary\":\"회의록에 따르면 관리자 로그인은 이메일 인증으로 구현하기로 합의했고, 비용 이유로 SMS 인증은 제외했다. 알림 발송 채널은 다음 회의에서 정하기로 해 아직 미정이다.\",\"warnings\":[]}"
+    }
+  ],
+  "status": "ok",
+  "rawStatus": "completed"
+}

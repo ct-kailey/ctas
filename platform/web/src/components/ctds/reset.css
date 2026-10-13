@@ -1,0 +1,63 @@
+/* ============================================================
+   CTDS reset — opt-in global element reset.
+   tokens.css는 CSS 변수만 노출한다. 이 파일은 그 토큰을 소비해
+   body·heading·anchor 같은 네이티브 element에 CTDS 룩을 입히는
+   전역 reset. 소비자 프로젝트에서 CTDS 외 영역이 있으면 이 파일을
+   import하지 말고 섹션 단위로 .ctds-root 유틸 클래스 등을 조립해라.
+
+   의존: tokens.css가 선행 import 돼야 한다.
+   토글: 컴포넌트가 document.body/documentElement에 토글하는 side-effect
+         스타일도 여기 둔다. 각 블록에 "어느 컴포넌트가 토글하는지" 주석.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-h) + var(--space-4));
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  /* 전역 자간 default — tight(-0.02em). letter-spacing은 상속 property라
+     모든 하위 요소가 기본으로 받고, 필요한 자리만 override. "텍스트 쓰면
+     자간이 자동으로 따라오는" 구조. */
+  letter-spacing: var(--tracking-tight);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out);
+}
+
+a { color: inherit; text-decoration: none; }
+h1, h2, h3, h4 {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+}
+p { margin: 0; }
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-muted);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-xs);
+  color: var(--fg);
+}
+
+/* ============================================================
+   컴포넌트 전역 side-effect
+   CSS Modules의 :global 로 둘 수 없는, 라이브러리 컴포넌트가 document.body나
+   document.documentElement에 토글하는 클래스/속성에 대한 스타일.
+   토큰 whitelist 아님. 각 항목은 어느 컴포넌트가 설정하는지 명시.
+   ============================================================ */
+
+/* Textarea.tsx — drag resize 중 전역 커서 강제. body.textarea-resizing 클래스 토글. */
+body.textarea-resizing {
+  cursor: ns-resize !important;
+  user-select: none;
+}

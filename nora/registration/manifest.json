@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "workspace_id": "t_ef2500ebb1b14058847dc513c5c197bc",
+  "slug": "ains-record-registration-v1",
+  "name": "AINS Record Registration Suggestion v1",
+  "publication_status": "published",
+  "publication_version": 1,
+  "published_version_id": "gv_d042a77af5bc4be5bcadb96685ad1b4e",
+  "agent_id": "agent_f1eda47794b742bf8cd37e221d9e69ab",
+  "model": "gpt-5.4-mini",
+  "model_params": {
+    "reasoning_effort": "low"
+  },
+  "auth": {
+    "kind": "header_token",
+    "header": "Authorization",
+    "secret_provisioned": true
+  },
+  "api": {
+    "url": "https://platform.nora.my/api/v1/t_ef2500ebb1b14058847dc513c5c197bc/flows/ains-record-registration-v1",
+    "http_verified": true,
+    "content_type": "multipart/form-data",
+    "fields": [
+      "input",
+      "variables"
+    ],
+    "variable": "registration_request",
+    "authorization": "raw token in Authorization header"
+  },
+  "sources": {
+    "prompt": "prompt.md",
+    "draft": "draft-definition.json",
+    "request_schema": "request.schema.json",
+    "suggestion_schema": "suggestion.schema.json"
+  },
+  "native_tool_limit": {
+    "declared": [],
+    "hard_disable_verified": false,
+    "trace_inspection": "trace-inspection.json",
+    "observed_tool_calls": 0
+  },
+  "trigger_id": "trg_f622d227cdab405cae4c956968c8a824",
+  "published_at": "2026-09-27T06:12:26.602009Z"
+}

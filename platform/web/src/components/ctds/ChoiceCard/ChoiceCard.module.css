@@ -1,0 +1,142 @@
+/* ChoiceCard ────────────────────────────────────────────────
+   온보딩·유저 타입 선택·문서 지도 등 큰 선택지/네비게이션 카드.
+   - mode: radio(단일) | checkbox(다중) | link(네비게이션)
+   - layout: vertical(아이콘 위 · 텍스트 아래 가운데) | horizontal(아이콘 왼쪽 · 텍스트 오른쪽 좌측정렬)
+
+   구조 · 상태 처리 · 접근성은 [[SelectableCard]]와 동일한 패턴:
+   .surface (경계 · hover shadow · checked ring) + .content (아이콘 + 텍스트).
+   input을 label 안에 숨겨 네이티브 폼 전송 유지. link 모드는 Next Link로 렌더.
+
+   Accent: 전역 --selected-fg (mono=fg, standard/colorful=primary). */
+
+.root {
+  position: relative;
+  display: block;
+  cursor: pointer;
+  user-select: none;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  border-radius: var(--radius-lg);
+  transition: var(--transition-colors), var(--transition-press);
+  /* Hover translateY 상단 잘림 방지 */
+  margin-top: var(--hairline);
+  text-decoration: none;
+}
+.root[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.surface {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  transition: var(--transition-colors), var(--transition-ring);
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-4);
+}
+
+/* ── Layout: vertical (default) ────────────────────────────── */
+.root[data-layout="vertical"] .content {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.root[data-layout="vertical"] .text {
+  align-items: center;
+}
+
+/* ── Layout: horizontal ───────────────────────────────────── */
+.root[data-layout="horizontal"] .content {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-4);
+  text-align: left;
+}
+.root[data-layout="horizontal"] .icon {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.root[data-layout="horizontal"] .text {
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  transition: var(--transition-colors);
+}
+.icon > svg {
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+.title {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
+.description {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── States ────────────────────────────────────────────────── */
+
+/* Hover — 배경/경계 안 건드리고 lift + shadow만.
+   active/checked signal 속성을 덮지 않는다. */
+.root:hover:not([data-disabled="true"]) {
+  transform: translateY(-1px);
+}
+.root:hover:not([data-disabled="true"]) .surface {
+  box-shadow: var(--shadow-sm);
+}
+.root:active:not([data-disabled="true"]) {
+  transform: translateY(0);
+}
+
+/* Focus */
+.input:focus-visible ~ .surface {
+  box-shadow: var(--ring-shadow);
+}
+.root[data-mode="link"]:focus-visible .surface {
+  box-shadow: var(--ring-shadow);
+}
+.root[data-mode="link"]:focus-visible {
+  outline: none;
+}
+
+/* Checked — 경계 accent 승격. 굵기 1px 유지 (Shape 축 영향 없음). */
+.input:checked ~ .surface {
+  border-color: var(--selected-fg);
+}
+.input:checked:focus-visible ~ .surface {
+  box-shadow: var(--ring-shadow);
+}
+
+/* Icon — checked 시 accent 색 */
+.input:checked ~ .content .icon {
+  color: var(--selected-fg);
+}
