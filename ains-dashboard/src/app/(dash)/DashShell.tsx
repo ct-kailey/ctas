@@ -60,8 +60,8 @@ function Frame({ children }: { children: ReactNode }) {
 
           <Sidebar.Body>
             <Sidebar.Section>
-              <Sidebar.Item asChild icon={<Icon name="house" />} label="홈" active={route === "/"}>
-                <Link href="/">홈</Link>
+              <Sidebar.Item asChild icon={<Icon name="house" />} label="예시 홈" active={route === "/example"}>
+                <Link href="/example">예시 홈</Link>
               </Sidebar.Item>
               <Sidebar.Item
                 asChild
@@ -126,16 +126,16 @@ function Frame({ children }: { children: ReactNode }) {
         <Topbar size="md" className={shell.topbar}>
           {/* Breadcrumb은 직접 자식 사이에만 꺽쇠를 넣는다 — Fragment로 묶지 말고 항목을 하나씩 넘긴다 */}
           <Breadcrumb>
-            {route === "/" && <Breadcrumb.Current>홈</Breadcrumb.Current>}
+            {route === "/example" && <Breadcrumb.Current>홈</Breadcrumb.Current>}
             {route === "/alerts" && (
               <Breadcrumb.Link asChild leftIcon={<Icon name="house" />}>
-                <Link href="/">홈</Link>
+                <Link href="/example">예시 홈</Link>
               </Breadcrumb.Link>
             )}
             {route === "/alerts" && <Breadcrumb.Current>알림함</Breadcrumb.Current>}
             {project && (
               <Breadcrumb.Link asChild leftIcon={<Icon name="house" />}>
-                <Link href="/">홈</Link>
+                <Link href="/example">예시 홈</Link>
               </Breadcrumb.Link>
             )}
             {project && isSettings && (
@@ -176,6 +176,7 @@ function Frame({ children }: { children: ReactNode }) {
             {/* Plain anchors intentionally leave Next's /dashboard basePath. */}
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- This opens the separate Vite workspace, not the Next home route. */}
             <Button variant="outline" asChild><a href="/">기존 작업실</a></Button>
+            <Button variant="outline" asChild><Link href="/">실제 업무 대시보드</Link></Button>
             <Button variant="outline" asChild><a href="/preview">전체 흐름 프리뷰</a></Button>
           </nav>
         </aside>

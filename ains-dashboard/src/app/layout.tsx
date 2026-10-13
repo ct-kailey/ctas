@@ -14,8 +14,8 @@ const pretendard = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AINS · 예시 대시보드",
-  description: "예시 데이터로 살펴보는 프로젝트 현황과 업무 흐름. 실제 저장·발송·AI 처리는 하지 않습니다.",
+  title: "AINS · 업무 대시보드",
+  description: "프로젝트 자료와 검토·작업 현황을 확인하고 기존 업무를 이어가는 AINS 대시보드.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

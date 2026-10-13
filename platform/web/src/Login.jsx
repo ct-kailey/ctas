@@ -18,7 +18,7 @@ function readAuthError() {
   return code === null ? null : new Error(Object.hasOwn(AUTH_ERRORS, code) ? AUTH_ERRORS[code] : AUTH_ERRORS.failed);
 }
 
-export function Login({ onLogin }) {
+export function Login({ onLogin, onGoogleStart }) {
   const [busy, setBusy] = useState(false), [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState(readAuthError);
   const [providers, setProviders] = useState({ loading: true, google: false, failed: false });
@@ -62,7 +62,7 @@ export function Login({ onLogin }) {
   function continueWithGoogle() {
     if (busy || redirecting || !providers.google) return;
     setError(null); setRedirecting(true);
-    try { window.location.assign('/api/auth/google'); }
+    try { onGoogleStart?.(); window.location.assign('/api/auth/google'); }
     catch { setRedirecting(false); setError(new Error(AUTH_ERRORS.failed)); }
   }
 
@@ -85,7 +85,7 @@ export function Login({ onLogin }) {
         <Button busy={busy} disabled={redirecting} type="submit" icon={ArrowRight}>이메일로 로그인</Button>
       </form>
       <div className="login-access"><ShieldCheck size={17} /><p>프로젝트 구성원에게만 문서와 검토 기록이 공개됩니다.<br />계정이 없다면 워크스페이스 관리자에게 요청해 주세요.</p></div>
-      <a className="text-button" href="/dashboard/">대시보드 프리뷰 보기 <ArrowRight size={14} /></a>
+      <a className="text-button" href="/dashboard/">프로젝트 대시보드 <ArrowRight size={14} /></a>
       <a className="text-button" href="/preview">예시 데이터로 전체 흐름 체험하기 <ArrowRight size={14} /></a>
     </div><span className="login-copyright">AINS SI·SM WORKSPACE</span></section>
   </main>;

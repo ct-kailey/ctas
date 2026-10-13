@@ -2,6 +2,7 @@
 const express = require('express');
 const helmet = require('helmet');
 const { createDashboardRouter } = require('./dashboard-static');
+const { mountDashboardRoutes } = require('./dashboard');
 const multer = require('multer');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
@@ -88,6 +89,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   });
   function roles(...allowed) { return (req,_res,next) => allowed.includes(req.projectRole) ? next() : next(error('FORBIDDEN','이 작업을 수행할 권한이 없습니다.',403)); }
   const write=roles('owner','reviewer','member'), review=roles('owner','reviewer');
+  mountDashboardRoutes(project,{pool});
   mountCommercialRoutes(project,{pool,write,review});
   mountContextRoutes(project,{pool,write,review});
   mountContextAIRoutes(project,{pool,write,review,contextAI});

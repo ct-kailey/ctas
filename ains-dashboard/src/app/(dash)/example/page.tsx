@@ -4,9 +4,9 @@ import Link from "next/link";
 
 import { Badge, Button, EmptyState, Icon } from "@/components/ctds";
 import { PROJECTS, type Grade } from "@/lib/mock";
-import { useAins } from "./AinsContext";
-import { AlertRow } from "./AlertRow";
-import s from "./page.module.css";
+import { useAins } from "../AinsContext";
+import { AlertRow } from "../AlertRow";
+import s from "../page.module.css";
 
 const ORDER: Record<Grade, number> = { urgent: 0, check: 1, info: 2 };
 
