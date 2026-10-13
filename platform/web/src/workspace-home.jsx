@@ -54,7 +54,7 @@ function orderedItems(attention) {
     || String(b.created_at || '').localeCompare(String(a.created_at || ''))
     || a.id.localeCompare(b.id));
 }
-function AttentionRow({ item, onNavigate }) {
+function AttentionRow({ item, onNavigate, documentLoading }) {
   const grade = GRADES[item.grade] || GRADES.info;
   return <article className="workspace-attention-row">
     <div className="workspace-attention-grade"><Badge tone={grade.tone}>{grade.label}</Badge></div>
@@ -67,11 +67,11 @@ function AttentionRow({ item, onNavigate }) {
         <time dateTime={item.created_at}>{displayDate(item.created_at)}</time>
       </div>
     </div>
-    <div className="workspace-attention-action"><Button type="button" variant="secondary" rightIcon={<ArrowRight size={15} />} onClick={() => onNavigate(item.tab, item.target)}>{TAB_LABELS[item.tab] || '업무 확인'}</Button></div>
+    <div className="workspace-attention-action"><Button type="button" variant="secondary" rightIcon={<ArrowRight size={15} />} disabled={Boolean(documentLoading && item.target?.revisionId)} onClick={() => onNavigate(item.tab, item.target)}>{TAB_LABELS[item.tab] || '업무 확인'}</Button></div>
   </article>;
 }
-function AttentionList({ items, onNavigate, emptyTitle = '지금 확인할 알림이 없습니다', emptyDescription = '검토할 기록이나 응답 대기가 생기면 이곳에서 확인할 수 있습니다.' }) {
-  return items.length ? <div className="workspace-home-panel workspace-home-flush">{items.map(item => <AttentionRow key={item.id} item={item} onNavigate={onNavigate} />)}</div>
+function AttentionList({ items, onNavigate, documentLoading = false, emptyTitle = '지금 확인할 알림이 없습니다', emptyDescription = '검토할 기록이나 응답 대기가 생기면 이곳에서 확인할 수 있습니다.' }) {
+  return items.length ? <div className="workspace-home-panel workspace-home-flush">{items.map(item => <AttentionRow key={item.id} item={item} onNavigate={onNavigate} documentLoading={documentLoading} />)}</div>
     : <div className="workspace-home-panel"><Empty compact icon={CheckCheck} title={emptyTitle}>{emptyDescription}</Empty></div>;
 }
 function SectionHead({ title, count, children }) {
@@ -135,7 +135,7 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
   </div>;
 }
 
-export function AttentionInbox({ project, projects, onProjectSelect, attention, attentionError, attentionLoading, onRefreshAttention, onNavigate }) {
+export function AttentionInbox({ project, projects, onProjectSelect, documentLoading, attention, attentionError, attentionLoading, onRefreshAttention, onNavigate }) {
   const [filter, setFilter] = useState('all');
   const allItems = orderedItems(attention);
   const items = filter === 'all' ? allItems : allItems.filter(item => item.grade === filter);
@@ -148,10 +148,11 @@ export function AttentionInbox({ project, projects, onProjectSelect, attention, 
       {FILTERS.map(value => <Tabs.Panel key={value} value={value}>
         {attentionError ? <ErrorNotice error={attentionError} onRetry={onRefreshAttention} /> : attentionLoading && !attention ? <Spinner label="알림을 불러오고 있습니다" /> : attention ? <>
           {typeof total === 'number' && total > items.length ? <div className="workspace-home-notice" role="status"><Bell size={16} aria-hidden="true" /><p>전체 {total.toLocaleString()}건 중 현재 {items.length.toLocaleString()}건을 표시합니다. 우선순위가 높은 알림부터 최대 100건을 가져옵니다. 나머지는 해당 업무 화면에서 확인할 수 있습니다.</p></div> : null}
-          <AttentionList items={items} onNavigate={onNavigate} emptyTitle={total > 0 ? '현재 목록 밖에 추가 알림이 있습니다' : '이 등급의 알림이 없습니다'} emptyDescription={total > 0 ? '아래 업무별 바로가기에서 나머지 항목을 확인해 주세요.' : '새로운 확인 사항이 생기면 이곳에 표시됩니다.'} />
+          <AttentionList items={items} onNavigate={onNavigate} documentLoading={documentLoading} emptyTitle={total > 0 ? '현재 목록 밖에 추가 알림이 있습니다' : '이 등급의 알림이 없습니다'} emptyDescription={total > 0 ? '아래 업무별 바로가기에서 나머지 항목을 확인해 주세요.' : '새로운 확인 사항이 생기면 이곳에 표시됩니다.'} />
         </> : <p className="workspace-home-note" role="status">알림을 준비하고 있습니다.</p>}
       </Tabs.Panel>)}
     </Tabs>
+    {documentLoading ? <p className="workspace-home-meta" role="status">프로젝트 자료를 불러오고 있습니다.</p> : null}
     {attention?.truncated ? <div className="workspace-home-source-links" aria-label="전체 업무 목록">{Object.entries(TAB_LABELS).map(([tab, label]) => <Button key={tab} type="button" variant="ghost" onClick={() => onNavigate(tab)}>{label}<ArrowRight size={14} aria-hidden="true" /></Button>)}</div> : null}
     <p className="workspace-home-note">알림의 등급은 원본 업무 상태와 기한으로 정해집니다. 해당 업무에서 검토·답변·처리를 마치면 알림도 함께 갱신됩니다.</p>
   </div>;
