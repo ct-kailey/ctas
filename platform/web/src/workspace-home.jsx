@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { Activity, ArrowRight, Bell, CheckCheck, FilePlus2, Files, FolderKanban, RefreshCw } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, ROLES, Spinner } from './ui.jsx';
 import { Tabs } from './components/ctds/Tabs/Tabs';
@@ -77,6 +77,10 @@ function AttentionList({ items, onNavigate, emptyTitle = '지금 확인할 알�
 function SectionHead({ title, count, children }) {
   return <div className="workspace-home-section-head"><h2>{title}{typeof count === 'number' ? <span className="workspace-home-heading-count">{count.toLocaleString()}</span> : null}</h2>{children}</div>;
 }
+function AttentionProjectSelect({ project, projects, onProjectSelect }) {
+  const id = useId();
+  return <div className="workspace-attention-project"><label htmlFor={id}>프로젝트</label><select id={id} aria-label="알림 프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>;
+}
 
 /** One project, one workflow. This view links to existing source actions without approving or dismissing records. */
 export function ProjectHome({ project, projects = [], overview, onNavigate, onProjectSelect, onUpload, onNewProject, attention, onRefreshAttention, attentionError, attentionLoading }) {
@@ -95,7 +99,7 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
   return <div className="workspace-home">
     <section className="workspace-home-section" aria-label="프로젝트 알림">
       <SectionHead title="지금 확인할 것" count={!attentionError && attention ? attention.counts.all : undefined}>
-        <Button type="button" variant="ghost" rightIcon={<ArrowRight size={15} />} onClick={() => onNavigate('alerts')}>알림함 전체 보기</Button>
+        <div className="workspace-attention-controls"><AttentionProjectSelect project={project} projects={projects} onProjectSelect={onProjectSelect} /><Button type="button" variant="ghost" rightIcon={<ArrowRight size={15} />} onClick={() => onNavigate('alerts')}>알림함 전체 보기</Button></div>
       </SectionHead>
       {attentionError ? <ErrorNotice error={attentionError} onRetry={onRefreshAttention} /> : attentionLoading && !attention ? <Spinner label="확인할 업무를 불러오고 있습니다" /> : attention ? <AttentionList items={items} onNavigate={onNavigate} /> : <p className="workspace-home-note" role="status">알림을 준비하고 있습니다.</p>}
       {attentionLoading && attention ? <p className="workspace-home-meta" role="status">알림을 갱신하고 있습니다.</p> : null}
@@ -131,13 +135,14 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
   </div>;
 }
 
-export function AttentionInbox({ attention, attentionError, attentionLoading, onRefreshAttention, onNavigate }) {
+export function AttentionInbox({ project, projects, onProjectSelect, attention, attentionError, attentionLoading, onRefreshAttention, onNavigate }) {
   const [filter, setFilter] = useState('all');
   const allItems = orderedItems(attention);
   const items = filter === 'all' ? allItems : allItems.filter(item => item.grade === filter);
   const total = attention?.counts?.[filter];
   return <div className="workspace-home workspace-attention-inbox">
-    <div className="workspace-home-section-head"><p className="workspace-home-description">확인할 기록, 지연된 응답, 멈춘 작업을 한곳에서 확인합니다.</p><Button type="button" variant="secondary" icon={RefreshCw} busy={attentionLoading} onClick={onRefreshAttention}>새로고침</Button></div>
+    <p className="workspace-home-description">프로젝트를 선택해 확인할 기록, 지연된 응답, 멈춘 작업을 살펴보세요.</p>
+    <div className="workspace-home-section-head"><AttentionProjectSelect project={project} projects={projects} onProjectSelect={onProjectSelect} /><Button type="button" variant="secondary" icon={RefreshCw} busy={attentionLoading} onClick={onRefreshAttention}>새로고침</Button></div>
     <Tabs size="sm" variant="underline" value={filter} onValueChange={setFilter}>
       <Tabs.List aria-label="알림 우선순위">{FILTERS.map(value => <Tabs.Trigger key={value} value={value}>{value === 'all' ? '전체' : GRADES[value].label}{attention ? ` ${attention.counts[value].toLocaleString()}` : ''}</Tabs.Trigger>)}</Tabs.List>
       {FILTERS.map(value => <Tabs.Panel key={value} value={value}>

@@ -60,6 +60,10 @@
 .workspace-home-notice p { margin: 0; font-size: var(--text-xs); line-height: var(--lh-loose); }
 .workspace-home-source-links { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); }
 .workspace-attention-inbox { gap: var(--space-4); }
+.workspace-attention-controls { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); max-width: 100%; }
+.workspace-attention-project { display: flex; align-items: center; gap: var(--space-2); width: var(--ains-panel-sm); max-width: 100%; min-width: 0; }
+.workspace-attention-project label { flex-shrink: 0; font-size: var(--text-xs); color: var(--fg-muted); }
+.workspace-attention-project select { min-width: 0; flex: 1; }
 @media (max-width: 1100px) {
   .workspace-attention-row { grid-template-columns: auto minmax(0, 1fr); }
   .workspace-attention-action { grid-column: 2; }
