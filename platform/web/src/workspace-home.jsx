@@ -1,6 +1,6 @@
 import React, { useId, useState } from 'react';
 import { Activity, ArrowRight, Bell, CheckCheck, FilePlus2, Files, FolderKanban, RefreshCw } from 'lucide-react';
-import { Badge, Button, Empty, ErrorNotice, ROLES, Spinner, Select, ControlButton } from './ui.jsx';
+import { Badge, Button, Empty, ErrorNotice, ROLES, Spinner, Select, ControlButton, Notice } from './ui.jsx';
 import { Tabs } from './ui.jsx';
 import { MetricCard } from './components/ctds/MetricCard/MetricCard';
 import { ListItem } from './components/ctds/ListItem/ListItem';
@@ -152,7 +152,7 @@ export function AttentionInbox({ project, projects, onProjectSelect, documentLoa
       <Tabs.List aria-label="알림 우선순위">{FILTERS.map(value => <Tabs.Trigger key={value} value={value}>{value === 'all' ? '전체' : GRADES[value].label}{attention ? ` ${attention.counts[value].toLocaleString()}` : ''}</Tabs.Trigger>)}</Tabs.List>
       {FILTERS.map(value => <Tabs.Panel key={value} value={value}>
         {attentionError ? <ErrorNotice error={attentionError} onRetry={onRefreshAttention} /> : attentionLoading && !attention ? <Spinner label="알림을 불러오고 있습니다" /> : attention ? <>
-          {typeof total === 'number' && total > items.length ? <div className="workspace-home-notice" role="status"><Bell size={16} aria-hidden="true" /><p>전체 {total.toLocaleString()}건 중 현재 {items.length.toLocaleString()}건을 표시합니다. 우선순위가 높은 알림부터 최대 100건을 가져옵니다. 나머지는 해당 업무 화면에서 확인할 수 있습니다.</p></div> : null}
+          {typeof total === 'number' && total > items.length ? <Notice className="workspace-home-notice" role="status"><Bell size={16} aria-hidden="true" /><p>전체 {total.toLocaleString()}건 중 현재 {items.length.toLocaleString()}건을 표시합니다. 우선순위가 높은 알림부터 최대 100건을 가져옵니다. 나머지는 해당 업무 화면에서 확인할 수 있습니다.</p></Notice> : null}
           <AttentionList items={items} onNavigate={onNavigate} documentLoading={documentLoading} emptyTitle={total > 0 ? '현재 목록 밖에 추가 알림이 있습니다' : '이 등급의 알림이 없습니다'} emptyDescription={total > 0 ? '아래 업무별 바로가기에서 나머지 항목을 확인해 주세요.' : '새로운 확인 사항이 생기면 이곳에 표시됩니다.'} />
         </> : <p className="workspace-home-note" role="status">알림을 준비하고 있습니다.</p>}
       </Tabs.Panel>)}
