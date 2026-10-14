@@ -22,7 +22,7 @@ https://ains-workspace-production.up.railway.app/api/auth/google/callback
 
 - `GOOGLE_CLIENT_ID`: 발급된 웹 애플리케이션 클라이언트 ID
 - `GOOGLE_CLIENT_SECRET`: 해당 클라이언트의 비밀값
-- `GOOGLE_SIGNUP_ALLOWED_DOMAINS`: 신규 가입을 허용할 Google Workspace 도메인. AINS 운영값은 `conscience.technology`이며, 여러 도메인은 쉼표로 구분한다. 비어 있으면 신규 가입을 허용하지 않고 기존 계정만 로그인한다. 와일드카드나 하위 도메인 자동 허용은 지원하지 않는다.
+- `GOOGLE_SIGNUP_ALLOWED_DOMAINS`: 신규 가입을 허용할 Google Workspace 도메인. AINS 운영값은 `conscience.technology,conscience.partners`이며, 여러 도메인은 쉼표로 구분한다. 비어 있으면 신규 가입을 허용하지 않고 기존 계정만 로그인한다. 와일드카드나 하위 도메인 자동 허용은 지원하지 않는다.
 
 콜백 주소는 서버의 `APP_ORIGIN`으로 계산한다. 별도 임의 redirect URL을 클라이언트에서 받지 않는다. 클라이언트 ID와 비밀값이 모두 없으면 Google 버튼을 숨긴다. 한쪽만 있거나 가입 도메인 형식이 잘못되면 서버 시작 시 설정 오류를 보고한다. 값 설정 후 Railway 앱을 재배포하고 `/api/auth/providers`의 `google.enabled`와 `google.signup_domains`를 확인한다. 이 공개 응답에는 클라이언트 비밀값을 포함하지 않는다. IaC에는 세 키의 `preserve()`를 추가하여 이후 적용에서도 유지한다.
 
