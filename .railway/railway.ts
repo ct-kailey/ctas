@@ -35,6 +35,7 @@ export default defineRailway((ctx) => {
       DATABASE_URL: preserve(),
       GOOGLE_CLIENT_ID: preserve(),
       GOOGLE_CLIENT_SECRET: preserve(),
+      GOOGLE_SIGNUP_ALLOWED_DOMAINS: preserve(),
       NODE_ENV: preserve(),
       NORA_FLOW_TOKEN: preserve(),
       NORA_PIPELINE_TOKEN: preserve(),

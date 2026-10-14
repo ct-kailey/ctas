@@ -4,9 +4,9 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { createPool, migrate } = require('../server/db');
-const { provisionUser, sha256 } = require('../server/auth');
+const { provisionUser, sha256, verifyPassword } = require('../server/auth');
 const { createApp } = require('../server/server');
-const { googleConfig, createGoogleClient, validateClaims } = require('../server/google-auth');
+const { googleConfig, createGoogleClient, validateClaims, signupDomains, resolveGoogleUser } = require('../server/google-auth');
 
 const config = { clientId: 'test-client.apps.googleusercontent.com', clientSecret: 'synthetic-client-secret' };
 const origin = 'https://workspace.example.test';
@@ -25,6 +25,17 @@ test('Google configuration is disabled only when both values are absent', () => 
   }
 });
 
+test('Google signup domains require an explicit well-formed exact-domain allowlist', () => {
+  assert.deepEqual(signupDomains(), []); assert.deepEqual(signupDomains('  '), []);
+  assert.deepEqual(googleConfig(config).signupDomains, []);
+  assert.deepEqual(googleConfig({ ...config, signupDomains: 'Conscience.Technology, partner.test,conscience.technology' }).signupDomains, ['conscience.technology', 'partner.test']);
+  assert.deepEqual(signupDomains(['Conscience.Technology']), ['conscience.technology']);
+  for (const invalid of [null, {}, 7, ['conscience.technology', ''], [1], 'conscience.technology,', '*.conscience.technology', '@conscience.technology', 'https://conscience.technology', 'conscience.technology:443', 'technology', '-conscience.technology', 'conscience..technology', 'a'.repeat(64) + '.test', Array(51).fill('company.test')]) {
+    assert.throws(() => googleConfig({ ...config, signupDomains: invalid }), /GOOGLE_SIGNUP_DOMAINS_INVALID/);
+    assert.throws(() => googleConfig({ signupDomains: invalid }), /GOOGLE_SIGNUP_DOMAINS_INVALID/);
+  }
+});
+
 test('Google claim validation rejects wrong audience, issuer, expiry, nonce and unverified email', () => {
   const options = { clientId: config.clientId, nonceHash: sha256(nonce) };
   assert.equal(validateClaims(claims(), options).authoritative, true);
@@ -34,6 +45,14 @@ test('Google claim validation rejects wrong audience, issuer, expiry, nonce and 
     { exp: Math.floor(Date.now() / 1000) - 1 }, { iat: Math.floor(Date.now() / 1000) + 120 },
     { nonce: crypto.randomBytes(32).toString('base64url') }, { sub: '' }, { sub: {} }, { email_verified: false }, { email_verified: 'true' }]) {
     assert.throws(() => validateClaims(claims(changed), options));
+  }
+});
+
+test('Google profile names are bounded and fall back to the verified email local part', () => {
+  const options = { clientId: config.clientId, nonceHash: sha256(nonce) };
+  assert.equal(validateClaims(claims({ name: '  Vara Kim  ' }), options).name, 'Vara Kim');
+  for (const name of [undefined, null, {}, '', ' ', 'a'.repeat(101), 'bad\nname', 'bad\u0000name', '\ud800']) {
+    assert.equal(validateClaims(claims({ email: 'vara@conscience.technology', name }), options).name, 'vara');
   }
 });
 
@@ -98,10 +117,12 @@ test('Google OAuth HTTP lifecycle with isolated database', { skip: !process.env.
 
   await t.test('disabled provider is honest and missing configuration rejects startup', async () => {
     const disabled = await serve();
-    assert.deepEqual(await (await disabled('/api/auth/providers')).json(), { google: { enabled: false } });
+    assert.deepEqual(await (await disabled('/api/auth/providers')).json(), { google: { enabled: false, signup_domains: [] } });
     assert.equal(location(await disabled('/api/auth/google')), '/?auth_error=unavailable');
+    const disabledWithDomains = await serve({ google: { signupDomains: 'conscience.technology' } });
+    assert.deepEqual(await (await disabledWithDomains('/api/auth/providers')).json(), { google: { enabled: false, signup_domains: [] } });
     assert.throws(() => createApp({ pool, appOrigin: origin, google: { clientId: config.clientId } }), /INCOMPLETE/);
-    assert.deepEqual(await (await call('/api/auth/providers')).json(), { google: { enabled: true } });
+    assert.deepEqual(await (await call('/api/auth/providers')).json(), { google: { enabled: true, signup_domains: [] } });
   });
   await t.test('start uses fixed redirect, minimal scopes, PKCE, nonce, hashed state and secure browser cookie', async () => {
     const attempt = await begin(), params = attempt.url.searchParams;
@@ -231,5 +252,149 @@ test('Google OAuth HTTP lifecycle with isolated database', { skip: !process.env.
     const results = await Promise.all(attempts.map((attempt, i) => finish(attempt, { email: user.email, sub: 'competing-subject-' + i, hd: undefined })));
     assert.deepEqual(results.map(location).sort(), ['/', '/?auth_error=identity_conflict']);
     assert.equal((await pool.query('SELECT count(*)::int n FROM google_identities WHERE user_id=$1', [user.id])).rows[0].n, 1);
+  });
+});
+
+test('company Google signup is exact-domain restricted, atomic and separate from project access', { skip: !process.env.TEST_DATABASE_URL }, async t => {
+  const schema = 'google_signup_' + crypto.randomUUID().replaceAll('-', '');
+  const admin = createPool(process.env.TEST_DATABASE_URL);
+  await admin.query(`CREATE SCHEMA ${schema}`);
+  const pool = createPool({ connectionString: process.env.TEST_DATABASE_URL, options: `-c search_path=${schema},public` });
+  let server;
+  t.after(async () => {
+    if (server) await new Promise(resolve => server.close(resolve));
+    await pool.end(); await admin.query(`DROP SCHEMA ${schema} CASCADE`); await admin.end();
+  });
+  await migrate(pool);
+  await pool.query("INSERT INTO projects(id,name) VALUES('existing-project','Existing project')");
+  const legacy = await provisionUser(pool, { email: 'legacy@workspace.test', name: 'Original name', password: 'synthetic-legacy-password', projectId: 'existing-project', role: 'viewer' });
+  const allowedDomains = ['conscience.technology', 'partner.test'];
+  const identityResponses = new Map();
+  const realClient = createGoogleClient({ ...config, redirectUri: origin + '/api/auth/google/callback' });
+  const googleClient = { authorizationUrl: realClient.authorizationUrl, exchange: async ({ code }) => code,
+    verify: async code => identityResponses.get(code) };
+  const app = createApp({ pool, appOrigin: origin, production: true, google: { ...config, signupDomains: allowedDomains }, googleClient });
+  server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  const call = (route, options = {}) => fetch('http://127.0.0.1:' + server.address().port + route, { redirect: 'manual', ...options });
+  async function login(overrides) {
+    const start = await call('/api/auth/google');
+    assert.equal(start.status, 302);
+    const url = new URL(start.headers.get('location'));
+    const cookie = start.headers.getSetCookie().find(value => value.startsWith('__Host-ains_google_oauth=')).split(';')[0];
+    const code = crypto.randomUUID();
+    identityResponses.set(code, claims({ email: 'vara@conscience.technology', hd: 'conscience.technology', sub: 'company-vara',
+      name: 'Vara', nonce: url.searchParams.get('nonce'), ...overrides }));
+    return call('/api/auth/google/callback?state=' + url.searchParams.get('state') + '&code=' + code, { headers: { Cookie: cookie } });
+  }
+  const sessionCookie = response => response.headers.getSetCookie().find(value => value.startsWith('ains_session='))?.split(';')[0];
+  const counts = async () => (await pool.query(`SELECT (SELECT count(*)::int FROM users) users,
+    (SELECT count(*)::int FROM google_identities) identities,(SELECT count(*)::int FROM sessions) sessions,
+    (SELECT count(*)::int FROM memberships) memberships`)).rows[0];
+  const identity = overrides => validateClaims(claims({ email: 'parallel@conscience.technology', hd: 'conscience.technology', sub: 'parallel-new', name: 'Parallel', ...overrides }),
+    { clientId: config.clientId, nonceHash: sha256(nonce) });
+  const resolve = item => resolveGoogleUser(pool, item, { signupDomains: allowedDomains });
+
+  await t.test('public provider metadata lists only configured signup domains', async () => {
+    assert.deepEqual(await (await call('/api/auth/providers')).json(), { google: { enabled: true, signup_domains: allowedDomains } });
+  });
+  await t.test('first verified company login creates a session without existing project membership', async () => {
+    const response = await login();
+    assert.equal(response.headers.get('location'), '/');
+    const cookie = sessionCookie(response);
+    assert.ok(cookie);
+    const session = await (await call('/api/session', { headers: { Cookie: cookie } })).json();
+    assert.equal(session.user.email, 'vara@conscience.technology'); assert.equal(session.user.name, 'Vara');
+    assert.match(session.csrfToken, /^[a-f0-9]{64}$/);
+    assert.equal(Object.hasOwn(session.user, 'password_hash'), false);
+    const user = (await pool.query('SELECT * FROM users WHERE id=$1', [session.user.id])).rows[0];
+    assert.match(user.password_hash, /^scrypt\$32768\$8\$1\$[a-f0-9]{32}\$[a-f0-9]{128}$/);
+    assert.equal(await verifyPassword('vara@conscience.technology', user.password_hash), false);
+    assert.equal(await verifyPassword('synthetic-legacy-password', user.password_hash), false);
+    assert.deepEqual((await pool.query('SELECT subject,linked_email FROM google_identities WHERE user_id=$1', [user.id])).rows,
+      [{ subject: 'company-vara', linked_email: 'vara@conscience.technology' }]);
+    assert.deepEqual(await (await call('/api/projects', { headers: { Cookie: cookie } })).json(), { projects: [] });
+    assert.equal((await call('/api/projects/existing-project/overview', { headers: { Cookie: cookie } })).status, 404);
+    assert.equal((await pool.query('SELECT count(*)::int n FROM memberships WHERE user_id=$1', [user.id])).rows[0].n, 0);
+  });
+  await t.test('repeat company login keeps the same user, identity and password hash', async () => {
+    const before = (await pool.query("SELECT * FROM users WHERE email='vara@conscience.technology'")).rows[0];
+    assert.equal((await login({ name: 'Changed Google name' })).headers.get('location'), '/');
+    assert.deepEqual((await pool.query('SELECT * FROM users WHERE id=$1', [before.id])).rows[0], before);
+    assert.equal((await pool.query('SELECT count(*)::int n FROM google_identities WHERE user_id=$1', [before.id])).rows[0].n, 1);
+  });
+  await t.test('preprovisioned users outside signup domains can still link and log in with unchanged access', async () => {
+    const beforeUser = (await pool.query('SELECT * FROM users WHERE id=$1', [legacy.id])).rows[0];
+    const beforeMemberships = (await pool.query('SELECT * FROM memberships ORDER BY project_id,user_id')).rows;
+    for (let i = 0; i < 2; i++) {
+      const response = await login({ email: legacy.email, hd: 'workspace.test', sub: 'legacy-subject', name: 'Provider name' });
+      assert.equal(response.headers.get('location'), '/');
+      const session = await (await call('/api/session', { headers: { Cookie: sessionCookie(response) } })).json();
+      assert.equal(session.user.id, legacy.id); assert.equal(session.user.name, 'Original name');
+    }
+    assert.deepEqual((await pool.query('SELECT * FROM users WHERE id=$1', [legacy.id])).rows[0], beforeUser);
+    assert.deepEqual((await pool.query('SELECT * FROM memberships ORDER BY project_id,user_id')).rows, beforeMemberships);
+  });
+  for (const [name, overrides] of [
+    ['missing Workspace hd', { email: 'no-hd@conscience.technology', hd: undefined }],
+    ['unverified company email', { email: 'unverified@conscience.technology', email_verified: false }],
+    ['different allowed hd', { email: 'different-hd@conscience.technology', hd: 'partner.test' }],
+    ['different email domain', { email: 'elsewhere@other.test', hd: 'conscience.technology' }],
+    ['subdomain', { email: 'subdomain@team.conscience.technology', hd: 'team.conscience.technology' }],
+    ['domain suffix lookalike', { email: 'suffix@conscience.technology.evil.test', hd: 'conscience.technology.evil.test' }],
+    ['domain prefix lookalike', { email: 'prefix@evilconscience.technology', hd: 'evilconscience.technology' }],
+    ['consumer Gmail', { email: 'consumer@gmail.com', hd: undefined }],
+  ]) {
+    await t.test(name + ' cannot create users, identities, sessions or memberships', async () => {
+      const before = await counts();
+      const response = await login({ sub: 'rejected-' + crypto.randomUUID(), ...overrides });
+      assert.equal(response.headers.get('location'), '/?auth_error=account_not_allowed');
+      assert.equal(sessionCookie(response), undefined);
+      assert.deepEqual(await counts(), before);
+    });
+  }
+  await t.test('no signup configuration remains closed even for a verified company identity', async () => {
+    const before = await counts();
+    await assert.rejects(() => resolveGoogleUser(pool, identity({ email: 'default-denied@conscience.technology' })), { authCode: 'account_not_allowed' });
+    assert.deepEqual(await counts(), before);
+  });
+  await t.test('simultaneous first logins create one user and one identity', async () => {
+    const item = identity();
+    const results = await Promise.all([resolve(item), resolve(item)]);
+    assert.equal(results[0].id, results[1].id);
+    assert.equal((await pool.query('SELECT count(*)::int n FROM users WHERE email=$1', [item.email])).rows[0].n, 1);
+    assert.deepEqual((await pool.query('SELECT subject,user_id FROM google_identities WHERE user_id=$1', [results[0].id])).rows,
+      [{ subject: item.subject, user_id: results[0].id }]);
+    assert.equal((await pool.query('SELECT count(*)::int n FROM memberships WHERE user_id=$1', [results[0].id])).rows[0].n, 0);
+  });
+  await t.test('competing subjects cannot both create or claim the same new account', async () => {
+    const email = 'competing-new@conscience.technology';
+    const results = await Promise.allSettled([0, 1].map(i => resolve(identity({ email, sub: 'competing-new-' + i }))));
+    assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+    assert.equal(results.find(result => result.status === 'rejected').reason.authCode, 'identity_conflict');
+    const users = (await pool.query('SELECT id FROM users WHERE email=$1', [email])).rows;
+    assert.equal(users.length, 1);
+    assert.equal((await pool.query('SELECT count(*)::int n FROM google_identities WHERE user_id=$1', [users[0].id])).rows[0].n, 1);
+  });
+  await t.test('a subject racing across two new email addresses cannot leave an orphan account', async () => {
+    const emails = ['subject-race-a@conscience.technology', 'subject-race-b@conscience.technology'];
+    const results = await Promise.allSettled(emails.map(email => resolve(identity({ email, sub: 'shared-racing-subject' }))));
+    assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+    assert.equal(results.find(result => result.status === 'rejected').reason.authCode, 'identity_conflict');
+    assert.equal((await pool.query('SELECT count(*)::int n FROM users WHERE email=ANY($1::text[])', [emails])).rows[0].n, 1);
+    assert.equal((await pool.query("SELECT count(*)::int n FROM google_identities WHERE subject='shared-racing-subject'")).rows[0].n, 1);
+  });
+  await t.test('identity insertion failure rolls back the newly created user', async () => {
+    const before = await counts();
+    const failingPool = { connect: async () => {
+      const client = await pool.connect();
+      return { release: () => client.release(), query: async (sql, values) => {
+        if (sql.startsWith('INSERT INTO google_identities')) throw Object.assign(new Error('synthetic identity conflict'), { code: '23505' });
+        return client.query(sql, values);
+      } };
+    } };
+    await assert.rejects(() => resolveGoogleUser(failingPool, identity({ email: 'rollback@conscience.technology', sub: 'rollback-subject' }),
+      { signupDomains: allowedDomains }), { authCode: 'identity_conflict' });
+    assert.deepEqual(await counts(), before);
   });
 });

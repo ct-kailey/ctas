@@ -72,7 +72,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   runnerRoutes.post('/:id/complete',async(req,res)=>res.json(await runner.complete(req.params.id,req.headers.authorization,req.body)));
   app.use('/api/implementation-runner',runnerRoutes);
   app.use('/api', auth.checkOrigin, express.json({limit:'1mb'}));
-  app.get('/api/auth/providers', (_req,res) => res.json({google:{enabled:googleAuth.enabled}}));
+  app.get('/api/auth/providers', (_req,res) => res.json({google:{enabled:googleAuth.enabled,signup_domains:googleAuth.signupDomains}}));
   app.get('/api/auth/google', googleAuth.start);
   app.get('/api/auth/google/callback', googleAuth.callback);
   app.post('/api/auth/login', auth.login);

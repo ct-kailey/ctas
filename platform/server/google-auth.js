@@ -3,19 +3,33 @@
 const crypto = require('node:crypto');
 const { OAuth2Client } = require('google-auth-library');
 const { transaction } = require('./db');
-const { cookies, sha256, constantEquals, emailAddress } = require('./auth');
+const { cookies, sha256, constantEquals, emailAddress, hashPassword } = require('./auth');
 
 const CALLBACK_PATH = '/api/auth/google/callback';
 const NONCE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const fail = code => Object.assign(new Error('Google authentication rejected'), { authCode: code });
 const random = () => crypto.randomBytes(32).toString('base64url');
 
-function googleConfig({ clientId, clientSecret } = {}) {
+function signupDomains(value) {
+  if (value === undefined || typeof value === 'string' && !value.trim()) return [];
+  const entries = typeof value === 'string' ? value.split(',') : value;
+  if (!Array.isArray(entries) || entries.length > 50) throw new Error('GOOGLE_SIGNUP_DOMAINS_INVALID');
+  const domains = entries.map(entry => {
+    if (typeof entry !== 'string') throw new Error('GOOGLE_SIGNUP_DOMAINS_INVALID');
+    const domain = entry.trim().toLowerCase(), labels = domain.split('.');
+    if (domain.length > 253 || labels.length < 2 || labels.some(label => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) throw new Error('GOOGLE_SIGNUP_DOMAINS_INVALID');
+    return domain;
+  });
+  return [...new Set(domains)];
+}
+
+function googleConfig({ clientId, clientSecret, signupDomains: allowedDomains } = {}) {
+  const domains = signupDomains(allowedDomains);
   if (!clientId && !clientSecret) return null;
   if (typeof clientId !== 'string' || !clientId.trim() || typeof clientSecret !== 'string' || !clientSecret.trim()) {
     throw new Error('GOOGLE_OAUTH_CONFIG_INCOMPLETE');
   }
-  return { clientId: clientId.trim(), clientSecret: clientSecret.trim() };
+  return { clientId: clientId.trim(), clientSecret: clientSecret.trim(), signupDomains: domains };
 }
 
 function createGoogleClient({ clientId, clientSecret, redirectUri }) {
@@ -47,11 +61,19 @@ function validateClaims(payload, { clientId, nonceHash, now = Date.now() }) {
   try { email = emailAddress(payload.email); } catch { throw fail('account_not_allowed'); }
   const authoritative = email.endsWith('@gmail.com') ||
     (typeof payload.hd === 'string' && /^[a-z0-9](?:[a-z0-9.-]{0,251}[a-z0-9])?$/i.test(payload.hd) && payload.hd.includes('.'));
-  return { subject: payload.sub, email, authoritative };
+  const hostedDomain = typeof payload.hd === 'string' ? payload.hd.toLowerCase() : null;
+  const name = typeof payload.name === 'string' && payload.name.isWellFormed() &&
+    payload.name.trim().length > 0 && payload.name.trim().length <= 100 && !/[\x00-\x1f\x7f]/.test(payload.name)
+    ? payload.name.trim() : email.slice(0, email.lastIndexOf('@')).slice(0, 100);
+  return { subject: payload.sub, email, authoritative, hostedDomain, name };
 }
 
-async function resolveGoogleUser(pool, identity) {
+async function resolveGoogleUser(pool, identity, { signupDomains: allowedDomains } = {}) {
+  const allowed = new Set(signupDomains(allowedDomains));
   return transaction(pool, async db => {
+    // Serialize first logins for one email, including competing Google subjects.
+    // Unique email and subject constraints also protect external provisioning races.
+    await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-google-account:'||$1,0))", [identity.email]);
     const linked = (await db.query(`SELECT u.id,u.email,u.name,g.linked_email FROM google_identities g
       JOIN users u ON u.id=g.user_id WHERE g.subject=$1 FOR UPDATE OF u,g`, [identity.subject])).rows[0];
     if (linked) {
@@ -60,8 +82,17 @@ async function resolveGoogleUser(pool, identity) {
     }
     // Google is not authoritative for third-party email without a Workspace hd claim.
     if (!identity.authoritative) throw fail('account_not_allowed');
-    const user = (await db.query('SELECT id,email,name FROM users WHERE email=$1 FOR UPDATE', [identity.email])).rows[0];
-    if (!user) throw fail('account_not_allowed');
+    let user = (await db.query('SELECT id,email,name FROM users WHERE email=$1 FOR UPDATE', [identity.email])).rows[0];
+    if (!user) {
+      const domain = identity.email.slice(identity.email.lastIndexOf('@') + 1);
+      if (!allowed.has(domain) || !allowed.has(identity.hostedDomain) || domain !== identity.hostedDomain) throw fail('account_not_allowed');
+      // No usable password is issued or exposed. The random secret only satisfies
+      // the existing non-null password hash schema; sign-in uses Google identity.
+      const passwordHash = await hashPassword(crypto.randomBytes(48).toString('base64url'));
+      user = (await db.query(`INSERT INTO users(email,name,password_hash) VALUES($1,$2,$3)
+        ON CONFLICT(email) DO NOTHING RETURNING id,email,name`, [identity.email, identity.name, passwordHash])).rows[0];
+      if (!user) user = (await db.query('SELECT id,email,name FROM users WHERE email=$1 FOR UPDATE', [identity.email])).rows[0];
+    }
     const existing = (await db.query('SELECT subject FROM google_identities WHERE user_id=$1', [user.id])).rows[0];
     if (existing) {
       if (existing.subject !== identity.subject) throw fail('identity_conflict');
@@ -123,7 +154,7 @@ function createGoogleAuth(pool, { auth, appOrigin, production = false, config, c
       const idToken = await client.exchange({ code, codeVerifier: attempt.code_verifier });
       const identity = validateClaims(await client.verify(idToken), { clientId: settings.clientId, nonceHash: attempt.nonce_hash });
       await auth.limit('google:account:' + sha256(identity.subject), 15);
-      const user = await resolveGoogleUser(pool, identity);
+      const user = await resolveGoogleUser(pool, identity, { signupDomains: settings.signupDomains });
       await auth.issueSession(req, res, user);
       res.clearCookie(cookieName, cookieOptions);
       res.redirect(303, '/');
@@ -132,7 +163,7 @@ function createGoogleAuth(pool, { auth, appOrigin, production = false, config, c
       reject(res, ['state_invalid', 'cancelled', 'account_not_allowed', 'identity_conflict'].includes(error.authCode) ? error.authCode : 'failed');
     }
   }
-  return { enabled, start, callback };
+  return { enabled, signupDomains: enabled ? [...settings.signupDomains] : [], start, callback };
 }
 
-module.exports = { CALLBACK_PATH, googleConfig, createGoogleClient, validateClaims, resolveGoogleUser, createGoogleAuth };
+module.exports = { CALLBACK_PATH, googleConfig, signupDomains, createGoogleClient, validateClaims, resolveGoogleUser, createGoogleAuth };

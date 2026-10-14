@@ -50,7 +50,7 @@ async function main() {
   if(production&&!process.env.APP_ORIGIN) throw new Error('APP_ORIGIN_REQUIRED');
   const appOrigin=process.env.APP_ORIGIN||`http://127.0.0.1:${port}`;
   if(production&&new URL(appOrigin).protocol!=='https:') throw new Error('HTTPS_ORIGIN_REQUIRED');
-  const google = googleConfig({clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET});
+  const google = googleConfig({clientId:process.env.GOOGLE_CLIENT_ID,clientSecret:process.env.GOOGLE_CLIENT_SECRET,signupDomains:process.env.GOOGLE_SIGNUP_ALLOWED_DOMAINS});
   const pipelineToken=token('NORA_PIPELINE_TOKEN','pipeline-secret.json',production),flowToken=token('NORA_FLOW_TOKEN','flow-secret.json',production);
   const pool=createPool();
   pool.on('error',()=>console.error(JSON.stringify({event:'database_connection_error'})));
