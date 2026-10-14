@@ -8,6 +8,7 @@ const multer = require('multer');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { createAuth, error } = require('./auth');
+const { createSharedViews } = require('./shared-views');
 const { createGoogleAuth } = require('./google-auth');
 const { createLedger } = require('./ledger');
 const { createRegistrationAssistant } = require('./registration-assistant');
@@ -35,7 +36,8 @@ const {mountExecutionQueueBridge,mountExecutionQueueRoutes}=require('./execution
 const {kakaoWatcherScript}=require('./kakao-watcher-download');
 
 function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {} }) {
-  const app = express(), ledger = createLedger(pool), auth = createAuth(pool, { appOrigin, production });
+  const sharedViews = createSharedViews(pool, { appOrigin, production });
+  const app = express(), ledger = createLedger(pool), auth = createAuth(pool, { appOrigin, production, sharedViews });
   const registrationAssistant = createRegistrationAssistant({ pool });
   const channels = createChannelLedger(pool);
   if(production&&governance.enforce===false)throw new Error('GOVERNANCE_REQUIRED_IN_PRODUCTION');
@@ -60,6 +62,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   app.use((req,res,next) => { res.set('X-Request-ID', randomUUID()); next(); });
   app.get('/healthz', async (_req,res) => { try { await pool.query('SELECT 1'); res.json({status:'ok'}); } catch { res.status(503).json({status:'unavailable'}); } });
   app.use('/api', (_req,res,next) => { res.set('Cache-Control','no-store'); next(); });
+  app.use('/api', sharedViews.earlyGuard);
   mountContextAIWebhook(app,{pool,contextAI});
   mountWorkAIWebhook(app,{pool,workAI});
   mountExecutionQueueBridge(app,{pool,appOrigin});
@@ -76,9 +79,17 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   app.get('/api/auth/google', googleAuth.start);
   app.get('/api/auth/google/callback', googleAuth.callback);
   app.post('/api/auth/login', auth.login);
-  app.use('/api', auth.authenticate, auth.csrf);
-  app.get('/api/session', (req,res) => res.json({user:req.user,csrfToken:req.session.csrfToken}));
+  app.post('/api/auth/shared-view', async (req,res) => {
+    try { res.json(await sharedViews.exchange(req,res,auth)); }
+    catch (e) { sharedViews.markUnavailable(res); throw e; }
+  });
+  app.post('/api/auth/shared-view/exit', async (req,res) => { await sharedViews.exit(req,res); res.json({ok:true}); });
+  app.use('/api', auth.authenticate, sharedViews.guard, auth.csrf);
+  app.get('/api/session', (req,res) => res.json({user:req.user,csrfToken:req.session.csrfToken,...(req.sharedView?{shared_view:req.sharedView}:{})}));
   app.post('/api/auth/logout', auth.logout);
+  app.get('/api/shared-views', async (req,res) => res.json(await sharedViews.list(req.user.id)));
+  app.post('/api/shared-views', async (req,res) => res.status(201).json(await sharedViews.create(req.user.id,req.body)));
+  app.post('/api/shared-views/:id/revoke', async (req,res) => res.json(await sharedViews.revoke(req.user.id,req.params.id)));
   app.get('/api/projects', async (req,res) => res.json({projects:await ledger.listProjects(req.user.id)}));
   app.post('/api/projects', async (req,res) => res.status(201).json({project:await ledger.createProject(req.user.id,req.body)}));
   const project = express.Router({mergeParams:true});

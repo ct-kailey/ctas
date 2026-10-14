@@ -38,16 +38,17 @@ function constantEquals(a, b) {
   return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
 }
 
-function createAuth(pool, { appOrigin, production = false, sessionHours = 8 } = {}) {
+function createAuth(pool, { appOrigin, production = false, sessionHours = 8, sharedViews } = {}) {
   const origin = new URL(appOrigin).origin;
   const cookieOptions = { httpOnly: true, sameSite: 'lax', secure: production, path: '/' };
   const dummy = 'scrypt$32768$8$1$' + '0'.repeat(32) + '$' + '0'.repeat(128);
   async function authenticate(req, _res, next) {
     try {
+      if (sharedViews?.hasCookie(req)) { await sharedViews.authenticate(req); return next(); }
       const token = cookies(req.headers.cookie)[SESSION_COOKIE];
       if (!token || !/^[a-f0-9]{64}$/.test(token)) throw error('UNAUTHENTICATED', '로그인이 필요합니다.', 401);
       const { rows } = await pool.query(`SELECT s.token_hash,s.csrf_token,u.id,u.email,u.name
-        FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now()`, [sha256(token)]);
+        FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() AND NOT u.is_shared_view`, [sha256(token)]);
       if (!rows[0]) throw error('UNAUTHENTICATED', '로그인이 만료되었습니다.', 401);
       req.user = { id: rows[0].id, email: rows[0].email, name: rows[0].name };
       req.session = { tokenHash: rows[0].token_hash, csrfToken: rows[0].csrf_token };
@@ -77,7 +78,7 @@ function createAuth(pool, { appOrigin, production = false, sessionHours = 8 } = 
     await limit('ip:' + sha256(req.ip || 'unknown'), 50);
     const email = emailAddress(req.body?.email);
     await limit('account:' + sha256(email), 15);
-    const { rows } = await pool.query('SELECT id,email,name,password_hash FROM users WHERE email=$1', [email]);
+    const { rows } = await pool.query('SELECT id,email,name,password_hash FROM users WHERE email=$1 AND NOT is_shared_view', [email]);
     const valid = await verifyPassword(req.body?.password, rows[0]?.password_hash || dummy);
     if (!valid || !rows[0]) throw error('INVALID_LOGIN', '이메일 또는 비밀번호를 확인해 주세요.', 401);
     await pool.query('DELETE FROM auth_attempts WHERE bucket=$1 OR expires_at<now()', ['account:' + sha256(email)]);
@@ -85,6 +86,7 @@ function createAuth(pool, { appOrigin, production = false, sessionHours = 8 } = 
     res.json(session);
   }
   async function issueSession(req, res, user) {
+    if (!(await pool.query('SELECT 1 FROM users WHERE id=$1 AND NOT is_shared_view', [user.id])).rowCount) throw error('INVALID_LOGIN', '이 계정으로 로그인할 수 없습니다.', 401);
     const token = crypto.randomBytes(32).toString('hex'), csrfToken = crypto.randomBytes(32).toString('hex');
     const old = cookies(req.headers.cookie)[SESSION_COOKIE];
     await transaction(pool, async db => {
@@ -92,9 +94,11 @@ function createAuth(pool, { appOrigin, production = false, sessionHours = 8 } = 
       if (old && /^[a-f0-9]{64}$/.test(old)) await db.query('DELETE FROM sessions WHERE token_hash=$1', [sha256(old)]);
     });
     res.cookie(SESSION_COOKIE, token, { ...cookieOptions, maxAge: sessionHours * 60 * 60 * 1000 });
+    if (sharedViews?.hasCookie(req)) await sharedViews.exit(req, res);
     return { user: { id: user.id, email: user.email, name: user.name }, csrfToken };
   }
   async function logout(req, res) {
+    if (req.sharedView) { await sharedViews.exit(req, res); return res.json({ ok: true }); }
     await pool.query('DELETE FROM sessions WHERE token_hash=$1', [req.session.tokenHash]);
     res.clearCookie(SESSION_COOKIE, cookieOptions).json({ ok: true });
   }

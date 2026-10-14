@@ -10,7 +10,7 @@ function mountQuestionRoutes(router,{pool,write,review,encryptionKey,fetchImpl})
  router.patch('/questions/:id',review,async(req,res)=>res.json({question:await service.update(req.params.p,req.user.id,req.params.id,req.body)}));
  for(const [route,method,middleware] of [['asked','markAsked',write],['answer','answer',write],['resolve','resolve',review],['propose-context','propose',review]])router.post('/questions/:id/'+route,middleware,async(req,res)=>res.json({question:await service[method](req.params.p,req.user.id,req.params.id,req.body)}));
  router.post('/questions/:id/follow-up',review,async(req,res)=>{try{res.status(201).json({question:await service.followUp(req.params.p,req.user.id,req.params.id,req.body)});}catch(e){if(e.code==='QUESTION_FOLLOWUP_EXISTS')return res.status(409).json({error:{code:e.code,message:e.message,followup_id:e.followup_id}});throw e;}});
- router.get('/question-reminders',async(req,res)=>res.json(await service.reminders(req.params.p,req.user.id)));
+ router.get('/question-reminders',async(req,res)=>res.json(await service.reminders(req.params.p,req.user.id,req.sharedView?.link_id)));
  router.post('/question-reminders/refresh',write,async(req,res)=>res.json(await service.refresh(req.params.p,req.user.id)));
  router.post('/question-reminders/:id/acknowledge',write,async(req,res)=>res.json(await service.acknowledge(req.params.p,req.user.id,req.params.id)));
  router.get('/question-outbound',async(req,res)=>res.json(await outbound.settings(req.params.p,req.user.id)));

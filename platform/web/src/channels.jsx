@@ -1,3 +1,4 @@
+import { useSharedView } from './shared-view.jsx';
 import { useConfirm } from './confirmation.jsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, CheckCheck, ChevronRight, Hash, Inbox, Link2, MessageSquare, Pause, Play, Plus, RefreshCw, ShieldCheck, Sparkles, Trash2, Upload } from 'lucide-react';
@@ -30,6 +31,7 @@ function InboxStatus({ item }) {
 }
 
 export function ChannelInbox({ project, domains, request, canWrite, canReview, onChanged, notify, onDirty, guardNavigation, initialItemId, onOpenClassification, onOpenQuestion, onOpenSource }) {
+  const sharedView = useSharedView();
   const confirm = useConfirm();
   const [sources, setSources] = useState([]), [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true), [error, setError] = useState(null), [filter, setFilter] = useState('pending');
@@ -46,14 +48,14 @@ export function ChannelInbox({ project, domains, request, canWrite, canReview, o
     if (!quiet) setLoading(true);
     try {
       const [sourceResult, inboxResult] = await Promise.all([
-        request(`${route}/channel-sources`, { signal }), request(`${route}/channel-inbox`, { signal }),
+        sharedView ? Promise.resolve({sources:[]}) : request(`${route}/channel-sources`, { signal }), request(`${route}/channel-inbox`, { signal }),
       ]);
       if (!lifecycle.current.active || sequence !== lifecycle.current.sequence) return;
       setSources(sourceResult.sources); setItems(inboxResult.items); setError(null);
     } catch (err) {
       if (lifecycle.current.active && sequence === lifecycle.current.sequence && err.name !== 'AbortError') setError(err);
     } finally { if (lifecycle.current.active && sequence === lifecycle.current.sequence) setLoading(false); }
-  }, [request, route]);
+  }, [request, route, sharedView]);
   useEffect(() => {
     lifecycle.current.active = true;
     const controller = new AbortController();
@@ -91,9 +93,9 @@ export function ChannelInbox({ project, domains, request, canWrite, canReview, o
     {selectedId ? <ChannelItem key={`${project.id}:${selectedId}`} id={selectedId} route={route} request={request} domains={domains} canReview={canReview} onBack={() => navigate(() => setSelectedId(null))} onChanged={changed} onDirty={setDetailDirty} onOpenClassification={onOpenClassification} onOpenQuestion={onOpenQuestion} onOpenSource={onOpenSource} /> : <>
       <div className="channel-stage-note"><span className="channel-stage-icon"><MessageSquare size={23} strokeWidth={1.5} /></span><div><h2>대화를 근거 있는 기록으로.</h2><p>지금은 대화를 직접 가져와 분석하고 검토합니다. 실제 채널 연결과 자동 감시는 대상·권한을 지정한 뒤 활성화합니다.</p></div><Badge tone="quiet">실제 채널 미연결</Badge></div>
       <ErrorNotice error={error} onRetry={() => load()} />
-      <section className="channel-sources-panel" aria-label="수집 출처"><SectionHeading eyebrow="CHANNEL SOURCES" title="수집할 출처">{canReview ? <Button variant="secondary" icon={Plus} onClick={() => setModal({ type: 'source' })}>출처 준비</Button> : null}</SectionHeading>
+      {!sharedView ? <section className="channel-sources-panel" aria-label="수집 출처"><SectionHeading eyebrow="CHANNEL SOURCES" title="수집할 출처">{canReview ? <Button variant="secondary" icon={Plus} onClick={() => setModal({ type: 'source' })}>출처 준비</Button> : null}</SectionHeading>
         {loading && !sources.length ? <Spinner label="출처를 불러오고 있습니다" /> : sources.length ? <div className="channel-source-grid">{sources.map((source) => <article className="channel-source-card" key={source.id}><div className="channel-source-heading"><span className={`channel-provider-icon provider-${source.provider}`}><MessageSquare size={18} /></span><div><span>{PROVIDERS[source.provider] || '기타 채널'}</span><h3>{source.name}</h3></div><Badge tone="quiet">미연결</Badge></div><p className="channel-source-id"><Hash size={12} />{source.external_channel_id}</p><div className="channel-source-meta"><span>{domains.find((domain) => domain.id === source.default_domain_id)?.name || '검토 시 업무 영역 선택'}</span><span>{source.enabled && source.manual_intake_enabled ? '수동 가져오기 허용' : '수동 가져오기 중지'}</span></div><div className="channel-source-actions"><Button variant="secondary" icon={Upload} disabled={!canWrite || !source.enabled || !source.manual_intake_enabled} onClick={() => openImport(source)}>대화 가져오기</Button>{canReview ? <ControlButton className="text-button" disabled={Boolean(toggling) || !source.enabled} onClick={() => toggle(source)} aria-label={`${source.name} 수동 가져오기 ${source.manual_intake_enabled ? '중지' : '허용'}`}>{source.manual_intake_enabled ? <Pause size={13} /> : <Play size={13} />}{source.manual_intake_enabled ? '일시 중지' : '허용'}</ControlButton> : null}</div></article>)}</div> : error ? null : <Empty compact icon={MessageSquare} title="첫 대화 출처를 준비하세요">채널 이름과 식별자를 등록하면 수동으로 대화를 가져올 수 있습니다.<br />계정 로그인이나 자동 감시는 시작되지 않습니다.</Empty>}
-      </section>
+      </section> : null}
       <section className="channel-inbox-panel" aria-label="대화 검토함"><SectionHeading eyebrow="HUMAN REVIEW INBOX" title={`확인할 대화 ${pendingCount}건`}><ControlButton className="text-button" onClick={() => load()} disabled={loading}><RefreshCw size={13} />새로고침</ControlButton></SectionHeading><Tabs value={filter} onValueChange={setFilter} variant="text" size="sm" data-ctds="tabs"><Tabs.List aria-label="수집 기록 필터">{[['pending', '검토 대기'], ['completed', '처리 완료'], ['all', '전체']].map(([id, label]) => <Tabs.Trigger key={id} value={id}>{label}</Tabs.Trigger>)}</Tabs.List></Tabs>
         {loading && !items.length ? <Spinner label="검토함을 불러오고 있습니다" /> : visible.length ? <div className="channel-inbox-list">{visible.map((item) => <ControlButton className="channel-inbox-row" key={item.id} onClick={() => setSelectedId(item.id)}><span className="channel-inbox-symbol"><MessageSquare size={18} /></span><div className="channel-inbox-main"><div className="channel-inbox-labels"><span>{PROVIDERS[item.provider] || PROVIDERS[item.input_snapshot?.source?.provider] || '대화'}</span><span>{item.source_name || item.input_snapshot?.source?.name}</span>{item.analysis?.classification ? <span>{CLASSIFICATIONS[item.analysis.classification] || '분석 결과'}</span> : null}</div><strong>{item.analysis?.title || item.conversation_key || item.input_snapshot?.conversation_key || '수집한 대화'}</strong><p>{item.analysis?.summary || (RUNNING.has(item.status) ? '대화의 맥락과 결정 후보를 정리하고 있습니다.' : '원문과 처리 상태를 확인해 주세요.')}</p><small>수집 {dateTime(item.created_at)}{item.evidence_changed || item.provenance_changed ? <span className="channel-stale-label"><AlertTriangle size={12} />출처 변경 확인 필요</span> : null}</small></div><InboxStatus item={item} /><ChevronRight size={16} /></ControlButton>)}</div> : error ? null : <Empty compact icon={Inbox} title={filter === 'completed' ? '처리한 대화가 없습니다' : '확인할 대화가 없습니다'}>가져온 대화는 검토함에 보관됩니다.<br />검토자가 확인한 내용만 문서·기록 보관함에 등록합니다.</Empty>}
       </section>

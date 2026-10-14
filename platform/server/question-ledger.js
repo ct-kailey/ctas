@@ -68,7 +68,22 @@ function createQuestionService(pool){return {
  },
  async propose(p,u,qid,body){object(body,['expected_version','request_id','expected_context_version','reason']);return transaction(pool,async db=>{await lockQuestionWorkflow(db,p);const v=await lock(db,p,u);const q=await getQuestion(db,p,qid,true);if(q.context_candidate_id){if(q.context_candidate_id===body.request_id)return {candidate_id:q.context_candidate_id,replayed:true};fail('QUESTION_ALREADY_PROPOSED','이미 Main Context 검토 후보가 있습니다.',409);}checkVersion(q,body.expected_version);if(q.status!=='resolved')fail('QUESTION_REVIEW_REQUIRED','답변을 검토 확정한 후 등록하세요.',409);const src=await catalog.source(db,p,'question',q.id);const c=await createCandidateInTransaction(db,p,u,{request_id:body.request_id,expected_context_version:body.expected_context_version,kind:'question',title:q.title,body:`질문: ${q.question}\n\n답변: ${q.answer.text}\n\n질문 대상: ${q.recipient}\n질문 채널: ${q.channel}\n답변한 사람: ${q.answer.responded_by}`,rationale:text(body.reason,'반영 근거',3000),certainty:'agreed',scope:'unknown',channel:q.answer.channel,occurred_at:q.answer.responded_at,source_refs:[{type:'question',id:q.id,sha256:src.sha256}]},v);await db.query('UPDATE project_questions SET context_candidate_id=$3 WHERE project_id=$1 AND id=$2',[p,q.id,c.id]);return {candidate_id:c.id,replayed:false};});},
  async refresh(p,u){await membership(pool,p,u,ROLES);await refreshQuestionReminders(pool,p);return this.reminders(p,u);},
- async reminders(p,u){const role=await membership(pool,p,u);return {items:(await pool.query(`SELECT * FROM (SELECT DISTINCT ON (r.question_id) r.*,q.title,q.status,q.question,q.due_at,q.waiting_since,u.name AS assigned_name FROM question_reminders r JOIN project_questions q ON q.id=r.question_id AND q.project_id=r.project_id JOIN users u ON u.id=r.assigned_to WHERE r.project_id=$1 AND q.status='waiting' AND r.question_version=q.version AND r.acknowledged_at IS NULL AND ($3 OR r.assigned_to=$2) ORDER BY r.question_id,r.created_at DESC) latest ORDER BY created_at DESC LIMIT 100`,[p,u,REVIEW.includes(role)])).rows,delivery:'in_app',external_auto_send:false};},
+ async reminders(p,u,sharedViewId){
+  let displayUser=u,displayRole=await membership(pool,p,u);
+  if(sharedViewId){
+   // Only reminder filtering follows the shared source account. The request
+   // actor remains the dedicated viewer, so no mutation inherits source roles.
+   // Resolve the source from the validated link, never a client query parameter.
+   const source=(await pool.query(`SELECT v.source_user_id,m.role FROM shared_views v
+    JOIN memberships m ON m.project_id=$1 AND m.user_id=v.source_user_id
+    JOIN memberships creator ON creator.project_id=$1 AND creator.user_id=v.creator_id AND creator.role='owner'
+    WHERE v.id=$3 AND v.viewer_user_id=$2 AND $1=ANY(v.project_ids)
+      AND v.revoked_at IS NULL AND v.expires_at>now()`,[p,u,id(sharedViewId)])).rows[0];
+   if(!source)fail('SHARED_VIEW_UNAVAILABLE','공유 링크가 만료되었거나 종료되었습니다.',401);
+   displayUser=source.source_user_id;displayRole=source.role;
+  }
+  return {items:(await pool.query(`SELECT * FROM (SELECT DISTINCT ON (r.question_id) r.*,q.title,q.status,q.question,q.due_at,q.waiting_since,u.name AS assigned_name FROM question_reminders r JOIN project_questions q ON q.id=r.question_id AND q.project_id=r.project_id JOIN users u ON u.id=r.assigned_to WHERE r.project_id=$1 AND q.status='waiting' AND r.question_version=q.version AND r.acknowledged_at IS NULL AND ($3 OR r.assigned_to=$2) ORDER BY r.question_id,r.created_at DESC) latest ORDER BY created_at DESC LIMIT 100`,[p,displayUser,REVIEW.includes(displayRole)])).rows,delivery:'in_app',external_auto_send:false};
+ },
  async acknowledge(p,u,rid){await membership(pool,p,u,ROLES);await pool.query('UPDATE question_reminders SET acknowledged_at=now(),acknowledged_by=$3 WHERE project_id=$1 AND id=$2 AND assigned_to=$3',[p,id(rid),u]);return {acknowledged:true};}
 };}
 async function refreshQuestionReminders(pool,p,now=new Date()){return pool.query(`INSERT INTO question_reminders(project_id,question_id,question_version,day_key,assigned_to,detail) SELECT q.project_id,q.id,q.version,($2::timestamptz AT TIME ZONE 'Asia/Seoul')::date,q.assigned_to,jsonb_build_object('reason',CASE WHEN q.due_at <= $2::timestamptz THEN 'due_overdue' ELSE 'waiting_3_days' END,'waiting_since',q.waiting_since,'due_at',q.due_at,'recipient',q.recipient,'channel',q.channel) FROM project_questions q WHERE ($1::text IS NULL OR q.project_id=$1) AND q.status='waiting' AND (q.due_at <= $2::timestamptz OR q.waiting_since <= $2::timestamptz - interval '3 days') ON CONFLICT DO NOTHING`,[p||null,now]);}

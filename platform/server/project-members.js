@@ -25,6 +25,7 @@ async function owner(db, p, u) {
   if (member.role !== 'owner') throw error('FORBIDDEN', '프로젝트 관리자만 구성원을 관리할 수 있습니다.', 403);
 }
 async function target(db, p, id, expectedRole) {
+  if ((await db.query('SELECT 1 FROM users WHERE id=$1 AND is_shared_view', [id])).rowCount) throw error('SHARED_VIEW_MEMBER', '공유 열람 권한은 공유 링크 관리에서 종료하세요.', 403);
   const member = (await db.query('SELECT role FROM memberships WHERE project_id=$1 AND user_id=$2 FOR UPDATE', [p, id])).rows[0];
   if (!member) throw error('NOT_FOUND', '프로젝트 구성원을 찾을 수 없습니다.', 404);
   if (member.role !== expectedRole) throw error('MEMBERSHIP_CHANGED', '구성원 권한이 변경되었습니다. 목록을 새로 불러온 후 다시 확인하세요.', 409);
@@ -64,7 +65,7 @@ function createProjectMembers(pool) {
       LEFT JOIN (SELECT assignee_id,count(*) AS total,count(*) FILTER(WHERE status<>'done') AS open_count FROM work_items WHERE project_id=$1 GROUP BY assignee_id) w ON w.assignee_id=m.user_id
       LEFT JOIN (SELECT assigned_to,count(*) AS total,count(*) FILTER(WHERE status IN ('draft','waiting','answered_pending')) AS open_count FROM project_questions WHERE project_id=$1 GROUP BY assigned_to) q ON q.assigned_to=m.user_id
       LEFT JOIN (SELECT assignee_id,count(*) AS total,count(*) FILTER(WHERE status='active') AS open_count FROM work_scope_locks WHERE project_id=$1 GROUP BY assignee_id) s ON s.assignee_id=m.user_id
-      WHERE m.project_id=$1),'[]'::jsonb) AS members FROM authorized a`, [p, u]);
+      WHERE m.project_id=$1 AND NOT u.is_shared_view),'[]'::jsonb) AS members FROM authorized a`, [p, u]);
       if (!rows[0]) throw error('NOT_FOUND', '프로젝트를 찾을 수 없습니다.', 404);
       return { ...rows[0], assignment_model: 'one_primary_assignee_per_task' };
     },
@@ -73,7 +74,7 @@ function createProjectMembers(pool) {
       const email = emailAddress(body.email), nextRole = role(body.role);
       return transaction(pool, async db => {
         await owner(db, p, actor);
-        const user = (await db.query('SELECT id,name,email FROM users WHERE email=$1', [email])).rows[0];
+        const user = (await db.query('SELECT id,name,email FROM users WHERE email=$1 AND NOT is_shared_view', [email])).rows[0];
         if (!user) throw error('ACCOUNT_NOT_REGISTERED', '먼저 서비스 계정 등록이 필요합니다. 가입된 이메일로 다시 추가하세요. 초대 메일은 발송되지 않습니다.', 404);
         const inserted = await db.query('INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,$3) ON CONFLICT DO NOTHING RETURNING role', [p, user.id, nextRole]);
         if (!inserted.rowCount) throw error('MEMBER_EXISTS', '이미 이 프로젝트의 구성원입니다. 목록에서 권한을 확인하세요.', 409);

@@ -1,3 +1,4 @@
+import { useSharedView } from './shared-view.jsx';
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCheck, CircleHelp, FileCheck2, Link2, MessageSquare, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, FormField, JobExecution, Modal, SourceNotices, Spinner, dateTime, projectPath, shortId, Input, Textarea, ControlButton, Tabs } from './ui.jsx';
@@ -37,7 +38,8 @@ function ChangeCard({ change, index, project, review }) {
 }
 
 function Evidence({ side, evidence, project, revisionId }) {
-  return <div className={`source-evidence ${side}`}><header><span>{side === 'before' ? '변경 전 · 확정본' : '변경 후 · 새 버전'}</span>{evidence ? <a href={`${projectPath(project.id)}/revisions/${encodeURIComponent(revisionId)}/original`} aria-label={`${side === 'before' ? '확정본' : '새 버전'} 원문 내려받기`}>{evidence.locator?.label || '원문'}<Link2 size={12} /></a> : null}</header>{evidence ? <blockquote>{evidence.text}</blockquote> : <p className="no-evidence">{side === 'before' ? '기존 내용 없음' : '새 버전에서 삭제됨'}</p>}</div>;
+  const sharedView = useSharedView();
+  return <div className={`source-evidence ${side}`}><header><span>{side === 'before' ? '변경 전 · 확정본' : '변경 후 · 새 버전'}</span>{evidence && !sharedView ? <a href={`${projectPath(project.id)}/revisions/${encodeURIComponent(revisionId)}/original`} aria-label={`${side === 'before' ? '확정본' : '새 버전'} 원문 내려받기`}>{evidence.locator?.label || '원문'}<Link2 size={12} /></a> : null}</header>{evidence ? <blockquote>{evidence.text}</blockquote> : <p className="no-evidence">{side === 'before' ? '기존 내용 없음' : '새 버전에서 삭제됨'}</p>}</div>;
 }
 
 function Question({ question, index, answer, editable, onEdit }) {

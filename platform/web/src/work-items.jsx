@@ -1,3 +1,4 @@
+import { useSharedView } from './shared-view.jsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRight, CalendarDays, CheckCheck, Download, FolderKanban, Plus, RefreshCw, Search } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, FormField, Modal, Spinner, dateTime, projectPath, Input, Textarea, Select, ControlButton, Disclosure, Tabs, Notice } from './ui.jsx';
@@ -12,6 +13,7 @@ const initialForm = item => ({ status: item.status, assignee_id: item.assignee_i
 function StateBadge({ status }) { return <Badge tone={STATES[status]?.[1]}>{STATES[status]?.[0] || status}</Badge>; }
 
 export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId }) {
+  const sharedView = useSharedView();
   const route = projectPath(projectId), canReview = REVIEWERS.includes(role);
   const [data, setData] = useState(null), [plans, setPlans] = useState([]), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('all'), [query, setQuery] = useState(''), [selected, setSelected] = useState(null), [importing, setImporting] = useState(false), [opening, setOpening] = useState(false), [detailError, setDetailError] = useState(null);
@@ -42,13 +44,13 @@ export function WorkItems({ projectId, request, role, userId, notify, onChanged,
   }, [data, importing, initialItemId, open, route, selected]);
   async function saved(message) { if (!alive.current) return; notify?.(message); await load(); if (alive.current) await onChanged?.({ quiet: true }); }
   const items = data?.items || [], date = today(), imported = new Set(items.map(item => item.plan_id));
-  const filters = [['all', '전체', items.length], ['mine', '내 작업', items.filter(i => i.assignee_id === userId && i.status !== 'done').length], ['unassigned', '미배정', items.filter(i => !i.assignee_id && i.status !== 'done').length], ['overdue', '기한 초과', items.filter(i => overdue(i, date)).length], ['qa', 'QA 대기', items.filter(i => i.status === 'qa').length], ['blocked', '차단됨', items.filter(i => i.status === 'blocked').length]];
+  const filters = [['all', '전체', items.length], ['mine', sharedView ? `${sharedView.source_user_name || '담당자'}님 작업` : '내 작업', items.filter(i => i.assignee_id === userId && i.status !== 'done').length], ['unassigned', '미배정', items.filter(i => !i.assignee_id && i.status !== 'done').length], ['overdue', '기한 초과', items.filter(i => overdue(i, date)).length], ['qa', 'QA 대기', items.filter(i => i.status === 'qa').length], ['blocked', '차단됨', items.filter(i => i.status === 'blocked').length]];
   const filtered = items.filter(item => {
     const matches = filter === 'all' || (filter === 'mine' ? item.assignee_id === userId && item.status !== 'done' : filter === 'unassigned' ? !item.assignee_id && item.status !== 'done' : filter === 'overdue' ? overdue(item, date) : item.status === filter);
     return matches && `${item.source_task.title} ${item.source_task.description} ${item.assignee_name || ''} ${item.plan_title}`.toLowerCase().includes(query.toLowerCase().trim());
   });
   return <section className="work-board" aria-label="기능별 작업 관리">
-    <div className="work-board-intro"><div><h2>작업 목록</h2><p>작업을 선택해 담당자·기한·상태를 변경하세요.</p></div><div className="inline-actions">{onOpenGovernance ? <Button variant="secondary" onClick={onOpenGovernance}>작업 전 점검·범위 승인</Button> : null}<Button variant="secondary" icon={RefreshCw} busy={busy} onClick={load}>새로고침</Button>{canReview ? <Button icon={Plus} onClick={() => setImporting(true)} disabled={!data}>승인 계획 가져오기</Button> : null}</div></div>
+    <div className="work-board-intro"><div><h2>작업 목록</h2><p>{sharedView ? '작업별 담당자·기한·진행 상태와 이력을 확인하세요.' : '작업을 선택해 담당자·기한·상태를 변경하세요.'}</p></div><div className="inline-actions">{onOpenGovernance ? <Button variant="secondary" onClick={onOpenGovernance}>작업 전 점검·범위 승인</Button> : null}<Button variant="secondary" icon={RefreshCw} busy={busy} onClick={load}>새로고침</Button>{canReview ? <Button icon={Plus} onClick={() => setImporting(true)} disabled={!data}>승인 계획 가져오기</Button> : null}</div></div>
     <ErrorNotice error={error} onRetry={load} />
     <ErrorNotice error={detailError?.error} onRetry={detailError ? () => open({ id: detailError.id }) : undefined} />
     {opening ? <p className="work-helper" role="status">선택한 작업을 불러오고 있습니다.</p> : null}
@@ -76,6 +78,7 @@ function ImportPlan({ plans, imported, route, request, onClose, onDone, onOpenIm
 }
 
 function WorkDetail({ initial, members, route, request, role, userId, onClose, onSaved, onOpenImplementation }) {
+  const sharedView = useSharedView();
   const [item, setItem] = useState(initial), [form, setForm] = useState(() => initialForm(initial)), [busy, setBusy] = useState(false), [error, setError] = useState(null);
   const alive = useRef(true); useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const reviewer = REVIEWERS.includes(role), canEdit = reviewer || (role === 'member' && item.assignee_id === userId);
@@ -98,7 +101,7 @@ function WorkDetail({ initial, members, route, request, role, userId, onClose, o
     {stale ? <Notice className="notice warning"><AlertTriangle size={18} /><div><strong>기획 또는 프로젝트 설정이 바뀌었습니다.</strong><p>최신 계획을 검토해 주세요. 기록 추가·배정·차단 처리는 가능하지만 진행·QA·완료로 넘길 수 없습니다.</p></div></Notice> : null}
     <section className="work-detail-section"><h3>완료 기준</h3><ul>{item.source_task.acceptance_criteria.map((criterion, i) => <li key={i}>{criterion}</li>)}</ul></section>
     {item.dependencies.length ? <section className="work-detail-section"><h3>먼저 완료할 작업</h3><ul className="work-dependencies">{item.dependencies.map(d => <li key={d.source_task_id}><span>{d.source_task_id} · {d.title}</span><StateBadge status={d.status} /></li>)}</ul></section> : null}
-    <Disclosure className="work-source"><summary>기획 원문 근거 · {item.source_task.evidence.length}개</summary>{(item.evidence_context || []).map((e, i) => <article key={i}><strong>{e.title} · {e.locator?.label || e.segment_id}</strong><p>{e.text}</p><a href={`${route}/revisions/${encodeURIComponent(e.revision_id)}/original`}>원본 내려받기<Download size={12} /></a></article>)}</Disclosure>
+    <Disclosure className="work-source"><summary>기획 원문 근거 · {item.source_task.evidence.length}개</summary>{(item.evidence_context || []).map((e, i) => <article key={i}><strong>{e.title} · {e.locator?.label || e.segment_id}</strong><p>{e.text}</p>{!sharedView ? <a href={`${route}/revisions/${encodeURIComponent(e.revision_id)}/original`}>원본 내려받기<Download size={12} /></a> : null}</article>)}</Disclosure>
     {canEdit ? <form className="work-edit-form" onSubmit={submit}><h3>담당·진행 내용 기록</h3><div className="work-edit-grid"><FormField label="진행 상태"><Select {...field('status')} disabled={busy}>{options.map(s => <option key={s} value={s} disabled={s !== item.status && ['in_progress', 'qa', 'done'].includes(s) && (stale || dependencyPending)}>{STATES[s][0]}</option>)}</Select></FormField><FormField label="담당자"><Select {...field('assignee_id')} disabled={!reviewer || busy}><option value="">미배정</option>{members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</Select></FormField><FormField label="마감일"><Input type="date" {...field('due_on')} onInput={e => setForm(current => ({ ...current, due_on: e.target.value }))} disabled={!reviewer || busy} min="0001-01-01" max="9999-12-31" /></FormField></div>
       {dependencyPending ? <p className="work-helper">선행 작업이 모두 완료되면 진행·QA·완료 상태를 선택할 수 있습니다.</p> : null}
       {form.status === 'blocked' ? <FormField label="진행을 막는 이유"><Textarea {...field('blocker')} rows={2} maxLength={2000} required disabled={busy} /></FormField> : null}
