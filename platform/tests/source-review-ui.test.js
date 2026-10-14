@@ -26,6 +26,21 @@ test('pending candidate confirmation retains version, question and policy confli
   assert.deepEqual(candidateBlockers({ status: 'pending', base_version: 1, questions: [{ blocking: true, answer: ' ' }], conflicts: [{ resolution: 'unresolved' }] }, 2), { stale: true, questions: true, conflicts: true });
 });
 
+test('commercial body arriving after source text updates the same revision without selecting the latest body', async () => {
+  const { hydratedSourceRevision } = await state();
+  const loaded = { id: 'old', source_text: '원문\n[]', status: 'ready' };
+  const document = { source_type: 'commercial_revision', revisions: [{ id: 'old', created_at: '2026-01-01' }] };
+  assert.equal(hydratedSourceRevision(loaded, document, 'old').content, undefined);
+  const content = { sections: [{ id: 'scope', title: '범위', body: '검토할 이전 원문' }], tables: [] };
+  document.revisions = [{ id: 'new', content: { sections: [{ body: '다른 버전' }] } }, { id: 'old', content }];
+  const hydrated = hydratedSourceRevision(loaded, document, 'old');
+  assert.deepEqual(hydrated.content, content);
+  assert.equal(hydrated.source_text, loaded.source_text);
+  assert.equal(hydrated.status, 'ready');
+  assert.equal(loaded.content, undefined);
+  assert.equal(hydratedSourceRevision(loaded, { source_type: 'revision', revisions: document.revisions }, 'old'), loaded);
+});
+
 const payload = { selected_indices: [0, 2], expected_sha256: 'a'.repeat(64), expected_context_version: 3, reason: '원문 확인 완료' };
 const run = (status, extra = {}) => ({ id: 'run-1', reviewed_sha256: payload.expected_sha256, status, ...extra });
 

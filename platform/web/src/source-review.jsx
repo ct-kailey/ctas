@@ -6,7 +6,7 @@ import { confirmSourceAnalysis } from './source-review-confirm.mjs';
 import { ReviewDetail } from './review.jsx';
 import { CommercialContentPreview } from './commercial.jsx';
 import { DOCUMENT_CATEGORIES, HistoryDetails, RECORD_KINDS } from './records.jsx';
-import { candidateBlockers, sourceCandidatesForRevision, sourceReviewDocuments, sourceReviewForRevision, sourceReviewSelection, sourceRunsForRevision } from './source-review-state.mjs';
+import { candidateBlockers, hydratedSourceRevision, sourceCandidatesForRevision, sourceReviewDocuments, sourceReviewForRevision, sourceReviewSelection, sourceRunsForRevision } from './source-review-state.mjs';
 import './source-review.css';
 
 const EMPTY = [];
@@ -75,7 +75,8 @@ export function SourceReviewWorkspace({ project, documents = EMPTY, reviews = EM
 function SourceReviewDocument({ project, doc, revisionId, reviewId, request, canWrite, canReview, context, ai, jobs, onChanged, onRefresh, onReview, onOpenContext, onOpenCommercial, onRetry, onDirty, guardNavigation }) {
   const sharedView = useSharedView(), commercial = doc.source_type === 'commercial_revision';
   const route = projectPath(project.id), contextRoute = `${route}/context`, revisionRoute = `${route}/revisions/${encodeURIComponent(revisionId)}`;
-  const [revision, setRevision] = useState(null), [source, setSource] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [requestPayload, setRequestPayload] = useState(null), [selectedRunId, setSelectedRunId] = useState(null);
+  const [loadedRevision, setRevision] = useState(null), [source, setSource] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [requestPayload, setRequestPayload] = useState(null), [selectedRunId, setSelectedRunId] = useState(null);
+  const revision = hydratedSourceRevision(loadedRevision, doc, revisionId);
   const [directRun, setDirectRun] = useState(null), [runRefresh, setRunRefresh] = useState(0);
   
   const alive = useRef(true);

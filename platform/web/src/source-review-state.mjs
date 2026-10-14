@@ -36,3 +36,11 @@ export function candidateBlockers(candidate, version) {
     conflicts: Boolean(candidate.conflicts?.some((item) => item.resolution === 'unresolved')),
   };
 }
+
+export function hydratedSourceRevision(loadedRevision, document, revisionId) {
+  if (!loadedRevision || document.source_type !== 'commercial_revision') return loadedRevision;
+  const metadata = document.revisions.find((revision) => revision.id === revisionId);
+  // The structured commercial body may arrive after the catalog text. Derive it
+  // from current props while keeping the fetched source text/status authoritative.
+  return { ...loadedRevision, ...metadata, source_text: loadedRevision.source_text, status: loadedRevision.status };
+}
