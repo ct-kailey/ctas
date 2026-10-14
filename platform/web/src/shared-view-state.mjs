@@ -9,6 +9,23 @@ export function consumeSharedViewLocation(browser) {
   return token;
 }
 
+// Changing only #share in an already-open tab does not load a new document.
+// Restart through the normal entry path so the old account's pending requests
+// and in-memory views cannot survive a switch to a different shared session.
+export function watchSharedViewLocation(browser) {
+  let reloading = false;
+  const onHashChange = () => {
+    if (reloading || !new URLSearchParams(browser.location.hash.slice(1)).has('share')) return;
+    reloading = true;
+    // Keep the fragment for the next document's one-time token consumption.
+    browser.location.reload();
+  };
+  browser.addEventListener('hashchange', onHashChange);
+  // Cover a link received between module evaluation and React effect setup.
+  onHashChange();
+  return () => browser.removeEventListener('hashchange', onHashChange);
+}
+
 const SHARED_INTENT_KEY = 'ains.shared-view.active';
 export function hasSharedViewIntent(browser) {
   try { return browser.sessionStorage.getItem(SHARED_INTENT_KEY) === 'true'; } catch { return false; }

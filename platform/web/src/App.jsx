@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Activity, AlertTriangle, ArrowDownToLine, ArrowRight, ArrowUpRight, CheckCheck, Code2, ChevronDown, ChevronRight, CircleHelp, ClipboardCheck, FilePlus2, Files, FolderKanban, Inbox, LayoutDashboard, LogOut, Menu, Plus, Settings2, ShieldCheck, Sparkles, Upload, X } from 'lucide-react';
 import { api, ApiError } from './api.js';
 import { SharedViewContext, SharedViewBanner, SharedViewManager } from './shared-view.jsx';
-import { consumeSharedViewLocation, hasSharedViewIntent, setSharedViewIntent, sharedViewTab } from './shared-view-state.mjs';
+import { consumeSharedViewLocation, hasSharedViewIntent, setSharedViewIntent, sharedViewTab, watchSharedViewLocation } from './shared-view-state.mjs';
 import { workspaceStorage, rememberWorkspaceReturn, restoreWorkspaceReturn, resolveWorkspaceProject } from './workspace-navigation.mjs';
 import { WorkspaceShell } from './workspace-shell.jsx';
 import { ProjectHome, AttentionInbox } from './workspace-home.jsx';
@@ -54,6 +54,7 @@ let sharedExchange = null;
 const initialWorkspaceEntry = restoreWorkspaceReturn(window.location.search, workspaceStorage(window));
 
 export default function App() {
+  useEffect(() => watchSharedViewLocation(window), []);
   const [entry] = useState(initialWorkspaceEntry);
   const [preferredStep, setPreferredStep] = useState(entry.workflowStep);
   const [guideOpen, setGuideOpen] = useState(false);
