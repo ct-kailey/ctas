@@ -50,6 +50,19 @@ suite('foreign domain and invented document IDs cannot be accepted even from inj
   await assert.rejects(a.suggest(p.id,owner,draft));assert.equal(calls,1);
   assert.equal((await pool.query('SELECT status FROM registration_requests WHERE project_id=$1',[p.id])).rows[0].status,'failed');
 });
+suite('classified registration suggestions only consider the selected purpose while preserving Nora schema',async()=>{
+  const {p,domain}=await setup();
+  const planning=await ledger.createRecord(p.id,owner,{title:'개발 기획서',document_category:'planning',text:'계획'});
+  await ledger.createRecord(p.id,owner,{title:'기획 관련 요구사항',document_category:'requirements',text:'요구사항'});
+  await ledger.createRecord(p.id,owner,{title:'기획 정책',document_category:'policy',text:'정책'});
+  let captured;
+  const a=createRegistrationAssistant({pool,available:true,invoke:async request=>{captured=request;return {traceId:'classified',suggestion:suggestion(domain)};}});
+  await a.suggest(p.id,owner,{title:'개발 기획서 v2',text:'기획서 변경',document_category:'planning'});
+  assert.equal(captured.record_kind,'specification');
+  assert.deepEqual(captured.documents.map(d=>d.id),[planning.document_id]);
+  assert.equal(captured.document_category,undefined,'published Nora request contract stays unchanged');
+  await assert.rejects(a.suggest(p.id,owner,{title:'분류 오류',document_category:'invented'}),{code:'INVALID_DOCUMENT_CATEGORY'});
+});
 suite('transport uncertainty is recorded once without automatic retries',async()=>{
   const {p}=await setup();let calls=0;
   const a=createRegistrationAssistant({pool,available:true,invoke:async()=>{calls++;throw Object.assign(new Error('unknown'),{code:'REGISTRATION_TRANSPORT_UNKNOWN',traceId:'partial-trace'});}});

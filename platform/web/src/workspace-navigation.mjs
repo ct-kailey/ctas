@@ -1,5 +1,5 @@
 import { resolveWorkflowStep } from './workspace-flow.mjs';
-export const WORKSPACE_TABS = new Set(['home', 'alerts', 'context', 'commercial', 'overview', 'reviews', 'documents', 'channels', 'integrations', 'transcriptions', 'implementation', 'work-governance', 'github-delivery', 'questions', 'work-items', 'settings', 'members', 'activity']);
+export const WORKSPACE_TABS = new Set(['home', 'alerts', 'source-review', 'context', 'commercial', 'overview', 'reviews', 'documents', 'channels', 'integrations', 'transcriptions', 'implementation', 'work-governance', 'github-delivery', 'questions', 'work-items', 'settings', 'members', 'activity']);
 
 export function readWorkspaceLocation(search) {
   const params = new URLSearchParams(search);

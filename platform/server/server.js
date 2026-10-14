@@ -37,7 +37,7 @@ const {kakaoWatcherScript}=require('./kakao-watcher-download');
 
 function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {} }) {
   const sharedViews = createSharedViews(pool, { appOrigin, production });
-  const app = express(), ledger = createLedger(pool), auth = createAuth(pool, { appOrigin, production, sharedViews });
+  const app = express(), ledger = createLedger(pool, { automaticDocumentAnalysis: true }), auth = createAuth(pool, { appOrigin, production, sharedViews });
   const registrationAssistant = createRegistrationAssistant({ pool });
   const channels = createChannelLedger(pool);
   if(production&&governance.enforce===false)throw new Error('GOVERNANCE_REQUIRED_IN_PRODUCTION');

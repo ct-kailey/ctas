@@ -3,8 +3,8 @@ const { randomUUID, createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { transaction } = require('./db');
+const { recordKind, documentCategory, CATEGORY_RECORD_KINDS } = require('./record-contract');
 
-const KINDS = ['specification', 'conversation', 'decision', 'work_item', 'note'];
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 function error(code, message, status = 400) { return Object.assign(new Error(message), {code, status}); }
 function field(value, name, limit, required = false) {
@@ -30,12 +30,12 @@ function createRegistrationAssistant({pool, token, invoke, available} = {}) {
     async suggest(projectId, userId, body) {
       const role = (await pool.query('SELECT role FROM memberships WHERE project_id=$1 AND user_id=$2', [projectId, userId])).rows[0]?.role;
       if (!['owner', 'reviewer', 'member'].includes(role)) throw error('FORBIDDEN', '분류 추천을 요청할 권한이 없습니다.', 403);
-      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['title', 'text', 'filename', 'record_kind', 'domain_id'].includes(k))) throw error('INVALID_INPUT', '분류할 제목과 내용을 입력하세요.');
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['title', 'text', 'filename', 'record_kind', 'document_category', 'domain_id'].includes(k))) throw error('INVALID_INPUT', '분류할 제목과 내용을 입력하세요.');
       const title = field(body.title, '제목', 300, true).trim();
       const text = field(body.text, '본문', 20000);
       const filename = field(body.filename, '파일 이름', 255);
-      const kind = body.record_kind || 'specification';
-      if (!KINDS.includes(kind)) throw error('INVALID_RECORD_KIND', '기록 유형을 선택하세요.');
+      const category = body.document_category === undefined ? null : documentCategory(body.document_category);
+      const kind = recordKind(body.record_kind, category ? CATEGORY_RECORD_KINDS[category] : 'specification');
       const selected = body.domain_id || null;
       if (selected !== null && (typeof selected !== 'string' || !UUID.test(selected))) throw error('INVALID_DOMAIN', '업무 영역을 확인해 주세요.');
       // Lazy loading allows normal records to function while a new Nora publication is pending.
@@ -53,7 +53,8 @@ function createRegistrationAssistant({pool, token, invoke, available} = {}) {
             left(COALESCE((SELECT string_agg(s.value->>'text', E'\\n') FROM jsonb_array_elements(COALESCE(r.document_json->'segments','[]'::jsonb)) WITH ORDINALITY s(value,n) WHERE n <= 2),''),300) AS excerpt
             FROM documents d LEFT JOIN revisions r ON r.id=d.baseline_revision_id AND r.project_id=d.project_id
             WHERE d.project_id=$1 AND ($2::uuid IS NULL OR d.domain_id=$2::uuid)
-            ORDER BY d.created_at DESC,d.id LIMIT 51`, [projectId, selected]),
+              AND ($3::text IS NULL OR d.document_category=$3)
+            ORDER BY d.created_at DESC,d.id LIMIT 51`, [projectId, selected, category]),
         ]);
         const domains = domainRows.rows.slice(0,50);
         if (selected && !domains.some(d => d.id === selected)) throw error('INVALID_DOMAIN', '이 프로젝트의 업무 영역을 선택하세요.');

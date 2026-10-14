@@ -6,7 +6,7 @@ const path = require('node:path');
 const { randomUUID, createHash } = require('node:crypto');
 const { createPool, migrate } = require('../server/db');
 const { createLedger } = require('../server/ledger');
-const { history, editorText, MAX_TEXT_BYTES } = require('../server/record-contract');
+const { history, editorText, documentCategory, DOCUMENT_CATEGORIES, CATEGORY_RECORD_KINDS, MAX_TEXT_BYTES } = require('../server/record-contract');
 const dbUrl = process.env.TEST_DATABASE_URL;
 const suite = dbUrl ? test : test.skip;
 const code = expected => error => error.code === expected;
@@ -53,6 +53,37 @@ test('editor accepts exact UTF-8 bytes, counts bytes and rejects malformed text'
   assert.equal(editorText(original).toString('utf8'), original);
   assert.equal(editorText('x'.repeat(MAX_TEXT_BYTES)).length, MAX_TEXT_BYTES);
   for (const invalid of [' ', '\0', '\ud800', '가'.repeat(Math.ceil(MAX_TEXT_BYTES / 3)), 'x'.repeat(MAX_TEXT_BYTES + 1)]) assert.throws(() => editorText(invalid), code('INVALID_RECORD_TEXT'));
+});
+test('document categories preserve legacy fallbacks and reject invented classifications', () => {
+  assert.equal(documentCategory(undefined, 'specification'), 'requirements');
+  assert.equal(documentCategory(undefined, 'conversation'), 'conversation');
+  for (const kind of ['decision', 'work_item', 'note']) assert.equal(documentCategory(undefined, kind), 'other');
+  for (const category of DOCUMENT_CATEGORIES) assert.equal(documentCategory(category), category);
+  for (const value of ['', 'approved_contract', null, {}, []]) assert.throws(() => documentCategory(value), code('INVALID_DOCUMENT_CATEGORY'));
+});
+suite('classified files and editor records preserve purpose, evidence and append-only identity without approval', async () => {
+  const p = await project();
+  for (const category of DOCUMENT_CATEGORIES) {
+    const input = { title: category, document_category: category };
+    const created = category === 'contract'
+      ? await ledger.upload(p.id, member, { ...input, filename: 'contract.md', content: Buffer.from('계약 원문\r\n') })
+      : await ledger.createRecord(p.id, member, { ...input, text: '검토 전 원문' });
+    assert.equal(created.document_category, category);
+    const revision = await ledger.getRevision(p.id, created.revision_id);
+    assert.equal(revision.document_category, category);
+    assert.equal(revision.record_kind, CATEGORY_RECORD_KINDS[category]);
+    assert.equal(revision.source_text, category === 'contract' ? '계약 원문\r\n' : '검토 전 원문');
+    const next = await ledger.createRecord(p.id, member, { document_id: created.document_id, title: category, text: '새 버전' });
+    assert.equal(next.document_category, category, 'omitted category inherits the document classification');
+    assert.equal((await ledger.getRevision(p.id, next.revision_id)).record_kind, CATEGORY_RECORD_KINDS[category]);
+    await assert.rejects(ledger.createRecord(p.id, member, { document_id: created.document_id, title: category, text: '잘못된 분류 변경', document_category: category === 'other' ? 'contract' : 'other' }), code('DOCUMENT_CATEGORY_CONFLICT'));
+    await assert.rejects(pool.query('UPDATE documents SET document_category=$2 WHERE id=$1', [created.document_id, category === 'other' ? 'contract' : 'other']), code('23514'));
+  }
+  const docs = await ledger.listDocuments(p.id);
+  assert.deepEqual(new Set(docs.map(d => d.document_category)), new Set(DOCUMENT_CATEGORIES));
+  assert.ok(docs.every(d => d.baseline_revision_id === null && d.revisions.length === 2));
+  assert.equal((await pool.query('SELECT count(*)::int n FROM commercial_documents WHERE project_id=$1', [p.id])).rows[0].n, 0, 'uploading a contract does not create or approve a commercial agreement');
+  assert.equal((await pool.query('SELECT count(*)::int n FROM context_records WHERE project_id=$1', [p.id])).rows[0].n, 0, 'classification never confirms requirements');
 });
 suite('domain creation inherits project default pack, checks roles and scopes revisions', async () => {
   const p = await project(), q = await project();
@@ -135,8 +166,12 @@ suite('upgrade backfills domains and history without rewriting existing evidence
     assert.equal(domains.length, 1); assert.equal(domains[0].domain_pack.version, '7');
     assert.equal((await legacy.query('SELECT domain_id FROM documents WHERE id=$1', [document.id])).rows[0].domain_id, domains[0].id);
     await legacy.query("INSERT INTO projects(id,name) VALUES('new-bootstrap','신규 부트스트랩')");
-    const newDoc = (await legacy.query("INSERT INTO documents(project_id,title) VALUES('new-bootstrap','호환성') RETURNING domain_id")).rows[0];
+    assert.equal((await legacy.query('SELECT document_category FROM documents WHERE id=$1', [document.id])).rows[0].document_category, 'requirements');
+    const newDoc = (await legacy.query("INSERT INTO documents(project_id,title) VALUES('new-bootstrap','호환성') RETURNING domain_id,document_category")).rows[0];
     assert.ok(newDoc.domain_id);
+    assert.equal(newDoc.document_category, 'requirements');
+    const legacyNote = (await legacy.query("INSERT INTO documents(project_id,title,record_kind) VALUES('new-bootstrap','메모 호환성','note') RETURNING document_category")).rows[0];
+    assert.equal(legacyNote.document_category, 'other');
   } finally { await legacy.end(); await admin.query(`DROP SCHEMA ${legacySchema} CASCADE`); }
 });
 suite('record and domain HTTP endpoints enforce origin, CSRF, roles and preserve multipart history', async t => {
@@ -153,7 +188,7 @@ suite('record and domain HTTP endpoints enforce origin, CSRF, roles and preserve
     return { Cookie: 'ains_session=' + token, Origin: origin, 'X-CSRF-Token': csrf, 'Content-Type': 'application/json' };
   }
   const ownerHeaders = await session(owner), memberHeaders = await session(member), viewerHeaders = await session(viewer);
-  const body = JSON.stringify({ title: '채널 합의', text: ' \r\n<script>텍스트로 보존</script>\r\n', record_kind: 'conversation', history: richHistory });
+  const body = JSON.stringify({ title: '채널 합의', text: ' \r\n<script>텍스트로 보존</script>\r\n', record_kind: 'conversation', document_category: 'meeting', history: richHistory });
   assert.equal((await fetch(base + '/records', { method: 'POST', headers: { ...ownerHeaders, Origin: 'https://other.example' }, body })).status, 403);
   assert.equal((await fetch(base + '/records', { method: 'POST', headers: { ...ownerHeaders, 'X-CSRF-Token': 'invalid' }, body })).status, 403);
   assert.equal((await fetch(base + '/records', { method: 'POST', headers: viewerHeaders, body })).status, 403);
@@ -166,18 +201,22 @@ suite('record and domain HTTP endpoints enforce origin, CSRF, roles and preserve
   const response = await fetch(base + '/records', { method: 'POST', headers: memberHeaders, body });
   assert.equal(response.status, 202);
   const created = await response.json();
+  assert.equal(created.document_category, 'meeting');
   const { revision } = await (await fetch(base + '/revisions/' + created.revision_id, { headers: viewerHeaders })).json();
   assert.deepEqual(revision.history, richHistory); assert.equal(revision.source_text, JSON.parse(body).text); assert.equal(revision.content, undefined);
+  assert.equal(revision.document_category, 'meeting');
   const original = await fetch(base + '/revisions/' + created.revision_id + '/original', { headers: viewerHeaders });
   assert.equal(await original.text(), JSON.parse(body).text); assert.match(original.headers.get('content-disposition'), /attachment/);
   const form = new FormData();
-  form.set('title', '업무 항목'); form.set('file', new Blob(['DevOps 작업 #123']), 'work.txt'); form.set('domain_id', domain.id); form.set('record_kind', 'work_item'); form.set('history', JSON.stringify({ source_type: 'azure_devops', decided_on: '2026-09-25', channel: 'Project/Sprint 1', external_id: '123' }));
+  form.set('title', '업무 항목'); form.set('file', new Blob(['DevOps 작업 #123']), 'work.txt'); form.set('domain_id', domain.id); form.set('record_kind', 'work_item'); form.set('document_category', 'other'); form.set('history', JSON.stringify({ source_type: 'azure_devops', decided_on: '2026-09-25', channel: 'Project/Sprint 1', external_id: '123' }));
   const { 'Content-Type': ignored, ...multipartHeaders } = memberHeaders;
   const upload = await fetch(base + '/documents', { method: 'POST', headers: multipartHeaders, body: form });
   assert.equal(upload.status, 202);
   const ids = await upload.json();
+  assert.equal(ids.document_category, 'other');
   const uploaded = await (await fetch(base + '/revisions/' + ids.revision_id, { headers: viewerHeaders })).json();
   assert.equal(uploaded.revision.domain_id, domain.id); assert.equal(uploaded.revision.record_kind, 'work_item'); assert.equal(uploaded.revision.history.source_type, 'azure_devops'); assert.equal(uploaded.revision.history.decided_on, '2026-09-25');
+  assert.equal(uploaded.revision.document_category, 'other');
   assert.equal((await fetch(base + '/records', { method: 'POST', headers: memberHeaders, body: JSON.stringify({ title: '불완전 날짜', text: '기록', history: { decided_on: '2026-02-30' } }) })).status, 400);
   const suggestion = await fetch(base + '/registration-suggestions', { method: 'POST', headers: viewerHeaders, body: '{"title":"제목"}' });
   assert.equal(suggestion.status, 403);

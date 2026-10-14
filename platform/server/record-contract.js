@@ -2,6 +2,10 @@
 
 const SOURCE_TYPES = ['file', 'editor', 'slack', 'azure_devops', 'teams', 'kakaotalk', 'discord', 'email', 'meeting', 'other'];
 const RECORD_KINDS = ['specification', 'conversation', 'decision', 'work_item', 'note'];
+// User-facing classification is independent from the legacy processing kind.
+// Keeping kind stable preserves document versions, Nora contracts and plan eligibility.
+const DOCUMENT_CATEGORIES = ['proposal', 'estimate', 'contract', 'requirements', 'planning', 'policy', 'meeting', 'conversation', 'other'];
+const CATEGORY_RECORD_KINDS = Object.freeze({ proposal: 'note', estimate: 'note', contract: 'note', requirements: 'specification', planning: 'specification', policy: 'specification', meeting: 'conversation', conversation: 'conversation', other: 'note' });
 const MAX_TEXT_BYTES = 200000;
 const HISTORY_KEYS = new Set(['source_type', 'occurred_on', 'decided_on', 'source_created_at', 'channel', 'url', 'external_id', 'participants', 'tags']);
 function invalid(message) { throw Object.assign(new Error(message), { code: 'INVALID_HISTORY', status: 400 }); }
@@ -64,10 +68,15 @@ function recordKind(value, fallback = 'specification') {
   if (!RECORD_KINDS.includes(result)) throw Object.assign(new Error('올바른 기록 유형을 선택하세요.'), { code: 'INVALID_RECORD_KIND', status: 400 });
   return result;
 }
+function documentCategory(value, kind = 'specification') {
+  const result = value === undefined ? ({ specification: 'requirements', conversation: 'conversation' }[kind] || 'other') : value;
+  if (!DOCUMENT_CATEGORIES.includes(result)) throw Object.assign(new Error('올바른 문서 분류를 선택하세요.'), { code: 'INVALID_DOCUMENT_CATEGORY', status: 400 });
+  return result;
+}
 function editorText(value) {
   if (typeof value !== 'string' || !value.trim() || value.includes('\0') || !value.isWellFormed() || Buffer.byteLength(value, 'utf8') > MAX_TEXT_BYTES) {
     throw Object.assign(new Error('본문을 입력하세요. UTF-8 기준 최대 200,000바이트까지 등록할 수 있습니다.'), { code: 'INVALID_RECORD_TEXT', status: 400 });
   }
   return Buffer.from(value, 'utf8');
 }
-module.exports = { SOURCE_TYPES, RECORD_KINDS, MAX_TEXT_BYTES, history, recordKind, editorText };
+module.exports = { SOURCE_TYPES, RECORD_KINDS, DOCUMENT_CATEGORIES, CATEGORY_RECORD_KINDS, MAX_TEXT_BYTES, history, recordKind, documentCategory, editorText };

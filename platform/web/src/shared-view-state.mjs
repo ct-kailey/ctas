@@ -35,7 +35,7 @@ export function setSharedViewIntent(browser, active) {
 }
 
 export const SHARED_VIEW_TABS = new Set([
-  'home', 'alerts', 'commercial', 'documents', 'channels', 'transcriptions',
+  'home', 'alerts', 'source-review', 'commercial', 'documents', 'channels', 'transcriptions',
   'overview', 'context', 'reviews', 'activity', 'work-items', 'questions',
   'work-governance', 'implementation',
 ]);

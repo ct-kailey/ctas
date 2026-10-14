@@ -3,7 +3,7 @@ const path = require('node:path');
 const { randomUUID, createHash } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const { transaction } = require('./db');
-const { history, recordKind, editorText, MAX_TEXT_BYTES } = require('./record-contract');
+const { history, recordKind, documentCategory, CATEGORY_RECORD_KINDS, editorText, MAX_TEXT_BYTES } = require('./record-contract');
 const { checkRequest } = require('../../nora/client/nora-client');
 const { validateDocumentSchema, validateResultSchema } = require('../../nora/client/schema-validator');
 const { validateDocument, finalizeReview } = require('../../nora/flow/review-core');
@@ -47,8 +47,12 @@ async function doc(client, projectId, documentId, lock = false) {
 async function revision(client, projectId, revisionId, includeContent = false) {
   const row = (await client.query(`SELECT ${REVISION_FIELDS}${includeContent ? ',content' : ''},CASE WHEN mime_type IN ('text/plain','text/markdown') AND octet_length(content)<=$3 THEN content END AS source_bytes FROM revisions WHERE project_id=$1 AND id=$2`, [projectId, id(revisionId), MAX_TEXT_BYTES])).rows[0];
   if (!row) fail('NOT_FOUND', '문서 버전을 찾을 수 없습니다.', 404);
-  const document = (await client.query('SELECT d.title,d.domain_id,d.record_kind,p.name AS domain_name FROM documents d JOIN project_domains p ON p.id=d.domain_id AND p.project_id=d.project_id WHERE d.id=$1 AND d.project_id=$2', [row.document_id, projectId])).rows[0];
+  const document = (await client.query('SELECT d.title,d.domain_id,d.record_kind,d.document_category,p.name AS domain_name FROM documents d JOIN project_domains p ON p.id=d.domain_id AND p.project_id=d.project_id WHERE d.id=$1 AND d.project_id=$2', [row.document_id, projectId])).rows[0];
   Object.assign(row, document);
+  row.analysis = (await client.query(`SELECT q.status AS queue_status,COALESCE(a.status,q.status) AS status,
+    COALESCE(a.error_code,q.error_code) AS error_code,a.id AS run_id,q.updated_at
+    FROM document_analysis_queue q LEFT JOIN context_ai_runs a ON a.id=q.request_id AND a.project_id=q.project_id
+    WHERE q.project_id=$1 AND q.revision_id=$2`, [projectId, revisionId])).rows[0] || null;
   if (row.source_bytes) {
     try { row.source_text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(row.source_bytes); } catch { row.source_text = null; }
   } else row.source_text = null;
@@ -102,7 +106,7 @@ function baselineResult(documentId, revisionId, time, reviewId) {
   return { document_id: documentId, revision_id: revisionId, ...(reviewId ? { review_id: reviewId } : {}), published_at: time };
 }
 
-function createLedger(pool) {
+function createLedger(pool, { automaticDocumentAnalysis = false } = {}) {
   const ledger = {
     async listProjects(userId) {
       return (await pool.query('SELECT p.*,m.role,s.project_kind FROM projects p JOIN memberships m ON m.project_id=p.id JOIN project_settings s ON s.project_id=p.id WHERE m.user_id=$1 ORDER BY p.created_at,p.id', [id(userId)])).rows;
@@ -157,7 +161,8 @@ function createLedger(pool) {
       if (!mimeType) fail('UNSUPPORTED_FILE_TYPE', 'PDF, DOCX, PPTX, XLSX, TXT, MD 파일을 지원합니다.', 415);
       const content = Buffer.from(body.content), sha = createHash('sha256').update(content).digest('hex');
       const metadata = history(body.history, { defaultSource: 'file', allowJson: true });
-      const kind = recordKind(body.record_kind);
+      const category = documentCategory(body.document_category, body.record_kind);
+      const kind = recordKind(body.record_kind, body.document_category === undefined ? 'specification' : CATEGORY_RECORD_KINDS[category]);
       const selectedDomainId = body.domain_id === undefined ? undefined : id(body.domain_id).toLowerCase();
       return transaction(pool, async client => {
         await member(client, projectId, userId, WRITE_ROLES);
@@ -166,15 +171,17 @@ function createLedger(pool) {
           document = await doc(client, projectId, body.document_id, true);
           if (selectedDomainId !== undefined && selectedDomainId !== document.domain_id) fail('DOCUMENT_DOMAIN_CONFLICT', '새 버전은 기존 기록의 업무 영역에 등록해야 합니다.', 409);
           if (body.record_kind !== undefined && kind !== document.record_kind) fail('DOCUMENT_KIND_CONFLICT', '새 버전은 기존 기록과 같은 유형이어야 합니다.', 409);
+          if (body.document_category !== undefined && category !== document.document_category) fail('DOCUMENT_CATEGORY_CONFLICT', '새 버전은 기존 문서와 같은 분류로 등록해야 합니다.', 409);
         } else {
           const area = (await client.query(`SELECT id FROM project_domains WHERE project_id=$1 AND ${selectedDomainId ? 'id=$2' : 'is_default'}`, selectedDomainId ? [projectId, selectedDomainId] : [projectId])).rows[0];
           if (!area) fail('DOMAIN_NOT_FOUND', '프로젝트의 업무 영역을 찾을 수 없습니다.', 404);
-          document = (await client.query('INSERT INTO documents(project_id,title,domain_id,record_kind) VALUES($1,$2,$3,$4) RETURNING *', [projectId, text(body.title || filename, '문서 제목', 300), area.id, kind])).rows[0];
+          document = (await client.query('INSERT INTO documents(project_id,title,domain_id,record_kind,document_category) VALUES($1,$2,$3,$4,$5) RETURNING *', [projectId, text(body.title || filename, '문서 제목', 300), area.id, kind, category])).rows[0];
         }
         const rev = (await client.query('INSERT INTO revisions(project_id,document_id,filename,mime_type,sha256,content,created_by,history) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id', [projectId, document.id, filename, mimeType, sha, content, userId, JSON.stringify(metadata)])).rows[0];
         const job = (await client.query("INSERT INTO jobs(project_id,kind,revision_id) VALUES($1,'intake',$2) RETURNING id", [projectId, rev.id])).rows[0];
-        await event(client, projectId, userId, 'revision.uploaded', rev.id, { document_id: document.id, domain_id: document.domain_id, record_kind: document.record_kind, filename, sha256: sha, job_id: job.id, history: metadata });
-        return { document_id: document.id, revision_id: rev.id, job_id: job.id };
+        if (automaticDocumentAnalysis) await client.query('INSERT INTO document_analysis_queue(revision_id,project_id,created_by) VALUES($1,$2,$3)', [rev.id, projectId, userId]);
+        await event(client, projectId, userId, 'revision.uploaded', rev.id, { document_id: document.id, domain_id: document.domain_id, record_kind: document.record_kind, document_category: document.document_category, filename, sha256: sha, job_id: job.id, history: metadata });
+        return { document_id: document.id, revision_id: rev.id, job_id: job.id, document_category: document.document_category };
       });
     },
     async createRecord(projectId, userId, body = {}) {

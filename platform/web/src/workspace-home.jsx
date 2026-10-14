@@ -18,7 +18,7 @@ function followInWorkspace(event, action) { if (event.button === 0 && !event.met
 const FILTERS = ['all', 'urgent', 'check', 'info'];
 const GRADE_ORDER = { urgent: 0, check: 1, info: 2 };
 const TAB_LABELS = {
-  reviews: '변경 검토', documents: '문서·분석 확인', context: '요구사항·결정 검토',
+  reviews: '변경 검토', documents: '원문·분석 검토', 'source-review': '원문·분석 검토', context: '요구사항·결정 검토',
   questions: '질문 확인', 'work-items': '작업 확인', channels: '수집 기록 검토',
 };
 const RULE_LABELS = {
@@ -98,10 +98,10 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
   const items = orderedItems(attention).slice(0, 5);
   const canWrite = ['owner', 'reviewer', 'member'].includes(project?.role);
   const stats = [
-    { label: '문서·기록', value: counts.documents ?? documents.length, tab: 'documents' },
+    { label: '자료·기록', value: counts.documents ?? documents.length, tab: 'documents' },
     { label: '변경 검토 대기', value: counts.pending_reviews ?? (overview?.reviews || []).filter(item => ['needs_review', 'no_change'].includes(item.status)).length, tab: 'reviews' },
-    { label: '확정한 문서', value: counts.baselines ?? documents.filter(item => item.baseline_revision_id).length, tab: 'documents' },
-    { label: '진행 중인 분석', value: counts.active_jobs ?? (overview?.jobs || []).filter(item => ['queued', 'running'].includes(item.status)).length, tab: 'documents' },
+    { label: '확정한 문서', value: counts.baselines ?? documents.filter(item => item.baseline_revision_id).length, tab: 'source-review' },
+    { label: '진행 중인 분석', value: counts.active_jobs ?? (overview?.jobs || []).filter(item => ['queued', 'running'].includes(item.status)).length, tab: 'source-review' },
   ];
   return <div className="workspace-home">
     <section className="workspace-home-section" aria-label="프로젝트 알림">
@@ -120,14 +120,14 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
     <section className="workspace-home-section" aria-labelledby="workspace-flow-heading">
       <div className="workspace-home-section-head"><h2 id="workspace-flow-heading">업무 바로가기</h2></div>
       <ul className="workspace-home-flow">{WORKFLOW_STEPS.filter(area => !area.management).map(area => <li key={area.id}><ListItem className="workspace-home-flow-item" layout="stacked" from={area.label} body={area.description} trailing={<ArrowRight size={15} aria-hidden="true" />} href={pageHref(project.id, area.primaryTab, area.id)} onClick={event => followInWorkspace(event, () => onNavigate(area.primaryTab, { workflowStep: area.id }))} data-ctds="list-item" /></li>)}</ul>
-      <p className="workspace-home-note">정해진 순서는 없습니다. 작업 중에도 자료·요구사항·계약을 추가하거나 수정할 수 있습니다.</p>
+      <p className="workspace-home-note">자료 등록 → 원문·분석 검토 → 내용 확정 → 작업 실행. 새 요청이 생기면 자료를 추가해 다시 검토합니다.</p>
     </section>
 
     <div className="workspace-home-columns">
       <section className="workspace-home-section" aria-label="최근 문서">
         <SectionHead title="최근 문서·기록"><Button type="button" variant="ghost" onClick={() => onNavigate('documents')}>전체 보기</Button></SectionHead>
         <div className="workspace-home-panel workspace-home-flush">
-          {recentDocuments.length ? recentDocuments.map(document => <ControlButton type="button" key={document.id} className="workspace-home-record" onClick={() => onNavigate('documents', document.revisions?.[0]?.id ? { revisionId: document.revisions[0].id } : undefined)}><Files size={17} aria-hidden="true" /><span><strong>{document.title}</strong><small>{document.domain_name || '프로젝트 자료'} · 버전 {document.revisions?.length || 0}</small></span><Badge status={document.revisions?.[0]?.status || 'draft'}>{document.revisions?.[0]?.status ? undefined : '초안'}</Badge></ControlButton>) : <Empty compact icon={Files} title="등록된 자료가 없습니다" action={canWrite && onUpload ? <Button type="button" variant="secondary" icon={FilePlus2} onClick={onUpload}>첫 자료 등록</Button> : null}>기획 문서, 계약서, 대화 기록을 모아 검토를 시작하세요.</Empty>}
+          {recentDocuments.length ? recentDocuments.map(document => <ControlButton type="button" key={document.id} className="workspace-home-record" onClick={() => onNavigate('documents', document.revisions?.[0]?.id ? { revisionId: document.revisions[0].id } : undefined)}><Files size={17} aria-hidden="true" /><span><strong>{document.title}</strong><small>{document.domain_name || '프로젝트 자료'} · 버전 {document.revisions?.length || 0}</small></span><Badge status={document.revisions?.[0]?.status || 'draft'}>{document.revisions?.[0]?.status ? undefined : '초안'}</Badge></ControlButton>) : <Empty compact icon={Files} title="등록된 자료가 없습니다" action={canWrite && onUpload ? <Button type="button" variant="secondary" icon={FilePlus2} onClick={() => onNavigate('documents')}>자료·기록으로 이동</Button> : null}>기획 문서, 계약서, 대화 기록을 모아 검토를 시작하세요.</Empty>}
         </div>
       </section>
       <section className="workspace-home-section" aria-label="최근 활동">

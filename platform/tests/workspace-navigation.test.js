@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 test('dashboard links preserve the exact project and allowlisted workspace destination', async () => {
   const { readWorkspaceLocation, dashboardHref } = await import('../web/src/workspace-navigation.mjs');
   const entry = readWorkspaceLocation('?project=team%3Aone&tab=commercial&action=upload');
-  assert.deepEqual(entry, {projectId:'team:one', invalidProject:false, tab:'commercial', action:'upload', workflowStep:'contract'});
+  assert.deepEqual(entry, {projectId:'team:one', invalidProject:false, tab:'commercial', action:'upload', workflowStep:'collect'});
   assert.equal(dashboardHref(entry.projectId), '/?tab=home&project=team%3Aone');
   const rejected = readWorkspaceLocation('?project=../private&tab=https://example.com&action=delete');
   assert.equal(rejected.invalidProject, true);
@@ -71,4 +71,15 @@ test('work areas keep legacy links, member navigation and free access without pr
   rememberWorkspaceReturn(storage, entry, 1000);
   assert.deepEqual(restoreWorkspaceReturn('', storage, 2000), entry);
   assert.ok(WORKFLOW_STEPS.every(s => !Object.hasOwn(s,'completed') && s.tabs.includes(s.primaryTab)));
+});
+
+
+test('one records area covers legacy contract links and source review is the primary decision area', async () => {
+  const { readWorkspaceLocation } = await import('../web/src/workspace-navigation.mjs');
+  const { WORKFLOW_STEPS, resolveWorkflowStep } = await import('../web/src/workspace-flow.mjs');
+  assert.equal(readWorkspaceLocation('?tab=commercial&step=contract').workflowStep, 'collect');
+  assert.equal(readWorkspaceLocation('?tab=source-review').workflowStep, 'context');
+  assert.equal(WORKFLOW_STEPS.find(area => area.id === 'context').primaryTab, 'source-review');
+  assert.equal(WORKFLOW_STEPS.filter(area => area.tabs.includes('documents')).length, 1);
+  assert.equal(resolveWorkflowStep('commercial').id, resolveWorkflowStep('documents').id);
 });
