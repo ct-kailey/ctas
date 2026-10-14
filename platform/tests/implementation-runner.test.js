@@ -1,4 +1,5 @@
 'use strict';
+const {createReviewedPlan}=require('./implementation-source-fixture');
 // Legacy behavior tests isolate pre-existing state rules; mandatory governance is covered by work-execution HTTP tests.
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict');
 const {randomUUID,createHash}=require('node:crypto');
@@ -18,12 +19,12 @@ before(async()=>{
 after(async()=>{if(!url)return;if(pool)await pool.end();if(admin){await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await admin.end();}});
 async function fixture(){
  const p=await ledger.createProject(owner,{name:'실행 연결 합성 검증'});await pool.query("INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,'reviewer'),($1,$3,'member')",[p.id,reviewer,member]);
- await implementation.saveSettings(p.id,owner,{expected_version:1,goal:'회원 이메일 인증 기능 구현',repository_url:'https://github.com/ct-kailey/nora-flow.git',base_branch:'main'});
+ await implementation.saveSettings(p.id,owner,{expected_version:1,project_kind:'client_project',goal:'회원 이메일 인증 기능 구현',repository_url:'https://github.com/ct-kailey/nora-flow.git',base_branch:'main'});
  await implementation.recordRepositoryCheck(p.id,owner,2,{status:'ready',head_sha:'a'.repeat(40),checked_at:new Date().toISOString()});
  const record=await ledger.createRecord(p.id,member,{title:'회원 기획',text:'가입 시 이메일을 인증한다.'}),r=await ledger.getRevision(p.id,record.revision_id);
  const doc={schema_version:'1.0',project_id:p.id,document_id:record.document_id,revision_id:r.id,source:{filename:r.filename,mime_type:r.mime_type,sha256:r.sha256},segments:[{segment_id:'s1',requirement_key:'REQ-1',text:'가입 시 이메일을 인증한다.',locator:{kind:'text',label:'본문'},extraction_status:'ok'}],extraction:{complete:true,warnings:[]},normalization:{status:'ready',warnings:[],segment_count:1}};
  await pool.query("UPDATE revisions SET status='ready',document_json=$1 WHERE id=$2",[JSON.stringify(doc),r.id]);await pool.query("UPDATE jobs SET status='succeeded' WHERE id=$1",[record.job_id]);await ledger.publishInitial(p.id,r.id,reviewer,{reason:'기획 확인',acknowledge_extraction:true});
- const plan=await implementation.createPlan(p.id,member,{request_id:randomUUID(),revision_ids:[r.id]});
+ const plan=await createReviewedPlan(pool,implementation,p.id,member,{request_id:randomUUID(),revision_ids:[r.id]});
  const result={title:'이메일 인증 구현',summary:'이메일 인증을 구현합니다.',tasks:[{id:'TASK-1',title:'인증 처리',description:'기획에 따른 인증 흐름을 추가합니다.',acceptance_criteria:['인증 실패 시 가입되지 않는다.'],evidence:[{revision_id:r.id,segment_id:'s1'}],depends_on:[]}],questions:[],assumptions:[],test_strategy:['인증 성공·실패 검사']};
  await pool.query("UPDATE implementation_plans SET status='needs_review',result=$1,trace_id='trc_runner_fixture' WHERE id=$2",[JSON.stringify(result),plan.id]);await implementation.decidePlan(p.id,plan.id,reviewer,{decision:'approved',reason:'작업 범위 확인',acknowledge_sources:true});
  const request=await implementation.requestExecution(p.id,plan.id,reviewer,{reason:'승인 계획 구현',acknowledge_code_execution:true});return {p,record,plan,request};
@@ -81,11 +82,12 @@ suite('claim is single-use under concurrency and only its lease can heartbeat or
  assert.equal((await pool.query("SELECT count(*)::int n FROM events WHERE entity_id=$1 AND kind='implementation.execution_patch_ready'",[f.request.id])).rows[0].n,1);
 });
 suite('stale settings, repository HEAD and baseline block both new tickets and existing ticket claims',async()=>{
- for(const change of ['settings','head','baseline']){
+ for(const change of ['settings','head','baseline','source-review']){
   const f=await fixture(),t=await ticket(f);
   if(change==='settings')await implementation.saveSettings(f.p.id,owner,{expected_version:2,goal:'수정한 프로젝트 목표',repository_url:'https://github.com/ct-kailey/nora-flow.git',base_branch:'main'});
   if(change==='head')await implementation.recordRepositoryCheck(f.p.id,owner,2,{status:'ready',head_sha:'b'.repeat(40),checked_at:new Date().toISOString()});
   if(change==='baseline')await pool.query('UPDATE documents SET baseline_revision_id=NULL WHERE id=$1',[f.record.document_id]);
+  if(change==='source-review')await implementation.reviewSource(f.p.id,owner,{revision_id:f.record.revision_id,expected_settings_version:2,usage:'mismatch',intended_project_id:null,reason:'다른 프로젝트 자료 발견'});
   await assert.rejects(runner.issue(f.p.id,f.request.id,owner),code('IMPLEMENTATION_STALE'));await assert.rejects(runner.claim(f.request.id,auth(t)),code('IMPLEMENTATION_STALE'));
   assert.equal((await state(f.request.id)).status,'awaiting_runner');
  }

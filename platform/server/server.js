@@ -129,6 +129,8 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   project.get('/work-items/:id',async(req,res)=>res.json({item:await workItems.get(req.params.p,req.params.id,req.user.id)}));
   project.patch('/work-items/:id',write,async(req,res)=>res.json({item:await workItems.update(req.params.p,req.params.id,req.user.id,req.body)}));
   project.post('/implementation-plans/:id/work-items',review,async(req,res)=>res.status(201).json(await workItems.importPlan(req.params.p,req.params.id,req.user.id,req.body)));
+  project.post('/implementation-source-reviews',review,async(req,res)=>res.status(201).json({review:await implementation.reviewSource(req.params.p,req.user.id,req.body)}));
+  project.post('/implementation-plan-preparations',write,async(req,res)=>res.status(201).json({preparation:await implementation.preparePlan(req.params.p,req.user.id,req.body)}));
   project.post('/implementation-plans',write,async(req,res)=>res.status(202).json({plan:await implementation.createPlan(req.params.p,req.user.id,req.body)}));
   project.get('/implementation-plans/:id',async(req,res)=>res.json({plan:await implementation.getPlan(req.params.p,req.params.id,req.user.id)}));
   project.post('/implementation-plans/:id/decision',review,async(req,res)=>res.json({plan:await implementation.decidePlan(req.params.p,req.params.id,req.user.id,req.body)}));

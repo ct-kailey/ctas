@@ -1,3 +1,4 @@
+import { projectKindLabel, projectOptionLabel } from './project-scope.mjs';
 import React, { useId, useState } from 'react';
 import { Activity, ArrowRight, Bell, CheckCheck, FilePlus2, Files, FolderKanban, RefreshCw } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, ROLES, Spinner, Select, ControlButton, Notice } from './ui.jsx';
@@ -43,7 +44,7 @@ const EVENT_LABELS = {
   'commercial.revision_approved': '계약 문서 승인', 'commercial.feedback_recorded': '고객 협의 기록',
   'commercial.feedback_answered': '고객 답변 기록', 'commercial.stage_changed': '계약 단계 변경',
   'commercial.rewrite_applied': '문서 보정안 반영', 'commercial.rewrite_needs_review': '문서 보정 검토 요청',
-  'implementation.plan_requested': 'AI 작업 계획 요청', 'implementation.plan_approved': 'AI 작업 계획 승인',
+  'implementation.source_reviewed': '문서 적용 대상 검토', 'implementation.plan_requested': 'AI 작업 계획 요청', 'implementation.plan_approved': 'AI 작업 계획 승인',
   'implementation.execution_requested': 'AI 구현 요청', 'work_item.imported': '기능별 작업 등록',
   'work_item.updated': '기능별 작업 변경', 'channel.collected': '대화 수집',
   'channel.accepted': '대화 기록 반영', 'channel.dismissed': '대화 보관 제외',
@@ -85,7 +86,7 @@ function SectionHead({ title, count, children }) {
 }
 function AttentionProjectSelect({ project, projects, onProjectSelect }) {
   const id = useId();
-  return <div className="workspace-attention-project"><label htmlFor={id}>프로젝트</label><Select id={id} aria-label="알림 프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></div>;
+  return <div className="workspace-attention-project"><label htmlFor={id}>프로젝트</label><Select id={id} aria-label="알림 프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{projectOptionLabel(item)}</option>)}</Select></div>;
 }
 
 /** One project, one workflow. This view links to existing source actions without approving or dismissing records. */
@@ -137,7 +138,7 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
       </section>
     </div>
 
-    {projects.length > 1 && onProjectSelect ? <section className="workspace-home-section"><SectionHead title="내 프로젝트" count={projects.length}>{onNewProject ? <Button type="button" variant="ghost" icon={FolderKanban} onClick={onNewProject}>새 프로젝트</Button> : null}</SectionHead><div className="workspace-home-projects">{projects.map(item => <ControlButton key={item.id} type="button" className="workspace-home-project" aria-current={item.id === project?.id ? 'true' : undefined} variant={item.id === project?.id ? 'outline' : 'ghost'} onClick={() => onProjectSelect(item.id)}><span><strong>{item.name}</strong><small>{ROLES[item.role] || '프로젝트 구성원'}</small></span>{item.id === project?.id ? <Badge tone="quiet">선택됨</Badge> : <ArrowRight size={16} aria-hidden="true" />}</ControlButton>)}</div></section> : null}
+    {projects.length > 1 && onProjectSelect ? <section className="workspace-home-section"><SectionHead title="내 프로젝트" count={projects.length}>{onNewProject ? <Button type="button" variant="ghost" icon={FolderKanban} onClick={onNewProject}>새 프로젝트</Button> : null}</SectionHead><div className="workspace-home-projects">{projects.map(item => <ControlButton key={item.id} type="button" className="workspace-home-project" aria-current={item.id === project?.id ? 'true' : undefined} variant={item.id === project?.id ? 'outline' : 'ghost'} onClick={() => onProjectSelect(item.id)}><span><strong>{item.name}</strong><small>{projectKindLabel(item)} · {ROLES[item.role] || '프로젝트 구성원'}</small></span>{item.id === project?.id ? <Badge tone="quiet">선택됨</Badge> : <ArrowRight size={16} aria-hidden="true" />}</ControlButton>)}</div></section> : null}
   </div>;
 }
 

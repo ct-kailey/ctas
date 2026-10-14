@@ -1,4 +1,5 @@
 'use strict';
+const {createReviewedPlan}=require('./implementation-source-fixture');
 // Legacy behavior tests isolate pre-existing state rules; mandatory governance is covered by work-execution HTTP tests.
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict');
 const {randomUUID}=require('node:crypto');
@@ -20,7 +21,7 @@ after(async()=>{if(!url)return;if(pool)await pool.end();if(admin){await admin.qu
 async function fixture({approved=true,count=2,dependencies=true}={}){
   const p=await ledger.createProject(owner,{name:'기능별 작업 관리'});
   await pool.query("INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,'reviewer'),($1,$3,'member'),($1,$4,'member'),($1,$5,'viewer')",[p.id,reviewer,member,otherMember,viewer]);
-  await implementation.saveSettings(p.id,owner,{expected_version:1,goal:'기획에 따라 이메일 인증과 권한을 구현한다.',repository_url:'https://github.com/ct-kailey/nora-flow.git',base_branch:'main'});
+  await implementation.saveSettings(p.id,owner,{expected_version:1,project_kind:'client_project',goal:'기획에 따라 이메일 인증과 권한을 구현한다.',repository_url:'https://github.com/ct-kailey/nora-flow.git',base_branch:'main'});
   await implementation.recordRepositoryCheck(p.id,owner,2,{status:'ready',head_sha:'a'.repeat(40),checked_at:new Date().toISOString()});
   const record=await ledger.createRecord(p.id,member,{title:'회원 기획',record_kind:'specification',text:'회원 가입에 이메일 인증과 역할별 권한을 적용한다.'});
   const revision=await ledger.getRevision(p.id,record.revision_id);
@@ -28,7 +29,7 @@ async function fixture({approved=true,count=2,dependencies=true}={}){
   await pool.query("UPDATE revisions SET status='ready',document_json=$1 WHERE id=$2",[JSON.stringify(doc),revision.id]);
   await pool.query("UPDATE jobs SET status='succeeded' WHERE id=$1",[record.job_id]);
   await ledger.publishInitial(p.id,revision.id,reviewer,{reason:'기획 검토 완료',acknowledge_extraction:true});
-  const plan=await implementation.createPlan(p.id,member,{request_id:randomUUID(),revision_ids:[revision.id]});
+  const plan=await createReviewedPlan(pool,implementation,p.id,member,{request_id:randomUUID(),revision_ids:[revision.id]});
   const result={title:'회원 기능 구현',summary:'기획서 기준 작업 목록',tasks:Array.from({length:count},(_,i)=>({id:'TASK-'+(i+1),title:'회원 기능 '+(i+1),description:'기획에 따라 기능을 구현합니다.',acceptance_criteria:['기획한 권한과 인증 정책을 만족한다.'],evidence:[{revision_id:revision.id,segment_id:'s1'}],depends_on:dependencies&&i>0?['TASK-'+i]:[]})),questions:[],assumptions:[],test_strategy:['권한별 성공과 거부 경로를 검증한다.']};
   await pool.query("UPDATE implementation_plans SET status='needs_review',result=$1,trace_id='trc_work_fixture' WHERE id=$2",[JSON.stringify(result),plan.id]);
   if(approved)await implementation.decidePlan(p.id,plan.id,reviewer,{decision:'approved',reason:'기획 근거와 수용 기준 검토',acknowledge_sources:true});
@@ -154,7 +155,7 @@ suite('board staleness queries stay bounded as the number of imported plans grow
   const counted=createWorkItemLedger({query(...args){queries++;return pool.query(...args);}});
   await counted.list(f.p.id,viewer);const singlePlanQueries=queries;
   for(let index=0;index<3;index++){
-    const plan=await implementation.createPlan(f.p.id,member,{request_id:randomUUID(),revision_ids:[f.revision.id]});
+    const plan=await createReviewedPlan(pool,implementation,f.p.id,member,{request_id:randomUUID(),revision_ids:[f.revision.id]});
     await pool.query("UPDATE implementation_plans SET status='needs_review',result=$1,trace_id='trc_work_batch' WHERE id=$2",[JSON.stringify(f.result),plan.id]);
     await implementation.decidePlan(f.p.id,plan.id,reviewer,{decision:'approved',reason:'기획 근거 검토',acknowledge_sources:true});
     await work.importPlan(f.p.id,plan.id,reviewer,{acknowledge_tasks:true});

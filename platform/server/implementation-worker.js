@@ -8,7 +8,7 @@ const KNOWN=new Set(['IMPLEMENTATION_PROJECT_CONTEXT_REQUIRED','PROJECT_MISMATCH
   'IMPLEMENTATION_EVIDENCE_MISMATCH','IMPLEMENTATION_EXECUTABLE_OUTPUT','IMPLEMENTATION_BLOCKING_QUESTION_REQUIRED','IMPLEMENTATION_RUN_NOT_SUCCEEDED',
   'IMPLEMENTATION_OUTPUTS_INCOMPLETE','IMPLEMENTATION_OUTPUT_INVALID','IMPLEMENTATION_OUTPUT_MISMATCH','IMPLEMENTATION_NOT_PUBLISHED',
   'IMPLEMENTATION_AUTH_REQUIRED','IMPLEMENTATION_TIMEOUT_INVALID','IMPLEMENTATION_TRANSPORT_UNKNOWN','IMPLEMENTATION_RESPONSE_INVALID',
-  'IMPLEMENTATION_RECORD_MISMATCH','IMPLEMENTATION_LEASE_LOST']);
+  'IMPLEMENTATION_RECORD_MISMATCH','IMPLEMENTATION_LEASE_LOST','IMPLEMENTATION_SOURCE_SCOPE_STALE']);
 function safeErrorCode(error){return KNOWN.has(error?.code)||/^IMPLEMENTATION_HTTP_[1-5]\d\d$/.test(error?.code||'')?error.code:'IMPLEMENTATION_INTERNAL';}
 function classifyFailure(error,dispatched){const code=safeErrorCode(error);return{code,status:dispatched&&(['IMPLEMENTATION_INTERNAL','IMPLEMENTATION_TRANSPORT_UNKNOWN','IMPLEMENTATION_RESPONSE_INVALID','IMPLEMENTATION_RUN_NOT_SUCCEEDED'].includes(code)||/^IMPLEMENTATION_HTTP_(5\d\d|408)$/.test(code))?'uncertain':'failed'};}
 function safeTrace(value){return typeof value==='string'&&/^[a-zA-Z0-9_-]{1,200}$/.test(value)?value:null;}
@@ -31,6 +31,7 @@ function createImplementationWorker({pool,token,invoke=runImplementationPlan,onE
     return(await client.query("UPDATE implementation_plans SET status='running',lease_token=$2,lease_expires_at=now()+interval '120 seconds',error_code=NULL WHERE id=$1 RETURNING *",[row.id,randomUUID()])).rows[0];
   });}
   async function intent(row){return transaction(pool,async client=>{
+    if((await require('./implementation-ledger').getImplementationStaleReasons(client,row.project_id,row.input_snapshot,{lock:true})).length)fail('IMPLEMENTATION_SOURCE_SCOPE_STALE');
     const {rows:[fresh]}=await client.query("SELECT * FROM implementation_plans WHERE id=$1 AND lease_token=$2 AND status='running' AND lease_expires_at>now() FOR UPDATE",[row.id,row.lease_token]);
     if(!fresh)fail('IMPLEMENTATION_LEASE_LOST');
     await audit(client,fresh,'implementation.plan_started',{published_version_id:manifest.published_version_id,flow_slug:manifest.slug,agent_id:manifest.agent_id,input_sha256:fresh.input_sha256});

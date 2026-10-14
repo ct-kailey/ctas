@@ -105,16 +105,17 @@ function baselineResult(documentId, revisionId, time, reviewId) {
 function createLedger(pool) {
   const ledger = {
     async listProjects(userId) {
-      return (await pool.query('SELECT p.*,m.role FROM projects p JOIN memberships m ON m.project_id=p.id WHERE m.user_id=$1 ORDER BY p.created_at,p.id', [id(userId)])).rows;
+      return (await pool.query('SELECT p.*,m.role,s.project_kind FROM projects p JOIN memberships m ON m.project_id=p.id JOIN project_settings s ON s.project_id=p.id WHERE m.user_id=$1 ORDER BY p.created_at,p.id', [id(userId)])).rows;
     },
     async createProject(userId, body = {}) {
       bodyObject(body);
-      const name = text(body.name, '프로젝트 이름', 200), pack = domain(body.domain_pack);
+      const name = text(body.name, '프로젝트 이름', 200), pack = domain(body.domain_pack), projectKind = require('./implementation-source-review').projectKind(body.project_kind ?? 'unspecified');
       return transaction(pool, async client => {
         const project = (await client.query('INSERT INTO projects(name,domain_pack) VALUES($1,$2) RETURNING *', [name, JSON.stringify(pack)])).rows[0];
+        if(projectKind!=='unspecified')await client.query('UPDATE project_settings SET project_kind=$1,version=version+1 WHERE project_id=$2',[projectKind,project.id]);
         await client.query("INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,'owner')", [project.id, id(userId)]);
-        await event(client, project.id, userId, 'project.created', project.id, { name });
-        return { ...project, role: 'owner' };
+        await event(client, project.id, userId, 'project.created', project.id, { name, project_kind:projectKind });
+        return { ...project, role: 'owner',project_kind:projectKind };
       });
     },
     async listDomains(projectId) {

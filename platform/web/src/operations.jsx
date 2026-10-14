@@ -2,15 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowDownToLine, ArrowRight, CheckCheck, File, FileUp, RefreshCw, ShieldCheck, Upload, X } from 'lucide-react';
 import { Badge, Button, ErrorNotice, FormField, JobExecution, Modal, SourceNotices, Spinner, dateTime, projectPath, shortId, Input, Textarea, Disclosure, Notice } from './ui.jsx';
 import { HistoryDetails, RECORD_KINDS } from './records.jsx';
+import { PROJECT_KINDS } from './project-scope.mjs';
 
 export function ProjectModal({ request, onClose, onCreated }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
   async function submit(event) {
     event.preventDefault(); const data = new FormData(event.currentTarget); setBusy(true); setError(null);
-    try { const result = await request('/api/projects', { method: 'POST', body: { name: data.get('name').trim() } }); await onCreated(result.project); }
+    try { const result = await request('/api/projects', { method: 'POST', body: { name: data.get('name').trim(), project_kind: data.get('project_kind') } }); await onCreated(result.project); }
     catch (err) { setError(err); } finally { setBusy(false); }
   }
-  return <Modal title="새 프로젝트 만들기" eyebrow="PROJECT SETUP" busy={busy} onClose={onClose}><form onSubmit={submit}><div className="modal-body"><p className="form-intro">문서와 결정 기록을 함께 관리할 작업 공간입니다.<br />생성한 계정에 프로젝트 관리자 권한이 부여됩니다.</p><FormField label="프로젝트 이름"><Input autoFocus name="name" required maxLength={160} placeholder="예: 고객 포털 고도화" /></FormField><p className="inline-note">생성 후 계약·기획에서 기업 정보와 일정, 제안서·견적서·계약서를 정리합니다. Git 저장소는 개발 인계 때 연결하세요.</p><ErrorNotice error={error} /></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose} disabled={busy}>취소</Button><Button type="submit" busy={busy} icon={ArrowRight}>프로젝트 만들기</Button></footer></form></Modal>;
+  return <Modal title="새 프로젝트 만들기" eyebrow="PROJECT SETUP" busy={busy} onClose={onClose}><form onSubmit={submit}><div className="modal-body"><p className="form-intro">문서와 결정 기록을 함께 관리할 작업 공간입니다.<br />생성한 계정에 프로젝트 관리자 권한이 부여됩니다.</p><FormField label="프로젝트 이름"><Input autoFocus name="name" required maxLength={160} placeholder="예: 고객 포털 고도화" /></FormField><fieldset className="project-kind-choices" disabled={busy}><legend>프로젝트 용도</legend>{Object.entries(PROJECT_KINDS).filter(([value]) => value !== 'unspecified').map(([value, label]) => <label className="checkbox-label" key={value}><Input type="radio" name="project_kind" value={value} required /><span>{label}</span></label>)}</fieldset><p className="inline-note">AINS 플랫폼 자체의 기획서는 자체 제품 개발 프로젝트에, 고객의 문서와 이력은 해당 고객 프로젝트에 등록하세요. Git 저장소는 프로젝트 설정에서 연결합니다.</p><ErrorNotice error={error} /></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose} disabled={busy}>취소</Button><Button type="submit" busy={busy} icon={ArrowRight}>프로젝트 만들기</Button></footer></form></Modal>;
 }
 
 export function RevisionModal({ project, doc, revisionId, request, canWrite, canReview, onClose, onChanged, onReview, onEdit, onImplementation }) {

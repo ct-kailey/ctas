@@ -1,4 +1,5 @@
 'use strict';
+const {createReviewedPlan}=require('./implementation-source-fixture');
 // Legacy behavior tests isolate pre-existing state rules; mandatory governance is covered by work-execution HTTP tests.
 
 const { test } = require('node:test');
@@ -63,7 +64,7 @@ test('work item HTTP workflow requires human import and preserves project and re
   }
   async function analyzedPlan(p) {
     const saved = await implementation.saveSettings(p.id, users.owner, {
-      expected_version: 1, goal: '승인한 회원 가입 기획을 구현합니다.',
+      expected_version: 1, project_kind:'client_project',goal: '승인한 회원 가입 기획을 구현합니다.',
       repository_url: 'https://github.com/ct-kailey/nora-flow.git', base_branch: 'main',
     });
     await implementation.recordRepositoryCheck(p.id, users.owner, saved.version, {
@@ -81,7 +82,7 @@ test('work item HTTP workflow requires human import and preserves project and re
     await pool.query("UPDATE revisions SET status='ready',document_json=$1 WHERE id=$2", [JSON.stringify(document), source.revision_id]);
     await pool.query("UPDATE jobs SET status='succeeded' WHERE id=$1", [source.job_id]);
     await ledger.publishInitial(p.id, source.revision_id, users.reviewer, { reason: '원문과 추출 결과를 확인했습니다.', acknowledge_extraction: true });
-    const plan = await implementation.createPlan(p.id, users.member, { request_id: randomUUID(), revision_ids: [source.revision_id] });
+    const plan = await createReviewedPlan(pool,implementation,p.id, users.member, { request_id: randomUUID(), revision_ids: [source.revision_id] });
     const evidence = [{ revision_id: source.revision_id, segment_id: 's1' }];
     const result = {
       title: '회원 가입 구현', summary: '인증 기능과 결과 화면을 구현합니다.',

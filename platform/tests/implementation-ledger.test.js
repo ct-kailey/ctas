@@ -1,4 +1,5 @@
 'use strict';
+const {createReviewedPlan}=require('./implementation-source-fixture');
 // Legacy behavior tests isolate pre-existing state rules; mandatory governance is covered by work-execution HTTP tests.
 const {test,before,after}=require('node:test'),assert=require('node:assert/strict');
 const {randomUUID}=require('node:crypto');
@@ -15,7 +16,7 @@ before(async()=>{
 });
 after(async()=>{if(!url)return;if(pool)await pool.end();if(admin){await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await admin.end();}});
 async function project(){const p=await ledger.createProject(owner,{name:'구현 검증 프로젝트'});await pool.query("INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,'reviewer'),($1,$3,'member'),($1,$4,'viewer')",[p.id,reviewer,member,viewer]);return p;}
-function config(expected_version=1,extra={}){return {expected_version,goal:'승인한 회원 정책을 구현하고 검증합니다.',repository_url:'https://github.com/ct-kailey/nora-flow.git',base_branch:'main',...extra};}
+function config(expected_version=1,extra={}){return {expected_version,project_kind:'client_project',goal:'승인한 회원 정책을 구현하고 검증합니다.',repository_url:'https://github.com/ct-kailey/nora-flow.git',base_branch:'main',...extra};}
 async function settings(p,ready=true){const s=await implementation.saveSettings(p.id,owner,config());if(!ready)return s;return implementation.recordRepositoryCheck(p.id,owner,s.version,{status:'ready',head_sha:'a'.repeat(40),checked_at:new Date().toISOString()});}
 async function spec(p,{published=true,kind='specification',text='회원 가입시 이메일 인증을 수행한다.',document_id}={}){
   const r=await ledger.createRecord(p.id,member,{title:'회원 기획',text,record_kind:kind,document_id});
@@ -47,11 +48,11 @@ suite('project settings require owner, CAS and safe repository/ref syntax',async
 });
 suite('only current published specification baselines can become immutable planning input',async()=>{
   const p=await project(),q=await project(),s=await spec(p),unpublished=await spec(p,{published:false}),conversation=await spec(p,{kind:'conversation'}),foreign=await spec(q);
-  await assert.rejects(implementation.createPlan(p.id,member,body([s])),code('PROJECT_SETTINGS_REQUIRED'));await settings(p);
-  await assert.rejects(implementation.createPlan(p.id,viewer,body([s])),code('FORBIDDEN'));
-  await assert.rejects(implementation.createPlan(p.id,member,body([foreign])),code('NOT_FOUND'));
-  for(const invalid of [unpublished,conversation])await assert.rejects(implementation.createPlan(p.id,member,body([invalid])),code('PUBLISHED_SPECIFICATION_REQUIRED'));
-  const plan=await implementation.createPlan(p.id,member,body([s]));assert.equal(plan.status,'queued');assert.equal(plan.decision,null);assert.equal(plan.input_snapshot.repository.head_sha,'a'.repeat(40));assert.equal(plan.input_snapshot.sources[0].segments[0].text,'회원 가입시 이메일 인증을 수행한다.');
+  await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,body([s])),code('PROJECT_SETTINGS_REQUIRED'));await settings(p);
+  await assert.rejects(createReviewedPlan(pool,implementation,p.id,viewer,body([s])),code('FORBIDDEN'));
+  await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,body([foreign])),code('NOT_FOUND'));
+  for(const invalid of [unpublished,conversation])await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,body([invalid])),code('PUBLISHED_SPECIFICATION_REQUIRED'));
+  const plan=await createReviewedPlan(pool,implementation,p.id,member,body([s]));assert.equal(plan.status,'queued');assert.equal(plan.decision,null);assert.equal(plan.input_snapshot.repository.head_sha,'a'.repeat(40));assert.equal(plan.input_snapshot.sources[0].segments[0].text,'회원 가입시 이메일 인증을 수행한다.');
   assert.equal(plan.input_sha256,implementationHash(plan.input_snapshot));
   await assert.rejects(pool.query("UPDATE implementation_plans SET input_snapshot='{}' WHERE id=$1",[plan.id]),code('23514'));
   await assert.rejects(pool.query('DELETE FROM implementation_plans WHERE id=$1',[plan.id]),code('23514'));
@@ -59,14 +60,15 @@ suite('only current published specification baselines can become immutable plann
 });
 suite('planning enforces scope limits without truncation and request idempotency under concurrency',async()=>{
   const p=await project();await settings(p);const a=await spec(p),b=await spec(p,{text:'비밀번호는 12자 이상이다.'}),request=body([a,b]);
+  for(const r of [a,b])await implementation.reviewSource(p.id,owner,{revision_id:r.revision_id,expected_settings_version:2,usage:'implementation',intended_project_id:p.id,reason:'동시 요청 전 입력 문서 대조'}); const prepared=await implementation.preparePlan(p.id,member,{revision_ids:request.revision_ids});Object.assign(request,{preparation_id:prepared.id,acknowledge_project_sources:true});
   const [one,two]=await Promise.all([implementation.createPlan(p.id,member,request),implementation.createPlan(p.id,member,{...request,revision_ids:[...request.revision_ids].reverse()})]);assert.equal(one.id,two.id);assert.equal([one,two].filter(r=>r.replayed).length,1);
-  await assert.rejects(implementation.createPlan(p.id,member,{...request,revision_ids:[a.revision_id]}),code('IMPLEMENTATION_REQUEST_CONFLICT'));
-  await assert.rejects(implementation.createPlan(p.id,member,body(Array(6).fill(a))),code('INVALID_IMPLEMENTATION_INPUT'));
-  const huge=await spec(p,{text:'가'.repeat(40001)});await assert.rejects(implementation.createPlan(p.id,member,body([huge])),code('IMPLEMENTATION_INPUT_TOO_LARGE'));
+  await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,{...request,revision_ids:[a.revision_id]}),code('IMPLEMENTATION_REQUEST_CONFLICT'));
+  await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,body(Array(6).fill(a))),code('INVALID_IMPLEMENTATION_INPUT'));
+  const huge=await spec(p,{text:'가'.repeat(40001)});await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,body([huge])),code('IMPLEMENTATION_INPUT_TOO_LARGE'));
   assert.equal((await implementation.listPlans(p.id,viewer)).length,1);
 });
 suite('plan approval validates result evidence, blocking questions and reviewer permissions',async()=>{
-  const p=await project();await settings(p);const s=await spec(p),row=await implementation.createPlan(p.id,member,body([s]));
+  const p=await project();await settings(p);const s=await spec(p),row=await createReviewedPlan(pool,implementation,p.id,member,body([s]));
   await assert.rejects(implementation.decidePlan(p.id,row.id,reviewer,approval),code('IMPLEMENTATION_PLAN_NOT_READY'));
   await analyzed(p,row,{questions:[{question:'메일 제공자를 지정해야 합니다.',blocking:true}]});
   await assert.rejects(implementation.decidePlan(p.id,row.id,member,approval),code('FORBIDDEN'));
@@ -80,7 +82,7 @@ suite('plan approval validates result evidence, blocking questions and reviewer 
 });
 suite('settings, HEAD and published baseline changes invalidate plans and execution',async()=>{
   for(const change of ['settings','head','baseline']){
-    const p=await project();await settings(p);const source=await spec(p),row=await implementation.createPlan(p.id,member,body([source]));await analyzed(p,row);await implementation.decidePlan(p.id,row.id,reviewer,approval);
+    const p=await project();await settings(p);const source=await spec(p),row=await createReviewedPlan(pool,implementation,p.id,member,body([source]));await analyzed(p,row);await implementation.decidePlan(p.id,row.id,reviewer,approval);
     if(change==='settings')await implementation.saveSettings(p.id,owner,config(2,{goal:'목표 변경'}));
     if(change==='head')await implementation.recordRepositoryCheck(p.id,owner,2,{status:'ready',head_sha:'b'.repeat(40),checked_at:new Date().toISOString()});
     if(change==='baseline'){const next=await spec(p,{document_id:source.document_id,published:false,text:'회원 가입 시 전화 인증을 한다.'});await pool.query('UPDATE documents SET baseline_revision_id=$1 WHERE id=$2',[next.revision_id,source.document_id]);}
@@ -90,17 +92,17 @@ suite('settings, HEAD and published baseline changes invalidate plans and execut
   }
 });
 suite('empty/unverified repository supports blocking plans and verified HEAD requires a new plan',async()=>{
-  const p=await project();await settings(p,false);const source=await spec(p),row=await implementation.createPlan(p.id,member,body([source]));assert.equal(row.input_snapshot.repository.status,'unchecked');assert.equal(row.input_snapshot.repository.head_sha,null);
+  const p=await project();await settings(p,false);const source=await spec(p),row=await createReviewedPlan(pool,implementation,p.id,member,body([source]));assert.equal(row.input_snapshot.repository.status,'unchecked');assert.equal(row.input_snapshot.repository.head_sha,null);
   await analyzed(p,row,{questions:[{question:'저장소와 기준 브랜치를 확인해야 합니다.',blocking:true}]});
   await assert.rejects(implementation.decidePlan(p.id,row.id,reviewer,approval),code('IMPLEMENTATION_BLOCKING_QUESTIONS'));
   await assert.rejects(implementation.requestExecution(p.id,row.id,owner,execution),code('IMPLEMENTATION_APPROVAL_REQUIRED'));
   await implementation.recordRepositoryCheck(p.id,owner,2,{status:'empty',head_sha:null,checked_at:new Date().toISOString()});
-  const emptyPlan=await implementation.createPlan(p.id,member,body([source]));assert.equal(emptyPlan.input_snapshot.repository.status,'empty');
+  const emptyPlan=await createReviewedPlan(pool,implementation,p.id,member,body([source]));assert.equal(emptyPlan.input_snapshot.repository.status,'empty');
   await analyzed(p,emptyPlan,{questions:[{question:'빈 저장소의 초기 구성을 확정해야 합니다.',blocking:true}]});await assert.rejects(implementation.decidePlan(p.id,emptyPlan.id,reviewer,approval),code('IMPLEMENTATION_BLOCKING_QUESTIONS'));
   await implementation.recordRepositoryCheck(p.id,owner,2,{status:'ready',head_sha:'a'.repeat(40),checked_at:new Date().toISOString()});assert.deepEqual((await implementation.getPlan(p.id,row.id,viewer)).stale_reasons,['REPOSITORY_HEAD_CHANGED']);
 });
 suite('execution is explicit, one-per-approved-plan and preserves immutable approval snapshots',async()=>{
-  const p=await project();await settings(p);const source=await spec(p),row=await implementation.createPlan(p.id,member,body([source]));await analyzed(p,row);
+  const p=await project();await settings(p);const source=await spec(p),row=await createReviewedPlan(pool,implementation,p.id,member,body([source]));await analyzed(p,row);
   await assert.rejects(implementation.requestExecution(p.id,row.id,owner,execution),code('IMPLEMENTATION_APPROVAL_REQUIRED'));await implementation.decidePlan(p.id,row.id,reviewer,approval);
   await assert.rejects(implementation.requestExecution(p.id,row.id,member,execution),code('FORBIDDEN'));
   await assert.rejects(implementation.requestExecution(p.id,row.id,owner,{...execution,acknowledge_code_execution:false}),code('EXECUTION_ACK_REQUIRED'));
@@ -115,7 +117,7 @@ suite('execution is explicit, one-per-approved-plan and preserves immutable appr
   await assert.rejects(pool.query("UPDATE implementation_requests SET status='awaiting_runner' WHERE id=$1",[one.id]),code('23514'));
 });
 suite('execution request and audit are atomic on final insertion failure',async()=>{
-  const p=await project();await settings(p);const source=await spec(p),row=await implementation.createPlan(p.id,member,body([source]));await analyzed(p,row);await implementation.decidePlan(p.id,row.id,owner,approval);
+  const p=await project();await settings(p);const source=await spec(p),row=await createReviewedPlan(pool,implementation,p.id,member,body([source]));await analyzed(p,row);await implementation.decidePlan(p.id,row.id,owner,approval);
   await pool.query("CREATE FUNCTION fail_execution_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.kind='implementation.execution_requested' THEN RAISE EXCEPTION 'forced audit failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER fail_execution BEFORE INSERT ON events FOR EACH ROW EXECUTE FUNCTION fail_execution_test()");
   try{await assert.rejects(implementation.requestExecution(p.id,row.id,owner,execution),/forced audit failure/);}finally{await pool.query('DROP TRIGGER fail_execution ON events; DROP FUNCTION fail_execution_test()');}
   assert.equal((await implementation.listRequests(p.id,viewer)).length,0);assert.equal((await implementation.getPlan(p.id,row.id,viewer)).status,'approved');
@@ -123,14 +125,14 @@ suite('execution request and audit are atomic on final insertion failure',async(
 
 suite('new plan admission is project-scoped, serialized at 20 per hour and permits exact replays',async()=>{
   const p=await project();await settings(p);const source=await spec(p),original=body([source]);
-  await implementation.createPlan(p.id,member,original);
-  for(let i=1;i<19;i++)await implementation.createPlan(p.id,member,body([source]));
-  const final=await Promise.allSettled([implementation.createPlan(p.id,member,body([source])),implementation.createPlan(p.id,reviewer,body([source]))]);
+  await createReviewedPlan(pool,implementation,p.id,member,original);
+  for(let i=1;i<19;i++)await createReviewedPlan(pool,implementation,p.id,member,body([source]));
+  const final=await Promise.allSettled([createReviewedPlan(pool,implementation,p.id,member,body([source])),createReviewedPlan(pool,implementation,p.id,reviewer,body([source]))]);
   assert.equal(final.filter(r=>r.status==='fulfilled').length,1);const rejected=final.find(r=>r.status==='rejected');assert.equal(rejected.reason.code,'IMPLEMENTATION_RATE_LIMIT');assert.equal(rejected.reason.status,429);
   assert.equal((await implementation.listPlans(p.id,viewer)).length,20);
-  assert.equal((await implementation.createPlan(p.id,member,original)).id,original.request_id);
+  assert.equal((await createReviewedPlan(pool,implementation,p.id,member,original)).id,original.request_id);
   const another=await spec(p,{text:'추가 기획'});
-  await assert.rejects(implementation.createPlan(p.id,member,{...original,revision_ids:[another.revision_id]}),code('IMPLEMENTATION_REQUEST_CONFLICT'));
-  await assert.rejects(implementation.createPlan(p.id,member,body([source])),code('IMPLEMENTATION_RATE_LIMIT'));
-  const q=await project();await settings(q);const qSource=await spec(q);assert.equal((await implementation.createPlan(q.id,member,body([qSource]))).status,'queued');
+  await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,{...original,revision_ids:[another.revision_id]}),code('IMPLEMENTATION_REQUEST_CONFLICT'));
+  await assert.rejects(createReviewedPlan(pool,implementation,p.id,member,body([source])),code('IMPLEMENTATION_RATE_LIMIT'));
+  const q=await project();await settings(q);const qSource=await spec(q);assert.equal((await createReviewedPlan(pool,implementation,q.id,member,body([qSource]))).status,'queued');
 });
