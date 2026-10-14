@@ -22,6 +22,7 @@ from zipfile import BadZipFile, ZipFile
 MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_SEGMENTS = 200
 MAX_TEXT_CHARS = 100_000
+MAX_DOCX_GROUP_CHARS = 5_000
 MAX_ZIP_BYTES = 100 * 1024 * 1024
 MIMES = {
     ".pdf": "application/pdf",
@@ -157,14 +158,23 @@ def extract_docx(data: bytes, result: Collector, names: list[str]) -> None:
     document = Document(BytesIO(data))
     paragraph_number = 0
     table_number = 0
+    paragraphs: list[tuple[str, str, int]] = []
+    characters = 0
 
     def read_blocks(container: Any, prefix: str = "") -> None:
-        nonlocal paragraph_number, table_number
+        nonlocal paragraph_number, table_number, characters
         for block in container.iter_inner_content():
             if isinstance(block, Paragraph):
                 paragraph_number += 1
                 if block.text:
-                    result.add(block.text, "paragraph", f"{prefix}paragraph {paragraph_number}")
+                    label = f"{prefix}paragraph {paragraph_number}"
+                    if not block.text.strip():
+                        result.add(block.text, "paragraph", label)
+                        continue
+                    characters += len(block.text)
+                    if characters > MAX_TEXT_CHARS:
+                        raise ExtractionError("TEXT_LIMIT", "Extracted text exceeds 100000 characters; split the document explicitly and retry.")
+                    paragraphs.append((block.text, label, paragraph_number))
             elif isinstance(block, Table):
                 table_number += 1
                 current_table = table_number
@@ -178,6 +188,11 @@ def extract_docx(data: bytes, result: Collector, names: list[str]) -> None:
                         read_blocks(cell, f"table {current_table} row {row_index} column {column_index} ")
 
     read_blocks(document)
+    if len(paragraphs) <= MAX_SEGMENTS:
+        for text, label, _number in paragraphs:
+            result.add(text, "paragraph", label)
+    else:
+        add_docx_groups(paragraphs, result)
     if any(name.startswith("word/media/") for name in names):
         result.warn("IMAGE_NOT_EXTRACTED: DOCX images are retained only in the source archive; OCR is not supported.", incomplete=True)
     if any(re.match(r"word/(header\d+|footer\d+|footnotes|endnotes|comments)\.xml$", name) for name in names):
@@ -187,6 +202,50 @@ def extract_docx(data: bytes, result: Collector, names: list[str]) -> None:
         result.warn("DOCX_COMPLEX_CONTENT: textboxes, revisions, drawings, fields, embedded content, or equations require original-document review.", incomplete=True)
     if not result.complete:
         result.review_all()
+
+
+def add_docx_groups(paragraphs: list[tuple[str, str, int]], result: Collector) -> None:
+    """Pack a long DOCX without dropping text or changing the envelope limits.
+
+    Locator annotations are explicitly distinguished from the source text. The
+    original paragraph strings (including whitespace) remain intact, or are
+    split into consecutive, labelled character ranges for an oversized paragraph.
+    """
+    result.warn("DOCX_PARAGRAPHS_GROUPED: over 200 paragraphs are grouped in source order into segments of at most 5000 characters. Bracketed SOURCE LOCATION annotations are added extraction metadata, not source text; they preserve each paragraph/table-cell location. Original paragraph text is retained without summarization. Review against the original.", incomplete=True)
+    parts: list[str] = []
+    length = 0
+    first_number = last_number = 0
+
+    def flush() -> None:
+        nonlocal parts, length
+        if parts:
+            label = f"paragraph {first_number}" if first_number == last_number else f"paragraphs {first_number}-{last_number}"
+            result.add("\n\n".join(parts), "paragraph", label, review=True)
+            parts = []
+            length = 0
+
+    for text, label, number in paragraphs:
+        prefix = f"[SOURCE LOCATION: {label}]\n"
+        if len(prefix) + len(text) <= MAX_DOCX_GROUP_CHARS:
+            pieces = [prefix + text]
+        else:
+            # Reserve enough space for the annotation and both character offsets.
+            budget = MAX_DOCX_GROUP_CHARS - len(prefix) - 50
+            if budget < 1:
+                raise ExtractionError("TEXT_LIMIT", "A source locator exceeds the bounded DOCX group size; split the document explicitly and retry.")
+            pieces = [f"[SOURCE LOCATION: {label}; characters {offset + 1}-{min(offset + budget, len(text))}]\n{text[offset:offset + budget]}"
+                      for offset in range(0, len(text), budget)]
+        for piece in pieces:
+            separator = 2 if parts else 0
+            if length + separator + len(piece) > MAX_DOCX_GROUP_CHARS:
+                flush()
+                separator = 0
+            if not parts:
+                first_number = number
+            last_number = number
+            parts.append(piece)
+            length += separator + len(piece)
+    flush()
 
 
 def extract_pptx(data: bytes, result: Collector) -> None:

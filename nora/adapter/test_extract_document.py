@@ -5,6 +5,7 @@ from io import BytesIO, StringIO
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from zipfile import ZipFile
@@ -112,6 +113,61 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual([s["text"] for s in envelope["segments"]], ["REQ-1: 농도 ≤ 0.05 mg/L", "기준", "> 10 mg/L", "끝"])
         self.assertIn("table 1 row 1 column 2", envelope["segments"][2]["locator"]["label"])
         self.assertFalse(envelope["extraction"]["complete"])
+
+    def test_long_docx_groups_preserve_every_paragraph_cell_and_character_range(self):
+        from docx import Document
+        document = Document()
+        originals = [f"  REQ-{i}: 농도 ≤ 0.05 mg/L\n  다음 줄\t값  " for i in range(429)]
+        for text in originals:
+            document.add_paragraph(text)
+        table = document.add_table(rows=1, cols=2)
+        table.cell(0, 0).text = "표 셀 첫 번째"
+        table.cell(0, 1).text = "표 셀 두 번째"
+        long_text = "  긴 문단\t≤ 5 mg/L\n" * 450
+        document.add_paragraph(long_text)
+        stream = BytesIO()
+        document.save(stream)
+        data = stream.getvalue()
+        envelope = self.extract("long.docx", data)
+        segments = envelope["segments"]
+        self.assertLessEqual(len(segments), 200)
+        self.assertTrue(all(len(segment["text"]) <= 5000 for segment in segments))
+        self.assertTrue(all(segment["extraction_status"] == "needs_review" for segment in segments))
+        self.assertFalse(envelope["extraction"]["complete"])
+        self.assertEqual(envelope["source"]["sha256"], hashlib.sha256(data).hexdigest())
+        self.assertTrue(any(w.startswith("DOCX_PARAGRAPHS_GROUPED:") for w in envelope["extraction"]["warnings"]))
+        joined = "\n\n".join(segment["text"] for segment in segments)
+        for number, text in enumerate(originals, 1):
+            self.assertIn(f"[SOURCE LOCATION: paragraph {number}]\n{text}", joined)
+        self.assertIn("[SOURCE LOCATION: table 1 row 1 column 1 paragraph 430]\n표 셀 첫 번째", joined)
+        self.assertIn("[SOURCE LOCATION: table 1 row 1 column 2 paragraph 431]\n표 셀 두 번째", joined)
+        pieces = re.findall(r"\[SOURCE LOCATION: paragraph 432; characters (\d+)-(\d+)\]\n(.*?)(?=\n\n\[SOURCE LOCATION:|\Z)", joined, re.S)
+        self.assertGreater(len(pieces), 1)
+        reconstructed = ""
+        for start, end, text in pieces:
+            self.assertEqual(int(start), len(reconstructed) + 1)
+            self.assertEqual(text, long_text[int(start) - 1:int(end)])
+            reconstructed += text
+        self.assertEqual(reconstructed, long_text)
+        self.assertEqual((self.root / "long.docx").read_bytes(), data)
+
+    def test_docx_grouping_keeps_short_documents_unchanged_and_does_not_bypass_text_limit(self):
+        from docx import Document
+        document = Document()
+        for _ in range(200):
+            document.add_paragraph("x" * 480)
+        stream = BytesIO()
+        document.save(stream)
+        short = self.extract("short.docx", stream.getvalue())
+        self.assertEqual(len(short["segments"]), 200)
+        self.assertEqual(short["segments"][0]["text"], "x" * 480)
+        self.assertEqual(short["segments"][-1]["locator"]["label"], "paragraph 200")
+        document.add_paragraph("x" * 480)
+        stream = BytesIO()
+        document.save(stream)
+        # Original text is below 100k; added provenance is also budgeted. Fail
+        # explicitly rather than silently dropping source or locator metadata.
+        self.assert_code("TEXT_LIMIT", self.extract, "over.docx", stream.getvalue(), revision="r2")
 
     def test_pptx_slide_locators_and_table_review(self):
         from pptx import Presentation

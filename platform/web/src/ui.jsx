@@ -80,6 +80,7 @@ const SOURCE_CHECKS = {
   PDF_LAYOUT_UNVERIFIED: 'PDF의 표 관계, 읽기 순서와 특수 기호는 원본 페이지와 대조해 주세요.',
   IMAGE_NOT_EXTRACTED: '문서 속 이미지의 내용은 추출하지 않았습니다. 원본에서 직접 확인해 주세요.',
   DOCX_TABLE_LAYOUT_UNVERIFIED: '표의 셀 텍스트는 보존했지만 병합 셀과 표의 의미는 원본과 대조해 주세요.',
+  DOCX_PARAGRAPHS_GROUPED: '문단이 많은 문서를 원문 순서대로 묶었습니다. 문단·표 셀 위치를 함께 표시했으니 원본과 대조해 주세요.',
   DOCX_AUXILIARY_TEXT_NOT_EXTRACTED: '머리말·꼬리말·각주·주석 등의 부가 내용은 원본에서 확인해 주세요.',
   DOCX_COMPLEX_CONTENT: '텍스트 상자, 수식, 변경 내용 추적 등 복합 요소는 원본에서 확인해 주세요.',
   PPTX_TABLE_LAYOUT_UNVERIFIED: '슬라이드 표의 병합 셀과 항목 간 관계를 원본과 대조해 주세요.',
