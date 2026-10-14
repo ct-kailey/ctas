@@ -7,10 +7,12 @@
 - 언어 아는 경우 `language="html"` 처럼 라벨 노출 — 작게 fg-muted로.
 - `onCopyCode`를 안 주면 clipboard API로 자동 복사. 성공 시 Check 아이콘으로 1.5s 피드백.
 - 가로가 넘치면 pre 안에서 가로 스크롤 — body wrapping 대신.
+- **copy 버튼 Tooltip은 내부에서 자체 `TooltipProvider`로 감싸져 있음** — 소비처가 app shell에 Provider를 안 깔아도 standalone 동작. Radix Provider는 중첩 안전.
 
 ### Don't
 - CodeBlock 안에 "실행" 버튼이나 "preview 전환" 넣지 않는다. 그건 소비처 책임.
 - syntax highlighting을 내장하지 않는다 — shiki/highlight.js는 소비처에서.
+- 내부 `TooltipProvider`를 걷어내지 않는다 — ctds 패키지 소비자가 Provider 없이 import하면 Radix가 throw.
 
 ### Fallback
 language 애매하면 생략. onCopy 애매하면 clipboard API 기본.

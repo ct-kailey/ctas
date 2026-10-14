@@ -1,7 +1,7 @@
 # Attachment Item
 
 ### 원칙
-파일 첨부 1건 — `[FileIcon] filename (meta) [actions]`. 폭 400px 고정, 레이아웃은 `size` 하나로 결정. 파일명에서 확장자를 뽑아 [[components/file-icon]] 색/라벨을 자동 결정. `state="loading"`이면 좌측 뱃지를 Spinner(lottie-dots)로 교체. trailing은 콜백 조합(`onRemove`/`onDownload`/`onMore`)으로 노출. 긴 파일명은 **중간 생략 + 끝 확장자 유지**. "Chip"이 아님에 주의 — [[components/chip]]은 필터 선택값 전용.
+파일 첨부 1건 — `[FileIcon] filename (meta) [actions]`. 폭은 size로 결정 (sm/md=220px, lg=400px). 레이아웃도 `size` 하나로 결정. 파일명에서 확장자를 뽑아 [[components/file-icon]] 색/라벨을 자동 결정. `state="loading"`이면 좌측 뱃지를 Spinner(lottie-dots)로 교체. trailing은 콜백 조합(`onRemove`/`onDownload`/`onMore`)으로 노출. 긴 파일명은 **중간 생략 + 끝 확장자 유지**. "Chip"이 아님에 주의 — [[components/chip]]은 필터 선택값 전용.
 
 ### Do
 - 파일명 통째로 넘기면 끝 — `filename="report.pdf"` 하나로 아이콘·라벨·식별까지.
@@ -15,7 +15,7 @@
 - Thumb(이미지)·Item(파일) 섞여 흐를 자리는 `flex-wrap: wrap` + `gap: space-2`로 조립.
 
 ### Don't
-- 폭을 임의로 바꾸지 않는다 — 전부 `--input-w-lg` (400px) 고정. 소비처가 폭 걱정 없이 세로/wrap만 결정.
+- 폭을 임의로 override 하지 않는다 — size가 폭을 결정 (sm/md=220px, lg=`--input-w-lg` 400px). 소비처는 세로/wrap만 결정.
 - 파일명·확장자를 **따로** 받는 props 추가하지 않는다 — 소비처가 자르면 FileIcon 매핑이 어긋남.
 - trailing에 임의 ReactNode 슬롯을 뚫지 않는다 — 접근성·간격·톤 통일이 깨짐. 정의된 콜백 조합만.
 - trailing을 수제 버튼으로 그리지 않는다 — 반드시 IconButton 재사용 (sm/md → IconButton sm 20, lg → IconButton md 24). IconButton에 없는 치수(28·36 등)는 금지.
@@ -51,7 +51,7 @@ size 애매하면 `md`. 모르는 확장자는 FileIcon이 `others`로 폴백하
 ```
 
 ### 비율·레이아웃
-- 폭: 전부 `--input-w-lg` (400px) 고정.
+- 폭: sm/md=220px (`calc(var(--space-unit) * 55)`), lg=`--input-w-lg` (400px).
 - 외곽: `--hairline` 1px border, `var(--border)` 색. drop shadow는 `--shadow-xs` (가장 연함).
 - radius: sm/md=`--radius-md`, lg=`--radius-lg`.
 - 내부 gap (leading ↔ text): sm=`--space-1_5`, md=`--space-2`, lg=`--space-2_5`. actions 간은 전부 `--space-1`.
@@ -66,12 +66,12 @@ size 애매하면 `md`. 모르는 확장자는 FileIcon이 `others`로 폴백하
 
 ### Middle ellipsis 규칙
 `filename.length > max`이면 `name... + ext`로 치환. 확장자는 항상 끝에 보존.
-- sm: max=36
-- md: max=40
+- sm: max=24
+- md: max=22
 - lg: max=44
 - 확장자 없거나(dot<=0) 비정상적으로 긴 확장자(>8자) / 확장자가 max를 거의 다 먹는 경우만 일반 `...` 꼬리로 폴백.
 - 사용 문자는 ASCII `...` (유니코드 `…` 금지, [[feedback-no-em-dash]]).
-- CSS `text-overflow: ellipsis`는 안전망으로 유지하되, 글자 수 cap을 400px 폭보다 보수적으로 잡아 CSS가 확장자를 다시 잘라내지 않게 한다.
+- CSS `text-overflow: ellipsis`는 안전망으로 유지하되, 글자 수 cap을 size별 폭보다 보수적으로 잡아 CSS가 확장자를 다시 잘라내지 않게 한다.
 
 ### Loading 좌측 뱃지
 `state="loading"`일 때 FileIcon 자리에 Spinner — `variant="lottie-dots"`. 색은 `--fg-subtle` currentColor 바인딩. 크기는 FileIcon의 각 size와 동일 치수를 가지는 정사각 슬롯이 감싸고 내부 Spinner는 100%.

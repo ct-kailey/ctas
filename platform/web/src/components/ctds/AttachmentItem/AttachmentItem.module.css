@@ -1,13 +1,11 @@
 /* AttachmentItem — [leading] filename (meta) [actions]
-   size sm/md: 1줄 pill
-   size lg:    2줄 큰 카드 (파일명 위 / meta 아래)
-   폭은 전부 --input-w-lg (400px) 고정 — 소비처가 폭 걱정 없이 넣기만. */
+   size sm/md: 1줄 pill — 좁은 폭(55 * unit = 220px).
+   size lg:    2줄 큰 카드 (파일명 위 / meta 아래) — --input-w-lg(400px) 폭. */
 
 .root {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  width: var(--input-w-lg);
   min-width: 0;
   background: var(--bg);
   border: var(--hairline) solid var(--border);
@@ -19,25 +17,28 @@
 }
 
 /* ───────── size ─────────
-   sm/md: 1줄. radius-md.
-   lg:   2줄 세로 스택. radius-lg + 넉넉한 padding. */
+   sm/md: 1줄. radius-md. 좁은 폭.
+   lg:   2줄 세로 스택. radius-lg + 넉넉한 padding. 큰 폭. */
 .sizeSm {
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
   gap: var(--space-1_5);
   font-size: var(--text-xs);
   border-radius: var(--radius-md);
+  width: calc(var(--space-unit) * 55);
 }
 .sizeMd {
   padding: var(--space-1_5) var(--space-1_5) var(--space-1_5) var(--space-2_5);
   gap: var(--space-2);
   font-size: var(--text-sm);
   border-radius: var(--radius-md);
+  width: calc(var(--space-unit) * 55);
 }
 .sizeLg {
   padding: var(--space-2_5) var(--space-1_5) var(--space-2_5) var(--space-2_5);
   gap: var(--space-2_5);
   font-size: var(--text-sm);
   border-radius: var(--radius-lg);
+  width: var(--input-w-lg);
 }
 
 /* ───────── text block ───────── */

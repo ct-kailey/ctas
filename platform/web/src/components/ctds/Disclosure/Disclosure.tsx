@@ -8,6 +8,7 @@ import {
   useId,
   useState,
   type HTMLAttributes,
+  type ButtonHTMLAttributes,
   type ReactNode,
 } from "react";
 
@@ -67,7 +68,7 @@ const DisclosureRoot = forwardRef<HTMLDivElement, DisclosureProps>(
 
     return (
       <DisclosureContext.Provider value={{ open, toggle, bodyId }}>
-        <div ref={ref} className={rootClass} data-open={open || undefined} {...rest}>
+        <div ref={ref} className={rootClass} data-ctds="disclosure" data-open={open || undefined} {...rest}>
           {children}
         </div>
       </DisclosureContext.Provider>
@@ -77,19 +78,20 @@ const DisclosureRoot = forwardRef<HTMLDivElement, DisclosureProps>(
 
 /* Trigger ────────────────────────────────────────────── */
 export interface DisclosureTriggerProps
-  extends Omit<HTMLAttributes<HTMLButtonElement>, "onClick"> {
+  extends ButtonHTMLAttributes<HTMLButtonElement> {
   children?: ReactNode;
 }
 
-function DisclosureTrigger({ className, children, ...rest }: DisclosureTriggerProps) {
+function DisclosureTrigger({ className, children, onClick, ...rest }: DisclosureTriggerProps) {
   const { open, toggle, bodyId } = useDisclosure();
   return (
     <button
       type="button"
+      data-ctds="disclosure-trigger"
       className={[styles.trigger, className ?? ""].filter(Boolean).join(" ")}
       aria-expanded={open}
       aria-controls={bodyId}
-      onClick={toggle}
+      onClick={(event) => { onClick?.(event); if (!event.defaultPrevented) toggle(); }}
       {...rest}
     >
       <span className={styles.triggerLabel}>{children}</span>
@@ -109,6 +111,8 @@ function DisclosureBody({ className, children, ...rest }: DisclosureBodyProps) {
       className={[styles.bodyWrap, className ?? ""].filter(Boolean).join(" ")}
       data-open={open || undefined}
       aria-hidden={!open || undefined}
+      inert={!open || undefined}
+      data-ctds="disclosure-body"
       {...rest}
     >
       <div className={styles.bodyInner}>{children}</div>

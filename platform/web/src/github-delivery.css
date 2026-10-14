@@ -2,18 +2,21 @@
 /* AINS page column widths and scroll limits; CTDS controls visual tokens. */
 :root { --ains-github-delivery-measure-135: 135px; --ains-github-delivery-measure-480: 480px }
 .github-delivery { min-width: 0 }
-.github-heading,.github-review>header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5) }
+.github-heading, .github-review>header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5) }
 .github-heading { margin-bottom: var(--space-6) }
 .github-heading h2 { font-size: var(--text-2xl); letter-spacing: var(--type-2xl-tracking); line-height: var(--lh-2xl); margin: var(--space-2) 0 }
-.github-heading p,.github-settings p,.github-prepare>p,.github-note { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); letter-spacing: var(--type-sm-tracking) }
-.github-settings,.github-prepare,.github-review { border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg); padding: var(--space-6); margin-bottom: var(--space-6); min-width: 0 }
-.github-settings { background: var(--bg-subtle) }
-.github-settings summary { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); font-weight: var(--font-weight-semibold); cursor: pointer; flex-wrap: wrap; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.github-settings .field,.github-prepare .field,.github-review .field { margin: var(--space-4) 0 }
-.github-settings .checkbox-label,.github-review .checkbox-label { margin: var(--space-3) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.github-settings .checkbox-label input,.github-review .checkbox-label input { flex-shrink: 0 }
-.github-settings .button,.github-review form>.button { margin-top: var(--space-4) }
-.github-prepare h3,.github-review h3 { font-size: var(--text-base); margin: 0 0 var(--space-4); line-height: var(--lh-base); overflow-wrap: anywhere; letter-spacing: var(--type-base-tracking) }
+.github-heading p, .github-settings:where(:not([data-ctds]):not([data-ctds-control])) p, .github-prepare>p, .github-note { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); letter-spacing: var(--type-sm-tracking) }
+.github-settings, .github-prepare, .github-review { margin-bottom: var(--space-6); min-width: 0 }
+.github-settings:where(:not([data-ctds]):not([data-ctds-control])), .github-prepare, .github-review { border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg); padding: var(--space-6) }
+.github-settings:where(:not([data-ctds]):not([data-ctds-control])) { background: var(--bg-subtle) }
+.github-settings summary { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; flex-wrap: wrap }
+.github-settings summary:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.github-settings .field, .github-prepare .field, .github-review .field { margin: var(--space-4) 0 }
+.github-settings .checkbox-label, .github-review .checkbox-label { margin: var(--space-3) 0 }
+.github-settings:where(:not([data-ctds]):not([data-ctds-control])) .checkbox-label, .github-review .checkbox-label { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.github-settings .checkbox-label input:where(:not([data-ctds]):not([data-ctds-control])), .github-review .checkbox-label input:where(:not([data-ctds]):not([data-ctds-control])) { flex-shrink: 0 }
+.github-settings .button, .github-review form>.button { margin-top: var(--space-4) }
+.github-prepare h3, .github-review h3 { font-size: var(--text-base); margin: 0 0 var(--space-4); line-height: var(--lh-base); overflow-wrap: anywhere; letter-spacing: var(--type-base-tracking) }
 .github-prepare fieldset { border: 0; margin: 0; padding: 0; min-width: 0 }
 .github-list { border: var(--hairline) solid var(--border); background: var(--bg); border-radius: var(--radius-sm); overflow: hidden }
 .github-list>button { display: flex; gap: var(--space-3); align-items: center; text-align: left; width: 100%; cursor: pointer }
@@ -31,17 +34,20 @@
 .github-review h4 { font-size: var(--text-sm); margin: var(--space-5) 0 var(--space-2_5); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .github-review ul { font-size: var(--text-sm); line-height: var(--lh-sm); padding-left: var(--space-5); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
 .github-body { font-size: var(--text-sm); line-height: var(--lh-sm); white-space: pre-wrap; overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
-.github-patch { border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); background: var(--bg-subtle); margin: var(--space-4) 0; min-width: 0 }
-.github-patch summary { font-size: var(--text-sm); padding: var(--space-3); cursor: pointer; color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.github-patch pre { white-space: pre; overflow: auto; max-height: var(--ains-github-delivery-measure-480); font: var(--text-xs)/var(--lh-xs) var(--font-code); padding: var(--space-4); margin: 0; background: var(--bg-subtle); color: var(--fg); border-radius: 0 0 var(--radius-xs) var(--radius-xs); tab-size: 2 }
+.github-patch { margin: var(--space-4) 0; min-width: 0 }
+.github-patch:where(:not([data-ctds]):not([data-ctds-control])) { border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); background: var(--bg-subtle) }
+.github-patch summary { cursor: pointer }
+.github-patch summary:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); padding: var(--space-3); color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.github-patch pre { white-space: pre; overflow: auto; margin: 0; tab-size: 2 }
+.github-patch:where(:not([data-ctds]):not([data-ctds-control])) pre { max-height: var(--ains-github-delivery-measure-480); font: var(--text-xs)/var(--lh-xs) var(--font-code); padding: var(--space-4); background: var(--bg-subtle); color: var(--fg); border-radius: 0 0 var(--radius-xs) var(--radius-xs) }
 .github-review form { padding-top: var(--space-4); margin-top: var(--space-4); border-top: var(--hairline) solid var(--border) }
 .github-review>small { display: block; font-size: var(--text-2xs); color: var(--warning); margin-top: var(--space-3); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .github-delivery :focus-visible:where(:not([data-ctds]):not([data-ctds-control])) { outline: var(--ring-width) solid var(--ring); outline-offset: var(--ring-offset) }
 .github-delivery .notice { overflow-wrap: anywhere }
 @media(max-width:650px){
-.github-heading,.github-review>header { flex-direction: column; align-items: flex-start; gap: var(--space-3) }
+.github-heading, .github-review>header { flex-direction: column; align-items: flex-start; gap: var(--space-3) }
 .github-heading h2 { font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
-.github-settings,.github-prepare,.github-review { padding: var(--space-4) }
+.github-settings:where(:not([data-ctds]):not([data-ctds-control])), .github-prepare, .github-review { padding: var(--space-4) }
 .github-review dl { grid-template-columns: 1fr; gap: var(--space-0_5) }
 .github-review dd { margin-bottom: var(--space-2) }
 .github-list>button { flex-wrap: wrap; gap: var(--space-2) }

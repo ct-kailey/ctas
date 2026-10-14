@@ -20,8 +20,9 @@ export type CalloutVariant = "fill" | "outline";
 export type CalloutActionsPlacement = "bottom" | "right";
 
 export interface CalloutProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
-  icon?: IconName;
-  title: ReactNode;
+  /** null explicitly hides the tone's default icon; custom icon nodes are supported. */
+  icon?: IconName | ReactNode;
+  title?: ReactNode;
   /** 본문. 짧게 유지 — 3~4줄 안쪽. */
   children?: ReactNode;
   /** 하단(또는 우측) 액션 슬롯. Button/Link 자유 배치. */
@@ -90,12 +91,15 @@ const Callout = forwardRef<HTMLDivElement, CalloutProps>(
       .filter(Boolean)
       .join(" ");
 
-    const resolvedIcon = icon ?? toneDefaultIcon[tone];
+    const resolvedIcon = icon === undefined ? toneDefaultIcon[tone] : icon;
     const isRight = actionsPlacement === "right";
+    const hasTitle = title !== undefined && title !== null && title !== false && title !== "";
+    const hasHead = hasTitle || Boolean(resolvedIcon) || (!isRight && dismissible);
 
     const dismissBtn = dismissible ? (
       <IconButton
         className={styles.dismiss}
+        data-ctds="button"
         size="md"
         variant="ghost"
         icon={<Icon name="x" />}
@@ -105,17 +109,17 @@ const Callout = forwardRef<HTMLDivElement, CalloutProps>(
     ) : null;
 
     return (
-      <div ref={ref} className={rootClass} {...rest}>
-        <div className={styles.head}>
+      <div ref={ref} className={rootClass} data-ctds="callout" {...rest}>
+        {hasHead && <div className={styles.head}>
           {resolvedIcon && (
             <span className={styles.icon} aria-hidden>
-              <Icon name={resolvedIcon} />
+              {typeof resolvedIcon === "string" ? <Icon name={resolvedIcon as IconName} /> : resolvedIcon}
             </span>
           )}
-          <div className={styles.title}>{title}</div>
+          <div className={hasTitle ? styles.title : `${styles.body} ${styles.content}`}>{hasTitle ? title : children}</div>
           {!isRight && dismissBtn}
-        </div>
-        {children && <div className={styles.body}>{children}</div>}
+        </div>}
+        {(hasTitle || !hasHead) && children && <div className={styles.body}>{children}</div>}
         {isRight ? (
           <div
             className={[styles.side, dismissible ? "" : styles.sideNoDismiss]

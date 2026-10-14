@@ -3,6 +3,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -11,6 +12,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type ReactNode,
+  type Ref,
 } from "react";
 
 import { Icon } from "../Icon";
@@ -56,6 +58,9 @@ export interface InputProps
   description?: ReactNode;
   /** 경고 메시지. 있으면 invalid로 취급되어 보더가 destructive로 바뀐다. */
   warning?: ReactNode;
+  /** Native-input adapters may bypass wrapper interactions without changing existing consumers. */
+  inputRef?: Ref<HTMLInputElement>;
+  inputProps?: InputHTMLAttributes<HTMLInputElement>;
 }
 
 const WRAPPER_EVENT_KEYS = [
@@ -132,11 +137,18 @@ export const Input = forwardRef<HTMLElement, InputProps>(
       label,
       description,
       warning,
+      inputRef,
+      inputProps,
       ...props
     },
     ref
   ) => {
     const innerRef = useRef<HTMLInputElement>(null);
+    const setInputRef = useCallback((node: HTMLInputElement | null) => {
+      innerRef.current = node;
+      if (typeof inputRef === "function") inputRef(node);
+      else if (inputRef) inputRef.current = node;
+    }, [inputRef]);
 
     const hasWarning = warning != null && warning !== false;
     const invalid = invalidProp ?? hasWarning;
@@ -178,6 +190,16 @@ export const Input = forwardRef<HTMLElement, InputProps>(
     const isControlled = value !== undefined;
     const currentValue = isControlled ? String(value ?? "") : uncontrolledValue;
     const hasValue = currentValue.length > 0;
+
+    useEffect(() => {
+      const input = innerRef.current, form = input?.form;
+      if (!input || !form || isControlled) return;
+      const reset = (event: Event) => queueMicrotask(() => {
+        if (!event.defaultPrevented && input.isConnected) setUncontrolledValue(input.value);
+      });
+      form.addEventListener("reset", reset);
+      return () => form.removeEventListener("reset", reset);
+    }, [isControlled, props.form, inputProps?.form]);
 
     const handleChange = useCallback(
       (e: ChangeEvent<HTMLInputElement>) => {
@@ -228,6 +250,7 @@ export const Input = forwardRef<HTMLElement, InputProps>(
     const control = (
       <div
         {...wrapperProps}
+        data-ctds="input"
         ref={ref as React.Ref<HTMLDivElement>}
         className={rootClass}
         style={mergedStyle}
@@ -253,7 +276,8 @@ export const Input = forwardRef<HTMLElement, InputProps>(
         )}
 
         <input
-          ref={innerRef}
+          ref={setInputRef}
+          data-ctds-control="input"
           id={inputId}
           className={styles.input}
           type={effectiveType}
@@ -269,6 +293,7 @@ export const Input = forwardRef<HTMLElement, InputProps>(
             ? { tabIndex: -1, style: { pointerEvents: "none" } }
             : {})}
           {...props}
+          {...inputProps}
         />
 
         {clearable && !disabled && !readOnly && (
@@ -281,6 +306,7 @@ export const Input = forwardRef<HTMLElement, InputProps>(
             aria-hidden={!showClear || undefined}
           >
             <IconButton
+              data-ctds="button"
               size={iconButtonSizeFor[size]}
               icon={<Icon name="x" />}
               aria-label="지우기"
@@ -295,6 +321,7 @@ export const Input = forwardRef<HTMLElement, InputProps>(
 
         {showPasswordToggle && (
           <IconButton
+            data-ctds="button"
             size={iconButtonSizeFor[size]}
             icon={<Icon name={passwordVisible ? "eye-slash" : "eye"} />}
             aria-label={passwordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}

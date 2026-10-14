@@ -38,6 +38,8 @@ export type ButtonProps = Omit<
    *  rightIcon과 공존 시 badge → rightIcon 순으로 배치. */
   badge?: ReactNode;
   asChild?: boolean;
+  /** Content rows/cards retain their intrinsic height without changing normal buttons. */
+  layout?: "inline" | "content";
 };
 
 const variantClass: Record<ButtonVariant, string> = {
@@ -90,6 +92,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       rightIcon,
       badge,
       asChild = false,
+      layout = "inline",
       disabled,
       type,
       children,
@@ -103,6 +106,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       styles.root,
       variantClass[variant],
       sizeClass[size],
+      layout === "content" ? styles.contentLayout : "",
       fullWidth ? styles.fullWidth : "",
       className ?? "",
     ]
@@ -119,6 +123,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           ref={ref}
           className={rootClass}
           data-loading={loading || undefined}
+          data-ctds="button"
+          aria-busy={loading || undefined}
+          disabled={disabled || loading}
           {...rest}
         >
           {children}
@@ -129,6 +136,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         ref={ref}
+        data-ctds="button"
         className={rootClass}
         type={type ?? "button"}
         disabled={disabled || loading}

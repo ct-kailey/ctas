@@ -1,6 +1,6 @@
 # AINS · CTDS
 
-CTDS 0.2.5의 copy-based React 컴포넌트를 React/Vite 호스트에 적용한다.
+CTDS 0.3.2의 copy-based React 컴포넌트를 React/Vite 호스트에 적용한다.
 기본 축은 [ctds.config.json](./ctds.config.json)이 단일 원본이다.
 
 ## 디자인 방향
@@ -10,14 +10,14 @@ Spare의 간결한 업무 도구 레이아웃을 기반으로 한다. 기본은 
 ## 코드와 규칙
 
 - 공통 컴포넌트: `platform/web/src/components/ctds/`
-- 앱 호환 어댑터: `platform/web/src/ui.jsx`
+- 앱 호환 어댑터: `platform/web/src/ui.jsx`, `ui-controls.jsx`
 - 테마 저장·검증: `appearance.jsx`, `theme-state.mjs`
 - 공식 규칙: [PRINCIPLES](./docs/ctds/prompts/PRINCIPLES.md), [OVERRIDE](./docs/ctds/prompts/OVERRIDE.md), [Spare](./docs/ctds/prompts/themes/spare.md)
 - 앱 수정 사항: [컴포넌트](./docs/ctds/ains-components.md), [스타일](./docs/ctds/ains-styles.md)
 
 새 화면은 실제 CTDS 컴포넌트를 조합한다. 앱 색상·간격·글꼴·모서리·그림자·전환은 semantic token을 참조한다. 브랜드 강조는 `--primary`, 본문은 `--fg`, 설명은 `--fg-muted`다. `--fg-subtle`을 작은 본문에 사용하지 않는다. CSS 변수로 쓸 수 없는 media query 분기점과 의도한 구조 폭은 별도 layout token으로 관리한다. 원문 출처·승인·오류 안내는 디자인 작업에서 없애지 않는다.
 
-`Button` 기본 크기는 sm이다. 기존 AINS 폼 호환 어댑터만 implicit submit을 보존하므로 새 비제출 버튼에는 `type="button"`을 명시한다. 파일·체크박스·네이티브 선택·특별한 ref/이벤트가 필요한 입력은 네이티브 접근성 동작을 유지하며 토큰으로 스타일링한다. 모달은 바쁜 동안 닫기를 차단하고 미저장 확인 콜백·포커스 복귀를 유지한다.
+`Button` 기본 크기는 sm이다. 기존 AINS 폼 호환 어댑터만 implicit submit을 보존하므로 새 비제출 버튼에는 `type="button"`을 명시한다. 탭·선택·입력·체크박스·라디오·접기·확인창은 실제 CTDS 컴포넌트를 사용한다. 폼 호환 어댑터가 ref·이벤트·FormData·필수 입력·초기화를 보존한다. Select의 숨은 native 요소는 폼 전송 전용이며 사용자에게 보이는 트리거와 메뉴는 CTDS Select다. 모달은 바쁜 동안 닫기를 차단하고 미저장 확인 콜백·포커스 복귀를 유지한다.
 
 키보드 포커스는 항상 표시한다. 동작 줄이기 요청은 애니메이션보다 우선한다. 아이콘 변경은 지원하지 않는다. Font 축은 한국어 UI에 맞춰 고정한다. Pretendard Variable은 앱에서 직접 제공하므로 문서 CDN 연결이나 CSP 완화 없이 로드된다.
 

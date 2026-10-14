@@ -1,6 +1,7 @@
+import { useConfirm } from './confirmation.jsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw, ShieldCheck, UserPlus, Users } from 'lucide-react';
-import { Badge, Button, Empty, ErrorNotice, FormField, Modal, Spinner, projectPath } from './ui';
+import { Badge, Button, Empty, ErrorNotice, FormField, Modal, Spinner, projectPath, Input, Select } from './ui';
 import './project-members.css';
 
 const ROLES = {
@@ -48,12 +49,13 @@ export function ProjectMembers({ projectId, request, userId, onDirty, onOpenWork
 }
 
 function MemberModal({ mode, member, route, request, onClose, onSaved }) {
+  const confirm = useConfirm();
   const [email, setEmail] = useState(''), [role, setRole] = useState(member?.role || 'member');
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
   const changed = mode === 'add' ? Boolean(email || role !== 'member') : mode === 'role' && role !== member.role;
   const title = mode === 'add' ? '프로젝트 구성원 추가' : mode === 'remove' ? '프로젝트 구성원 해제' : '구성원 권한 변경';
   const activeAssignments = member && Object.values(member.assignments).some(value => value > 0);
-  function close() { if (!busy && (!changed || window.confirm('저장하지 않은 구성원 변경 내용을 닫을까요?'))) onClose(); }
+  async function close() { if (!busy && (!changed || await confirm('저장하지 않은 구성원 변경 내용을 닫을까요?'))) onClose(); }
   async function submit(event) {
     event.preventDefault(); setBusy(true); setError(null);
     try {
@@ -64,8 +66,8 @@ function MemberModal({ mode, member, route, request, onClose, onSaved }) {
   }
   return <Modal title={title} onClose={close} busy={busy}><form className="project-member-form" onSubmit={submit}>
     <ErrorNotice error={error}/>
-    {mode === 'add' ? <><p>서비스에 이미 가입된 계정을 이 프로젝트에 추가합니다. 계정 생성이나 초대 메일 발송은 하지 않습니다.</p><FormField label="가입한 이메일"><input type="email" autoComplete="email" required maxLength={254} disabled={busy} value={email} onChange={event => setEmail(event.target.value)}/></FormField></> : <div className="project-member-selected"><strong>{member.name}</strong><span>{member.email}</span><span>현재 권한: {ROLES[member.role].label}</span></div>}
-    {mode === 'remove' ? <p>이 구성원은 이 프로젝트의 자료와 업무 화면에 접근할 수 없게 됩니다. 서비스 계정과 다른 프로젝트의 권한은 유지됩니다.</p> : <FormField label="프로젝트 역할" hint={ROLES[role].description}><select value={role} disabled={busy} onChange={event => setRole(event.target.value)}>{Object.entries(ROLES).map(([value, info]) => <option key={value} value={value} disabled={value === 'viewer' && Boolean(activeAssignments)}>{info.label}</option>)}</select></FormField>}
+    {mode === 'add' ? <><p>서비스에 이미 가입된 계정을 이 프로젝트에 추가합니다. 계정 생성이나 초대 메일 발송은 하지 않습니다.</p><FormField label="가입한 이메일"><Input type="email" autoComplete="email" required maxLength={254} disabled={busy} value={email} onChange={event => setEmail(event.target.value)}/></FormField></> : <div className="project-member-selected"><strong>{member.name}</strong><span>{member.email}</span><span>현재 권한: {ROLES[member.role].label}</span></div>}
+    {mode === 'remove' ? <p>이 구성원은 이 프로젝트의 자료와 업무 화면에 접근할 수 없게 됩니다. 서비스 계정과 다른 프로젝트의 권한은 유지됩니다.</p> : <FormField label="프로젝트 역할" hint={ROLES[role].description}><Select value={role} disabled={busy} onChange={event => setRole(event.target.value)}>{Object.entries(ROLES).map(([value, info]) => <option key={value} value={value} disabled={value === 'viewer' && Boolean(activeAssignments)}>{info.label}</option>)}</Select></FormField>}
     {mode === 'role' && activeAssignments ? <p className="project-members-footnote">진행 중인 담당 작업·질문을 정리하고 작업 범위를 해제한 후 열람자로 변경할 수 있습니다.</p> : null}
     {mode !== 'remove' && role === 'owner' ? <p className="project-member-owner-note">프로젝트 관리자는 구성원 권한과 프로젝트 설정을 변경할 수 있습니다.</p> : null}
     <div className="project-members-actions project-member-form-actions"><Button type="button" variant="secondary" disabled={busy} onClick={close}>취소</Button><Button type="submit" variant={mode === 'remove' ? 'danger' : 'primary'} busy={busy} disabled={mode === 'role' && !changed}>{mode === 'add' ? '구성원 추가' : mode === 'remove' ? '이 프로젝트에서 해제' : '권한 변경 저장'}</Button></div>

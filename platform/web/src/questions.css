@@ -2,10 +2,10 @@
 /* AINS page column widths and scroll limits; CTDS controls visual tokens. */
 :root { --ains-questions-measure-1280: 1280px; --ains-questions-measure-290: 290px; --ains-questions-measure-190: 190px; --ains-questions-measure-200: 200px; --ains-questions-measure-220: 220px; --ains-questions-measure-300: 300px }
 .questions-page { max-width: var(--ains-questions-measure-1280); margin: 0 auto }
-.q-heading,.q-toolbar,.q-actions,.q-detail-status,.q-delivery header { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap }
-.q-heading,.q-toolbar { justify-content: space-between; margin-bottom: var(--space-6) }
+.q-heading, .q-toolbar, .q-actions, .q-detail-status, .q-delivery header { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap }
+.q-heading, .q-toolbar { justify-content: space-between; margin-bottom: var(--space-6) }
 .q-heading h2 { margin: var(--space-2) 0 }
-.q-heading p,.q-help,.q-settings>p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.q-heading p, .q-help, .q-settings:where(:not([data-ctds]):not([data-ctds-control]))>p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-reminders { display: flex; gap: var(--space-4); background: var(--warning-subtle); border: var(--hairline) solid var(--warning-border-color); border-radius: var(--radius-lg); padding: var(--space-5); margin: var(--space-5) 0 }
 .q-reminders>div { min-width: 0; flex: 1 }
 .q-reminders h3 { margin: 0 0 var(--space-1_5); font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
@@ -13,37 +13,46 @@
 .q-reminders button { display: flex; gap: var(--space-5); justify-content: space-between; width: 100%; text-align: left }
 .q-reminders button:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; background: transparent; padding: var(--space-2) 0; color: inherit }
 .q-reminders span { font-size: var(--text-2xs); color: var(--warning); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-settings { border: var(--hairline) solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4); margin: var(--space-5) 0 }
-.q-settings summary,.q-evidence summary,.q-history summary { cursor: pointer; font-weight: var(--font-weight-semibold) }
+.q-settings { margin: var(--space-5) 0 }
+.q-settings:where(:not([data-ctds]):not([data-ctds-control])) { border: var(--hairline) solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4) }
+.q-settings summary, .q-evidence summary, .q-history summary { cursor: pointer }
+.q-settings summary:where(:not([data-ctds]):not([data-ctds-control])), .q-evidence summary:where(:not([data-ctds]):not([data-ctds-control])), .q-history summary:where(:not([data-ctds]):not([data-ctds-control])) { font-weight: var(--font-weight-semibold) }
 .q-outbound-settings { margin: var(--space-4) 0; padding: var(--space-4); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-md) }
 .q-outbound-settings h3 { font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .q-outbound-settings small { font-size: var(--text-2xs); font-weight: var(--font-weight-regular); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .q-cards { display: grid; grid-template-columns: repeat(auto-fill,minmax(var(--ains-questions-measure-290),1fr)); gap: var(--space-4) }
-.q-card { padding: var(--space-5); text-align: left; color: inherit; background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-lg); cursor: pointer }
-.q-card:hover { border-color: var(--border-strong) }
+.q-card { text-align: left; cursor: pointer }
+.q-card:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-5); color: inherit; background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-lg) }
+.q-card:where(:not([data-ctds]):not([data-ctds-control])):hover { border-color: var(--border-strong) }
 .q-card>div { display: flex; gap: var(--space-1_5) }
-.q-card h3 { font-size: var(--text-base); margin: var(--space-4) 0 var(--space-2_5); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
-.q-card>p { font-size: var(--text-sm); line-height: var(--lh-sm); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
-.q-card dl { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-card dl>div,.q-metadata>div { display: flex; gap: var(--space-2_5); margin: var(--space-1_5) 0 }
-.q-card dt { color: var(--fg-muted); min-width: var(--space-16) }
-.q-card dd,.q-metadata dd { margin: 0; overflow-wrap: anywhere }
-.q-card footer { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between; font-size: var(--text-2xs); border-top: var(--hairline) solid var(--border); padding-top: var(--space-3); color: var(--warning); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-form,.q-detail { padding: var(--space-6) }
+.q-card h3 { margin: var(--space-4) 0 var(--space-2_5) }
+.q-card:where(:not([data-ctds]):not([data-ctds-control])) h3 { font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
+.q-card>p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere }
+.q-card:where(:not([data-ctds]):not([data-ctds-control]))>p { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.q-card:where(:not([data-ctds]):not([data-ctds-control])) dl { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.q-card dl>div, .q-metadata>div { display: flex; gap: var(--space-2_5); margin: var(--space-1_5) 0 }
+.q-card dt { min-width: var(--space-16) }
+.q-card:where(:not([data-ctds]):not([data-ctds-control])) dt { color: var(--fg-muted) }
+.q-card dd, .q-metadata dd { margin: 0; overflow-wrap: anywhere }
+.q-card footer { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between }
+.q-card:where(:not([data-ctds]):not([data-ctds-control])) footer { font-size: var(--text-2xs); border-top: var(--hairline) solid var(--border); padding-top: var(--space-3); color: var(--warning); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.q-form, .q-detail { padding: var(--space-6) }
 .q-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--space-4) }
 .q-work-select { padding: var(--space-3); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); max-height: var(--ains-questions-measure-190); overflow: auto; margin: var(--space-4) 0 }
 .q-work-select legend { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-work-select label { display: flex; align-items: center; gap: var(--space-2_5); padding: var(--space-1_5) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-work-select label span { flex: 1 }
 .q-check { display: flex; gap: var(--space-2); align-items: flex-start; margin: var(--space-3) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-check input,.q-work-select input { width: var(--space-4)!important; min-width: var(--space-4); margin-top: var(--space-0_5) }
+.q-check input:where(:not([data-ctds]):not([data-ctds-control])), .q-work-select input:where(:not([data-ctds]):not([data-ctds-control])) { width: var(--space-4)!important; min-width: var(--space-4); margin-top: var(--space-0_5) }
 .q-check input:where(:not([data-ctds]):not([data-ctds-control])), .q-work-select input:where(:not([data-ctds]):not([data-ctds-control])) { height: var(--space-4) }
-.q-evidence { padding: var(--space-3); background: var(--bg-subtle); border-radius: var(--radius-sm); margin: var(--space-4) 0 }
-.q-evidence summary { font-size: var(--text-sm); display: flex; align-items: center; gap: var(--space-2); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.q-evidence { margin: var(--space-4) 0 }
+.q-evidence:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-3); background: var(--bg-subtle); border-radius: var(--radius-sm) }
+.q-evidence summary { display: flex; align-items: center; gap: var(--space-2) }
+.q-evidence summary:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-inline { display: flex; gap: var(--space-2); margin: var(--space-3) 0 }
-.q-inline input { flex: 1; min-width: 0 }
+.q-inline input:where(:not([data-ctds]):not([data-ctds-control])) { flex: 1; min-width: 0 }
 .q-detail-status>span:last-child { margin-left: auto; font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-question-text,.q-answer>p,.q-source p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-loose) }
+.q-question-text, .q-answer>p, .q-source p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-loose) }
 .q-question-text { font-size: var(--text-base); margin: var(--space-6) 0; line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .q-metadata { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1_5) var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-metadata>div { display: block }
@@ -54,22 +63,24 @@
 .q-answer h3 { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-answer small { color: var(--fg-muted) }
 .q-edit { padding: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); margin: var(--space-5) 0 }
-.q-edit h3,.q-deliveries h3 { font-size: var(--text-base); margin: 0 0 var(--space-4); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
+.q-edit h3, .q-deliveries h3 { font-size: var(--text-base); margin: 0 0 var(--space-4); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .q-actions { margin: var(--space-4) 0 }
 .q-delivery { border: var(--hairline) solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); margin: var(--space-3) 0 }
 .q-delivery header { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-delivery pre { font: inherit; font-size: var(--text-sm); line-height: var(--lh-sm); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-subtle); padding: var(--space-3); border-radius: var(--radius-xs); letter-spacing: var(--type-sm-tracking) }
 .q-delivery small { display: block; color: var(--fg-muted); overflow-wrap: anywhere }
-.q-history { margin-top: var(--space-6); border-top: var(--hairline) solid var(--border); padding-top: var(--space-4) }
-.q-history article { padding: var(--space-3) 0; border-bottom: var(--hairline) solid var(--border); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-history time { float: right; font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.q-history { margin-top: var(--space-6) }
+.q-history:where(:not([data-ctds]):not([data-ctds-control])) { border-top: var(--hairline) solid var(--border); padding-top: var(--space-4) }
+.q-history:where(:not([data-ctds]):not([data-ctds-control])) article { padding: var(--space-3) 0; border-bottom: var(--hairline) solid var(--border); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.q-history time { float: right }
+.q-history:where(:not([data-ctds]):not([data-ctds-control])) time { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .q-history p { white-space: pre-wrap; overflow-wrap: anywhere }
 .q-source { margin: var(--space-3) 0 }
 .q-source p { font-size: var(--text-sm); max-height: var(--ains-questions-measure-200); overflow: auto; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-toolbar select { max-width: var(--ains-questions-measure-220) }
+.q-toolbar select:where(:not([data-ctds]):not([data-ctds-control])) { max-width: var(--ains-questions-measure-220) }
 @media(max-width:650px){
-.q-form,.q-detail { padding: var(--space-4) }
-.q-form-grid,.q-metadata { grid-template-columns: 1fr }
+.q-form, .q-detail { padding: var(--space-4) }
+.q-form-grid, .q-metadata { grid-template-columns: 1fr }
 .q-cards { grid-template-columns: 1fr }
 .q-heading { align-items: flex-start }
 .q-reminders button { flex-direction: column; gap: var(--space-0_5) }
@@ -85,8 +96,8 @@
 .q-result-preview details { overflow-wrap: anywhere }
 .q-result-preview summary { cursor: pointer }
 .q-result-preview .q-actions { margin-bottom: 0 }
-.q-followup-origin,.q-followup-recovery { padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); margin: var(--space-4) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-followup-origin p,.q-followup-recovery p { margin: var(--space-2) 0 var(--space-3) }
+.q-followup-origin, .q-followup-recovery { padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); margin: var(--space-4) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.q-followup-origin p, .q-followup-recovery p { margin: var(--space-2) 0 var(--space-3) }
 .q-followup-origin .text-button { white-space: normal; text-align: left }
 .q-followup-form { padding: var(--space-5); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg); margin: var(--space-4) 0 }
 .q-followup-form h3 { font-size: var(--text-base); margin: 0 0 var(--space-2_5); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }

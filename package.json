@@ -16,12 +16,19 @@
     "test:platform": "node --test platform/tests/*.test.js",
     "ctds:check-update": "node scripts/ctds-sync.cjs --check-latest",
     "ctds:sync": "node scripts/ctds-sync.cjs",
-    "check:ctds": "node scripts/check-ctds-tokens.cjs",
-    "build:workspace": "node node_modules/vite/bin/vite.js build"
+    "check:ctds": "node scripts/check-ctds-tokens.cjs && node scripts/check-ctds-components.cjs",
+    "build:workspace": "node node_modules/vite/bin/vite.js build",
+    "check:ctds:components": "node scripts/check-ctds-components.cjs"
   },
   "dependencies": {
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/sortable": "10.0.0",
+    "@dnd-kit/utilities": "3.2.2",
     "@radix-ui/react-dialog": "1.2.0",
+    "@radix-ui/react-popover": "1.3.1",
+    "@radix-ui/react-select": "2.4.1",
     "@radix-ui/react-slot": "1.3.3",
+    "@radix-ui/react-toast": "1.3.1",
     "ajv": "8.20.0",
     "express": "5.2.1",
     "google-auth-library": "11.1.0",
@@ -33,7 +40,8 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
-    "@conscience-technology/ctds": "0.2.5",
+    "@babel/parser": "8.0.7",
+    "@conscience-technology/ctds": "0.3.2",
     "pretendard": "1.3.9",
     "vite": "8.3.1"
   }

@@ -7,6 +7,7 @@
   align-items: center;
   gap: var(--space-1);
   min-width: 0;
+  flex: 0 0 auto;
   padding: var(--space-1) var(--space-1_5);
   border-radius: var(--radius-xs);
   background: var(--bg-muted);
@@ -55,3 +56,21 @@
   background: var(--info-subtle);
   color: var(--info);
 }
+
+/* Dot variant ─────────────────────────────────────────────
+   초미니멀 표현. 라벨 없이 색점 하나만 — iOS 캘린더 월 뷰처럼
+   "그 날짜에 뭔가 있다"는 신호만 남김. tone별로 색만 바꿈. */
+.root[data-variant="dot"] {
+  flex: 0 0 auto;
+  width: var(--space-1_5);
+  height: var(--space-1_5);
+  padding: 0;
+  border-radius: 50%;
+  background: var(--fg-muted);
+}
+.root[data-variant="dot"][data-tone="neutral"]  { background: var(--secondary-fg); }
+.root[data-variant="dot"][data-tone="accent"]   { background: var(--primary); }
+.root[data-variant="dot"][data-tone="success"]  { background: var(--success); }
+.root[data-variant="dot"][data-tone="warning"]  { background: var(--warning); }
+.root[data-variant="dot"][data-tone="danger"]   { background: var(--destructive); }
+.root[data-variant="dot"][data-tone="info"]     { background: var(--info); }

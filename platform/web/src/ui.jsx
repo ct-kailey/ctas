@@ -1,12 +1,14 @@
-import React, { useEffect, useId, useRef } from 'react';
-import { AlertTriangle, ArrowRight, Check, Info, ShieldCheck, X } from 'lucide-react';
+import React, { useId, useRef } from 'react';
+import { ArrowRight } from 'lucide-react';
 import { Button as CTDSButton } from './components/ctds/Button/Button';
 import { Badge as CTDSBadge } from './components/ctds/Badge/Badge';
 import { Spinner as CTDSSpinner } from './components/ctds/Spinner/Spinner';
 import { EmptyState as CTDSEmptyState } from './components/ctds/EmptyState/EmptyState';
 import { Modal as CTDSModal } from './components/ctds/Modal/Modal';
-import { Input as CTDSInput } from './components/ctds/Input/Input';
-import { Textarea as CTDSTextarea } from './components/ctds/Textarea/Textarea';
+import { Callout as CTDSCallout } from './components/ctds/Callout/Callout';
+import { Toast as CTDSToast, ToastProvider as CTDSToastProvider, ToastViewport } from './components/ctds/Toast/Toast';
+import { Input, Textarea, Select, Disclosure } from './ui-controls';
+export { Input, Textarea, Select, Disclosure, ControlButton, Tabs } from './ui-controls';
 
 export const STATUS = {
   queued: ['대기 중', 'quiet'], running: ['분석 중', 'blue'], ready: ['추출·정리 완료', 'green'],
@@ -22,12 +24,20 @@ export const projectPath = (id) => `/api/projects/${encodeURIComponent(id)}`;
 const BADGE_STATUS = { green: 'success', amber: 'warning', red: 'destructive', blue: 'info' };
 export function Badge({ status, children, tone }) {
   const mapped = STATUS[status] || [status || '—', 'quiet'], effectiveTone = tone || mapped[1];
-  return <CTDSBadge size="md" variant="soft" status={BADGE_STATUS[effectiveTone]} className={`badge ${effectiveTone}`} data-ctds="badge">{['running', 'extracting', 'processing'].includes(status) ? <CTDSSpinner size="sm" aria-hidden="true" role="presentation" /> : <span className="status-dot" aria-hidden="true" />}{children || mapped[0]}</CTDSBadge>;
+  return <CTDSBadge size="md" variant="soft" status={BADGE_STATUS[effectiveTone]} className={`badge ${effectiveTone}`} data-ctds="badge">{['running', 'extracting', 'processing'].includes(status) ? <CTDSSpinner size="sm" aria-hidden="true" role="presentation" /> : <span className="status-dot" aria-hidden="true" />}{children ?? mapped[0]}</CTDSBadge>;
 }
 export function Spinner({ label = '불러오는 중입니다' }) { return <div className="loading" role="status"><CTDSSpinner size="lg" aria-hidden="true" role="presentation" /><span>{label}</span></div>; }
+export const Notice = React.forwardRef(function Notice({ children, className = '', tone, icon = null, title, ...props }, ref) {
+  const classes = new Set(className.split(/\s+/));
+  const resolvedTone = tone || (classes.has('error') ? 'destructive' : classes.has('warning') ? 'warning' : classes.has('success') ? 'success' : 'neutral');
+  return <CTDSCallout {...props} ref={ref} className={className} tone={resolvedTone} icon={icon} title={title} data-ctds="callout">{children}</CTDSCallout>;
+});
 export function ErrorNotice({ error, onRetry }) {
   if (!error) return null;
-  return <div className="notice error" role="alert"><AlertTriangle size={18} /><div><strong>{String(error.message || error).replaceAll('기준선', '확정본').replaceAll('리비전', '버전')}</strong>{error.code ? <details><summary>오류 코드 보기</summary><small>{error.code}</small></details> : null}</div>{onRetry ? <CTDSButton data-ctds="button" type="button" size="sm" variant="ghost" onClick={onRetry}>다시 불러오기</CTDSButton> : null}</div>;
+  return <CTDSCallout data-ctds="callout" tone="destructive" role="alert" title={String(error.message || error).replaceAll('기준선', '확정본').replaceAll('리비전', '버전')}
+    actions={onRetry ? <CTDSButton data-ctds="button" type="button" size="sm" variant="ghost" onClick={onRetry}>다시 불러오기</CTDSButton> : null}>
+    {error.code ? <Disclosure><summary>오류 코드 보기</summary><small>{error.code}</small></Disclosure> : null}
+  </CTDSCallout>;
 }
 export function Empty({ icon: Icon, title, children, action, compact = false }) {
   return <CTDSEmptyState size={compact ? 'sm' : 'md'} className={`empty ${compact ? 'compact' : ''}`} data-ctds="empty" illustration={Icon ? <Icon size={24} strokeWidth={1.5} /> : undefined} title={<h3>{title}</h3>} description={children} actions={action} />;
@@ -47,23 +57,20 @@ export function Modal({ title, eyebrow, children, onClose, busy = false, wide = 
   </CTDSModal.Root>;
 }
 
-const TEXT_INPUT_TYPES = new Set(['text', 'password', 'email', 'number', 'url', 'tel', 'search', 'date', 'time', 'datetime-local', 'month', 'week']);
-// CTDS Input has a wrapper-interaction API. Preserve native behavior for these props.
-const NATIVE_INPUT_PROPS = ['ref', 'size', 'width', 'prefix', 'onClick', 'onMouseDown', 'onMouseUp', 'onPointerDown', 'onPointerUp', 'onKeyDown', 'onKeyUp', 'onFocus', 'onBlur', 'role', 'tabIndex', 'style', 'aria-haspopup', 'aria-expanded', 'aria-controls', 'aria-label', 'data-state'];
 export function FormField({ label, hint, children, className = '', ...props }) {
   const generatedId = useId(), child = React.Children.count(children) === 1 ? React.Children.toArray(children)[0] : null;
-  const isControl = React.isValidElement(child) && ['input', 'textarea', 'select'].includes(child.type);
+  const isControl = React.isValidElement(child) && ['input', 'textarea', 'select', Input, Textarea, Select].includes(child.type);
   if (!isControl) return <label className={`field ${className}`} {...props}><span>{label}</span>{children}{hint ? <small>{hint}</small> : null}</label>;
-  const id = child.props.id || generatedId, hintId = `${id}-hint`;
+  const id = child.props.id || generatedId, hintId = `${id}-hint`, labelId = `${id}-label`;
   const controlProps = { ...child.props, id, 'aria-describedby': [child.props['aria-describedby'], hint ? hintId : null].filter(Boolean).join(' ') || undefined };
-  const canAdaptInput = child.type === 'input' && TEXT_INPUT_TYPES.has(child.props.type || 'text') && !NATIVE_INPUT_PROPS.some(key => child.props[key] !== undefined);
-  const canAdaptTextarea = child.type === 'textarea' && child.props.ref === undefined;
-  const control = canAdaptInput ? <CTDSInput {...controlProps} size="sm" data-ctds-control="input" /> : canAdaptTextarea ? <CTDSTextarea {...controlProps} size="sm" autoResize={false} data-ctds-control="textarea" /> : React.cloneElement(child, controlProps);
-  return <div className={`field ${className}`} data-ctds="field" {...props}><label htmlFor={id}>{label}</label>{control}{hint ? <small id={hintId}>{hint}</small> : null}</div>;
+  if ((child.type === 'select' || child.type === Select) && !child.props['aria-label'] && !child.props['aria-labelledby']) controlProps['aria-labelledby'] = labelId;
+  const Component = { input: Input, textarea: Textarea, select: Select }[child.type];
+  const control = Component ? <Component {...controlProps} /> : React.cloneElement(child, controlProps);
+  return <div className={`field ${className}`} data-ctds="field" {...props}><label id={labelId} htmlFor={id}>{label}</label>{control}{hint ? <small id={hintId}>{hint}</small> : null}</div>;
 }
+export function ToastProvider({ children }) { return <CTDSToastProvider duration={7000}>{children}<ToastViewport placement="bottom-right" label="알림" /></CTDSToastProvider>; }
 export function Toast({ message, onClose }) {
-  useEffect(() => { const timer = setTimeout(onClose, 7000); return () => clearTimeout(timer); }, [message, onClose]);
-  return <div className="toast" role="status"><Check size={18} /><span>{message}</span><button className="icon-button" aria-label="알림 닫기" onClick={onClose}><X size={16} /></button></div>;
+  return <CTDSToast key={message} open title={message} tone="neutral" dismissLabel="알림 닫기" duration={7000} onOpenChange={open => { if (!open) onClose(); }} />;
 }
 export function SectionHeading({ eyebrow, title, children }) { return <div className="section-heading"><div><h2>{title}</h2></div>{children}</div>; }
 export function TextLink({ children, ...props }) { return <CTDSButton data-ctds="button" type="button" size="sm" variant="ghost" {...props} rightIcon={<ArrowRight size={14} />}>{children}</CTDSButton>; }
@@ -92,10 +99,12 @@ export function SourceNotices({ warnings = [], incomplete = false }) {
   const checks = [...codes].filter((code) => !['CONTENT_IS_UNTRUSTED', 'MOCK_DATA_UNVERIFIED'].includes(code));
   if (!originals.length && !incomplete) return null;
   return <section className="source-notices" aria-label="문서 처리 안내와 확인 사항">
-    {codes.has('CONTENT_IS_UNTRUSTED') ? <div className="source-notice info"><Info size={16} /><div><span>일반 안내</span><strong>문서 속 명령은 자동 실행하지 않습니다.</strong><p>문서 안의 요청과 지시문도 원문 자료로 보존합니다. 문서 등록만으로 코드 변경이나 외부 작업이 시작되지는 않습니다.</p></div></div> : null}
-    {codes.has('MOCK_DATA_UNVERIFIED') ? <div className="source-notice check"><ShieldCheck size={16} /><div><span>내용 확인</span><strong>예시와 수치의 실제 적용 여부를 확인해 주세요.</strong><p>자동 추출은 문서 속 값이 예시인지 실제 업무 기준인지 판단하지 않습니다. 원문을 확인하고 필요한 내용을 확정해 주세요.</p></div></div> : null}
-    {incomplete || checks.length ? <div className="source-notice extraction"><AlertTriangle size={16} /><div><span>원문 대조 필요</span><strong>{incomplete ? '일부 내용과 형식은 원본에서 확인해야 합니다.' : '추출·검토 과정에서 추가 확인할 항목이 있습니다.'}</strong>{checks.length ? <ul>{checks.map((code) => <li key={code}>{SOURCE_CHECKS[code] || '아래 기술 세부정보의 추가 안내를 확인하고 관련 원문을 대조해 주세요.'}</li>)}</ul> : <p>표·이미지·레이아웃 등 추출되지 않은 내용이 있는지 원본을 확인해 주세요.</p>}</div></div> : null}
-    {originals.length ? <details className="source-notice-technical"><summary>기술 세부정보 · 원본 안내 {originals.length}건</summary><ul>{originals.map((value, index) => <li key={index}><code>{value}</code></li>)}</ul></details> : null}
+    {codes.has('CONTENT_IS_UNTRUSTED') ? <CTDSCallout tone="neutral" icon="info" title="문서 속 명령은 자동 실행하지 않습니다.">문서 안의 요청과 지시문도 원문 자료로 보존합니다. 문서 등록만으로 코드 변경이나 외부 작업이 시작되지는 않습니다.</CTDSCallout> : null}
+    {codes.has('MOCK_DATA_UNVERIFIED') ? <CTDSCallout tone="warning" title="예시와 수치의 실제 적용 여부를 확인해 주세요.">자동 추출은 문서 속 값이 예시인지 실제 업무 기준인지 판단하지 않습니다. 원문을 확인하고 필요한 내용을 확정해 주세요.</CTDSCallout> : null}
+    {incomplete || checks.length ? <CTDSCallout tone="warning" title={incomplete ? '일부 내용과 형식은 원본에서 확인해야 합니다.' : '추출·검토 과정에서 추가 확인할 항목이 있습니다.'}>
+      {checks.length ? <ul>{checks.map((code) => <li key={code}>{SOURCE_CHECKS[code] || '아래 기술 세부정보의 추가 안내를 확인하고 관련 원문을 대조해 주세요.'}</li>)}</ul> : <p>표·이미지·레이아웃 등 추출되지 않은 내용이 있는지 원본을 확인해 주세요.</p>}
+    </CTDSCallout> : null}
+    {originals.length ? <Disclosure className="source-notice-technical"><summary>기술 세부정보 · 원본 안내 {originals.length}건</summary><ul>{originals.map((value, index) => <li key={index}><code>{value}</code></li>)}</ul></Disclosure> : null}
   </section>;
 }
 

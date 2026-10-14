@@ -96,7 +96,7 @@ export function AttachmentItem({
     .filter(Boolean)
     .join(" ");
 
-  const maxChars = size === "lg" ? 44 : size === "md" ? 40 : 36;
+  const maxChars = size === "lg" ? 44 : size === "md" ? 22 : 24;
   const label = middleEllipsis(filename, maxChars);
 
   const leading =

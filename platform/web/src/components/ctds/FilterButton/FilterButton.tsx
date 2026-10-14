@@ -19,7 +19,7 @@ export type FilterButtonProps = Omit<
 > & {
   size?: FilterButtonSize;
   selected?: boolean;
-  onToggle?: (next: boolean) => void;
+  onPressedChange?: (next: boolean) => void;
   leftIcon?: ReactNode;
   count?: number;
 };
@@ -47,7 +47,7 @@ const FilterButton = forwardRef<HTMLButtonElement, FilterButtonProps>(
       className,
       size = "md",
       selected = false,
-      onToggle,
+      onPressedChange,
       onClick,
       leftIcon,
       count,
@@ -68,7 +68,7 @@ const FilterButton = forwardRef<HTMLButtonElement, FilterButtonProps>(
         className={rootClass}
         onClick={(e) => {
           onClick?.(e);
-          if (!e.defaultPrevented) onToggle?.(!selected);
+          if (!e.defaultPrevented) onPressedChange?.(!selected);
         }}
         aria-pressed={selected}
         {...rest}

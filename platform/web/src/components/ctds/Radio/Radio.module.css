@@ -15,9 +15,22 @@
   letter-spacing: var(--label-tracking);
   line-height: var(--lh-tight);
 }
-.root[data-disabled="true"] {
+.root[data-disabled="true"],
+.root:has(> .input:disabled) {
   cursor: not-allowed;
   opacity: 0.5;
+}
+
+/* Span mode is label-safe; the real input remains the clickable, focusable control. */
+.root[data-unlabelled] { position: relative; }
+.root[data-unlabelled] > .input {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  clip: auto;
+  opacity: 0;
+  cursor: inherit;
 }
 
 .indicator {

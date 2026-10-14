@@ -66,6 +66,10 @@
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
 }
+.content {
+  flex: 1;
+  min-width: 0;
+}
 /* title-body는 같은 텍스트 블록으로 묶여 보이도록 gap을 좁힘 (한 단계 축소). */
 .head + .body {
   margin-top: calc(var(--space-1) - var(--space-1_5));

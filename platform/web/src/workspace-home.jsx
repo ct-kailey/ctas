@@ -1,7 +1,9 @@
 import React, { useId, useState } from 'react';
 import { Activity, ArrowRight, Bell, CheckCheck, FilePlus2, Files, FolderKanban, RefreshCw } from 'lucide-react';
-import { Badge, Button, Empty, ErrorNotice, ROLES, Spinner } from './ui.jsx';
-import { Tabs } from './components/ctds/Tabs/Tabs';
+import { Badge, Button, Empty, ErrorNotice, ROLES, Spinner, Select, ControlButton } from './ui.jsx';
+import { Tabs } from './ui.jsx';
+import { MetricCard } from './components/ctds/MetricCard/MetricCard';
+import { ListItem } from './components/ctds/ListItem/ListItem';
 import { WORKFLOW_STEPS } from './workspace-flow.mjs';
 import './workspace-home.css';
 
@@ -10,6 +12,8 @@ const GRADES = {
   check: { label: '확인 필요', tone: 'amber' },
   info: { label: '안내', tone: 'blue' },
 };
+const pageHref = (projectId, tab, step) => `/?${new URLSearchParams({project:projectId, tab, ...(step ? {step} : {})})}`;
+function followInWorkspace(event, action) { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); action(); } }
 const FILTERS = ['all', 'urgent', 'check', 'info'];
 const GRADE_ORDER = { urgent: 0, check: 1, info: 2 };
 const TAB_LABELS = {
@@ -81,7 +85,7 @@ function SectionHead({ title, count, children }) {
 }
 function AttentionProjectSelect({ project, projects, onProjectSelect }) {
   const id = useId();
-  return <div className="workspace-attention-project"><label htmlFor={id}>프로젝트</label><select id={id} aria-label="알림 프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></div>;
+  return <div className="workspace-attention-project"><label htmlFor={id}>프로젝트</label><Select id={id} aria-label="알림 프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></div>;
 }
 
 /** One project, one workflow. This view links to existing source actions without approving or dismissing records. */
@@ -109,12 +113,12 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
     </section>
 
     <section className="workspace-home-stats" aria-label="프로젝트 기록 현황">
-      {stats.map(stat => <button key={stat.label} type="button" onClick={() => onNavigate(stat.tab)} className="workspace-home-stat"><span>{stat.label}</span><strong>{stat.value.toLocaleString()}</strong><ArrowRight size={15} aria-hidden="true" /></button>)}
+      {stats.map(stat => <MetricCard key={stat.label} label={stat.label} value={stat.value.toLocaleString()} href={pageHref(project.id, stat.tab)} onClick={event => followInWorkspace(event, () => onNavigate(stat.tab))} variant="line" data-ctds="metric-card" />)}
     </section>
 
     <section className="workspace-home-section" aria-labelledby="workspace-flow-heading">
       <div className="workspace-home-section-head"><h2 id="workspace-flow-heading">업무 바로가기</h2></div>
-      <div className="workspace-home-flow">{WORKFLOW_STEPS.filter(area => !area.management).map(area => <button key={area.id} type="button" onClick={() => onNavigate(area.primaryTab, { workflowStep: area.id })}><strong>{area.label}</strong><p>{area.description}</p><ArrowRight size={15} aria-hidden="true" /></button>)}</div>
+      <ul className="workspace-home-flow">{WORKFLOW_STEPS.filter(area => !area.management).map(area => <li key={area.id}><ListItem className="workspace-home-flow-item" layout="stacked" from={area.label} body={area.description} trailing={<ArrowRight size={15} aria-hidden="true" />} href={pageHref(project.id, area.primaryTab, area.id)} onClick={event => followInWorkspace(event, () => onNavigate(area.primaryTab, { workflowStep: area.id }))} data-ctds="list-item" /></li>)}</ul>
       <p className="workspace-home-note">정해진 순서는 없습니다. 작업 중에도 자료·요구사항·계약을 추가하거나 수정할 수 있습니다.</p>
     </section>
 
@@ -122,7 +126,7 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
       <section className="workspace-home-section" aria-label="최근 문서">
         <SectionHead title="최근 문서·기록"><Button type="button" variant="ghost" onClick={() => onNavigate('documents')}>전체 보기</Button></SectionHead>
         <div className="workspace-home-panel workspace-home-flush">
-          {recentDocuments.length ? recentDocuments.map(document => <button type="button" key={document.id} className="workspace-home-record" onClick={() => onNavigate('documents', document.revisions?.[0]?.id ? { revisionId: document.revisions[0].id } : undefined)}><Files size={17} aria-hidden="true" /><span><strong>{document.title}</strong><small>{document.domain_name || '프로젝트 자료'} · 버전 {document.revisions?.length || 0}</small></span><Badge status={document.revisions?.[0]?.status || 'draft'}>{document.revisions?.[0]?.status ? undefined : '초안'}</Badge></button>) : <Empty compact icon={Files} title="등록된 자료가 없습니다" action={canWrite && onUpload ? <Button type="button" variant="secondary" icon={FilePlus2} onClick={onUpload}>첫 자료 등록</Button> : null}>기획 문서, 계약서, 대화 기록을 모아 검토를 시작하세요.</Empty>}
+          {recentDocuments.length ? recentDocuments.map(document => <ControlButton type="button" key={document.id} className="workspace-home-record" onClick={() => onNavigate('documents', document.revisions?.[0]?.id ? { revisionId: document.revisions[0].id } : undefined)}><Files size={17} aria-hidden="true" /><span><strong>{document.title}</strong><small>{document.domain_name || '프로젝트 자료'} · 버전 {document.revisions?.length || 0}</small></span><Badge status={document.revisions?.[0]?.status || 'draft'}>{document.revisions?.[0]?.status ? undefined : '초안'}</Badge></ControlButton>) : <Empty compact icon={Files} title="등록된 자료가 없습니다" action={canWrite && onUpload ? <Button type="button" variant="secondary" icon={FilePlus2} onClick={onUpload}>첫 자료 등록</Button> : null}>기획 문서, 계약서, 대화 기록을 모아 검토를 시작하세요.</Empty>}
         </div>
       </section>
       <section className="workspace-home-section" aria-label="최근 활동">
@@ -133,7 +137,7 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
       </section>
     </div>
 
-    {projects.length > 1 && onProjectSelect ? <section className="workspace-home-section"><SectionHead title="내 프로젝트" count={projects.length}>{onNewProject ? <Button type="button" variant="ghost" icon={FolderKanban} onClick={onNewProject}>새 프로젝트</Button> : null}</SectionHead><div className="workspace-home-projects">{projects.map(item => <button key={item.id} type="button" className="workspace-home-project" aria-current={item.id === project?.id ? 'true' : undefined} onClick={() => onProjectSelect(item.id)}><span><strong>{item.name}</strong><small>{ROLES[item.role] || '프로젝트 구성원'}</small></span>{item.id === project?.id ? <Badge tone="quiet">선택됨</Badge> : <ArrowRight size={16} aria-hidden="true" />}</button>)}</div></section> : null}
+    {projects.length > 1 && onProjectSelect ? <section className="workspace-home-section"><SectionHead title="내 프로젝트" count={projects.length}>{onNewProject ? <Button type="button" variant="ghost" icon={FolderKanban} onClick={onNewProject}>새 프로젝트</Button> : null}</SectionHead><div className="workspace-home-projects">{projects.map(item => <ControlButton key={item.id} type="button" className="workspace-home-project" aria-current={item.id === project?.id ? 'true' : undefined} variant={item.id === project?.id ? 'outline' : 'ghost'} onClick={() => onProjectSelect(item.id)}><span><strong>{item.name}</strong><small>{ROLES[item.role] || '프로젝트 구성원'}</small></span>{item.id === project?.id ? <Badge tone="quiet">선택됨</Badge> : <ArrowRight size={16} aria-hidden="true" />}</ControlButton>)}</div></section> : null}
   </div>;
 }
 

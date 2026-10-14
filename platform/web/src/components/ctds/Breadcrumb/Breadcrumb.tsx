@@ -139,22 +139,111 @@ const Current = forwardRef<HTMLSpanElement, BreadcrumbCurrentProps>(
 Current.displayName = "Breadcrumb.Current";
 
 // ────────────────────────────────────────────────────────────
-// Ellipsis — 항목이 많을 때 중간 축약. 클릭 시 Select와 동일한 팝오버 표면으로
-// 숨긴 항목 리스트를 연다. items는 필수 — 클릭 불가한 정적 마커는 지원하지 않는다.
+// Shared — Ellipsis·Menu가 공유하는 팝오버 아이템 모델/렌더.
 // ────────────────────────────────────────────────────────────
 
-export type BreadcrumbEllipsisItem = {
+export type BreadcrumbMenuItem = {
   label: ReactNode;
   href?: string;
   onSelect?: () => void;
   leftIcon?: ReactNode;
   disabled?: boolean;
+  /** 현재 선택된 항목. 체크 아이콘이 trailingActions에 자동 삽입. */
+  active?: boolean;
 };
+
+/** 하위 호환 — 기존 Ellipsis.items 타입명. */
+export type BreadcrumbEllipsisItem = BreadcrumbMenuItem;
+
+/** Portal 하위에서 IconAxis 재주입 — Radix Portal이 트리 컨텍스트를 끊는다. */
+function PopoverMenuContent({
+  items,
+  sideOffset,
+  align = "start",
+}: {
+  items: BreadcrumbMenuItem[];
+  sideOffset: number;
+  align?: "start" | "center" | "end";
+}) {
+  const iconAxis = useIconAxis();
+  return (
+    <RPopover.Portal>
+      <RPopover.Content
+        align={align}
+        sideOffset={sideOffset}
+        collisionPadding={8}
+        className={[styles.popoverContent, "m-float"].join(" ")}
+      >
+        <IconAxisProvider value={iconAxis}>
+          <ul className={styles.popoverList} role="menu">
+            {items.map((item, i) => {
+              const leading = item.leftIcon
+                ? [
+                    isValidElement(item.leftIcon) &&
+                    (item.leftIcon as ReactElement<{ size?: number | string }>).props.size === undefined
+                      ? cloneElement(item.leftIcon as ReactElement<{ size?: number | string }>, {
+                          size: 16,
+                        })
+                      : item.leftIcon,
+                  ]
+                : undefined;
+              const trailing = item.active ? [<Icon key="check" name="check" size={14} />] : undefined;
+              const inner = (
+                <MenuItem
+                  size="sm"
+                  disabled={item.disabled}
+                  leadingActions={leading}
+                  trailingActions={trailing}
+                >
+                  {item.label}
+                </MenuItem>
+              );
+              return (
+                <li key={i} role="none">
+                  {item.href ? (
+                    <RPopover.Close asChild>
+                      <a
+                        href={item.href}
+                        role="menuitem"
+                        aria-current={item.active ? "page" : undefined}
+                        className={styles.popoverItemLink}
+                        aria-disabled={item.disabled || undefined}
+                      >
+                        {inner}
+                      </a>
+                    </RPopover.Close>
+                  ) : (
+                    <RPopover.Close asChild>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        aria-current={item.active ? "page" : undefined}
+                        disabled={item.disabled}
+                        onClick={() => item.onSelect?.()}
+                        className={styles.popoverItemButton}
+                      >
+                        {inner}
+                      </button>
+                    </RPopover.Close>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </IconAxisProvider>
+      </RPopover.Content>
+    </RPopover.Portal>
+  );
+}
+
+// ────────────────────────────────────────────────────────────
+// Ellipsis — 항목이 많을 때 중간 축약. 클릭 시 팝오버로 숨긴 항목 리스트를 연다.
+// ────────────────────────────────────────────────────────────
 
 export interface BreadcrumbEllipsisProps
   extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onSelect"> {
   /** 숨긴 항목 리스트. 최소 1개. */
-  items: BreadcrumbEllipsisItem[];
+  items: BreadcrumbMenuItem[];
   /** 팝오버 side offset (px). 기본 6. */
   sideOffset?: number;
   /** aria-label. 기본 "Show hidden pages". */
@@ -185,83 +274,65 @@ const Ellipsis = forwardRef<HTMLButtonElement, BreadcrumbEllipsisProps>(
             &hellip;
           </button>
         </RPopover.Trigger>
-        <EllipsisContent items={items} sideOffset={sideOffset} />
+        <PopoverMenuContent items={items} sideOffset={sideOffset} />
       </RPopover.Root>
     );
   },
 );
 Ellipsis.displayName = "Breadcrumb.Ellipsis";
 
-/** Portal 하위에서 IconAxis 재주입 — Radix Portal이 트리 컨텍스트를 끊는다. */
-function EllipsisContent({
-  items,
-  sideOffset,
-}: {
-  items: BreadcrumbEllipsisItem[];
-  sideOffset: number;
-}) {
-  const iconAxis = useIconAxis();
-  return (
-    <RPopover.Portal>
-      <RPopover.Content
-        align="start"
-        sideOffset={sideOffset}
-        collisionPadding={8}
-        className={[styles.popoverContent, "m-float"].join(" ")}
-      >
-        <IconAxisProvider value={iconAxis}>
-          <ul className={styles.popoverList} role="menu">
-            {items.map((item, i) => {
-              const leading = item.leftIcon
-                ? [
-                    isValidElement(item.leftIcon) &&
-                    (item.leftIcon as ReactElement<{ size?: number | string }>).props.size === undefined
-                      ? cloneElement(item.leftIcon as ReactElement<{ size?: number | string }>, {
-                          size: 16,
-                        })
-                      : item.leftIcon,
-                  ]
-                : undefined;
-              const inner = (
-                <MenuItem size="sm" disabled={item.disabled} leadingActions={leading}>
-                  {item.label}
-                </MenuItem>
-              );
-              return (
-                <li key={i} role="none">
-                  {item.href ? (
-                    <RPopover.Close asChild>
-                      <a
-                        href={item.href}
-                        role="menuitem"
-                        className={styles.popoverItemLink}
-                        aria-disabled={item.disabled || undefined}
-                      >
-                        {inner}
-                      </a>
-                    </RPopover.Close>
-                  ) : (
-                    <RPopover.Close asChild>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        disabled={item.disabled}
-                        onClick={() => item.onSelect?.()}
-                        className={styles.popoverItemButton}
-                      >
-                        {inner}
-                      </button>
-                    </RPopover.Close>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </IconAxisProvider>
-      </RPopover.Content>
-    </RPopover.Portal>
-  );
+// ────────────────────────────────────────────────────────────
+// Menu — segment 자체가 트리거. ▾ caret으로 형제 전환 UI 노출.
+// active=true면 aria-current="page" 유지 (현재 페이지 자리로 쓸 때).
+// ────────────────────────────────────────────────────────────
+
+export interface BreadcrumbMenuProps
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "onSelect"> {
+  /** 트리거에 표시할 라벨. 아이콘 단독 모드 지원 안 함 — 메뉴 트리거는 라벨 필수. */
+  children: ReactNode;
+  /** 라벨 앞 아이콘. */
+  leftIcon?: ReactNode;
+  /** 메뉴에 넣을 형제/대체 페이지들. */
+  items: BreadcrumbMenuItem[];
+  /** 현재 페이지 자리에 쓸 때 true. aria-current="page" + fg-strong 톤. */
+  active?: boolean;
+  /** 팝오버 side offset (px). 기본 6. */
+  sideOffset?: number;
 }
+
+const Menu = forwardRef<HTMLButtonElement, BreadcrumbMenuProps>(
+  ({ className, children, leftIcon, items, active = false, sideOffset = 6, ...rest }, ref) => {
+    const cls = [styles.menuTrigger, active ? styles.menuTriggerActive : "", className ?? ""]
+      .filter(Boolean)
+      .join(" ");
+    return (
+      <RPopover.Root>
+        <RPopover.Trigger asChild>
+          <button
+            ref={ref}
+            type="button"
+            aria-current={active ? "page" : undefined}
+            aria-haspopup="menu"
+            className={cls}
+            {...rest}
+          >
+            {leftIcon && (
+              <span className={styles.linkIcon} aria-hidden>
+                {sizedIcon(leftIcon)}
+              </span>
+            )}
+            <span className={styles.linkLabel}>{children}</span>
+            <span className={styles.menuCaret} aria-hidden>
+              <Icon name="caret-down" size={ICON_SIZE} />
+            </span>
+          </button>
+        </RPopover.Trigger>
+        <PopoverMenuContent items={items} sideOffset={sideOffset} />
+      </RPopover.Root>
+    );
+  },
+);
+Menu.displayName = "Breadcrumb.Menu";
 
 // ────────────────────────────────────────────────────────────
 
@@ -269,11 +340,13 @@ type BreadcrumbCompound = typeof Root & {
   Link: typeof Link;
   Current: typeof Current;
   Ellipsis: typeof Ellipsis;
+  Menu: typeof Menu;
 };
 
 const Breadcrumb = Root as BreadcrumbCompound;
 Breadcrumb.Link = Link;
 Breadcrumb.Current = Current;
 Breadcrumb.Ellipsis = Ellipsis;
+Breadcrumb.Menu = Menu;
 
 export { Breadcrumb };

@@ -11,29 +11,6 @@ export type IconFamily = "phosphor" | "solar" | "lucide";
 export type IconWeight = "regular" | "fill";
 export type VoiceValue = "formal" | "neutral" | "casual";
 export type LangValue = "ko" | "en";
-export type HuePreset = {
-  id: string;
-  label: string;
-  hue: number; // 0~360
-  desc: string;
-  /** 짝을 이루는 보조 hue. 없으면 단색 프리셋. secondary variant에서만 활용. */
-  accentHue?: number;
-};
-
-/** Hue 프리셋. 다이얼로 임의 값 지정도 가능하지만, 이름 붙은 진입점을 우선 노출.
- *  기본 프리셋은 단색. `+` 프리셋은 보조 hue가 지정된 페어 프리셋. */
-export const huePresets: HuePreset[] = [
-  { id: "ocean",    label: "Ocean",    hue: 210, desc: "신뢰 · 금융/공공" },
-  { id: "forest",   label: "Forest",   hue: 145, desc: "안정 · 헬스케어" },
-  { id: "sunset",   label: "Sunset",   hue: 25,  desc: "활력 · 스타트업" },
-  { id: "lavender", label: "Lavender", hue: 280, desc: "창의 · 교육" },
-  { id: "crimson",  label: "Crimson",  hue: 355, desc: "강조 · 프로모션" },
-  { id: "slate",    label: "Slate",    hue: 260, desc: "무채색 · 관리 도구" },
-  { id: "ocean+sunset",     label: "Ocean + Sunset",   hue: 210, accentHue: 25,  desc: "신뢰 + 활력 페어" },
-  { id: "forest+lavender",  label: "Forest + Lavender", hue: 145, accentHue: 280, desc: "안정 + 창의 페어" },
-  { id: "sunset+ocean",     label: "Sunset + Ocean",    hue: 25,  accentHue: 210, desc: "활력 + 신뢰 페어" },
-];
-
 /**
  * Palette 프리셋. chroma·lightness·hue-shift를 세트로 스왑.
  * 단순 채도 필터가 아니라 팔레트 스타일 재해석:
@@ -577,6 +554,8 @@ export const componentSlugs: Record<string, string> = {
   "App Frame": "layout/app-frame",
   Stepper: "nav/stepper",
   "Context Menu": "overlay/context-menu",
+  "Command Palette": "overlay/command-palette",
+  "Accordion": "overlay/accordion",
   Callout: "feedback/callout",
   Modal: "feedback/modal",
   Drawer: "feedback/drawer",
@@ -585,6 +564,7 @@ export const componentSlugs: Record<string, string> = {
   "Table Row": "data/table-row",
   "Table Row Select": "data/table-row-select",
   "Table Row Edit": "data/table-row-edit",
+  "Event Card": "data/event-card",
   "Event Chip": "data/event-chip",
   "List Item": "data/list-item",
   "Metric Card": "data/metric-card",
@@ -592,7 +572,7 @@ export const componentSlugs: Record<string, string> = {
   "Empty State": "data/empty-state",
   "Progress Bar": "feedback/progress-bar",
   Spinner: "feedback/spinner",
-  "File Icon": "chat/file-icon",
+  "File Icon": "data/file-icon",
   "Attachment Thumb": "chat/attachment-thumb",
   "Attachment Item": "data/attachment-item",
   "Quotation Bar": "chat/quotation-bar",
@@ -639,7 +619,7 @@ export const components: { id: string; title: string; items: string[] }[] = [
     title: "Data Display",
     items: [
       "Table Header", "Table Row", "Table Row Select", "Table Row Edit",
-      "List Item", "Metric Card", "Gallery Item", "Attachment Item", "Event Chip",
+      "List Item", "Metric Card", "Gallery Item", "File Icon", "Attachment Item", "Event Chip", "Event Card",
       "Empty State", "Description List", "Timeline",
     ],
   },
@@ -678,7 +658,7 @@ export const components: { id: string; title: string; items: string[] }[] = [
     id: "chat-attachment",
     title: "AI Chat / 첨부",
     items: [
-      "File Icon", "Attachment Thumb", "Generated Image",
+      "Attachment Thumb", "Generated Image",
     ],
   },
   {

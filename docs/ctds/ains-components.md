@@ -16,7 +16,16 @@
 | `Spinner` | CTDS Spinner. 로딩 문구는 바깥 status 영역에서 한 번만 읽음 |
 | `Empty` | CTDS EmptyState. 기존 아이콘은 illustration 슬롯, 안내·행동은 description·actions 슬롯 |
 | `Modal` | CTDS Modal.Root·Header. 긴 기존 업무 폼은 토큰 폭과 별도 콘텐츠 스크롤 영역 사용 |
-| `FormField` | 명시적 label 연결 + 단일 input·textarea의 CTDS 전환. 다른 컨트롤은 native 유지 |
+| `FormField` | 명시적 label·도움말 연결. 자식은 CTDS 컨트롤 어댑터로 전달 |
+| `Input` / `Textarea` | CTDS Input·Textarea. checkbox/radio 유형은 CTDS Checkbox·Radio |
+| `Select` | CTDS Select Root·Trigger·Content·Group·Item. 기존 option 계약은 어댑터에서 변환 |
+| `Tabs` | CTDS Tabs List·Trigger·Panel. 키보드 이동과 선택 표시 제공 |
+| `ControlButton` | CTDS Button asChild. 기존 복합 내용 및 암묵적 submit 호환 |
+| `Disclosure` | CTDS Disclosure. 접힌 입력도 마운트하여 값 보존 |
+| `Toast` / `ErrorNotice` / `Notice` | CTDS Toast Provider·Viewport / Callout |
+| `useConfirm` | CTDS Modal + Button. 비동기 결정·취소·포커스 복귀 |
+| 대시보드 | CTDS MetricCard·ListItem·Avatar·Breadcrumb·Sidebar·Topbar |
+| 계약·권한 표 | CTDS TableHeader·TableRow·TableCellText |
 
 ## 기존 폼 동작 보존
 
@@ -24,14 +33,13 @@
 
 FormField는 고유한 ID와 `label[for]`를 연결하고 도움말은 `aria-describedby`로 전달한다. CTDS 컨트롤을 바깥 label로 감싸지 않아 중첩 label이나 잘못된 HTML 구조를 만들지 않는다. 기존 ID·name·value·defaultValue·required·disabled·FormData 동작은 보존한다.
 
-CTDS Input은 ref를 컨테이너에 연결하며 일부 이벤트·접근성 속성을 컨테이너에서 처리한다. 이를 기존 native input에 강제로 적용하면 포커스와 이벤트 대상이 바뀔 수 있어 다음 경우는 native를 유지한다.
+`ui-controls.jsx`는 텍스트·날짜·파일 입력까지 CTDS Input을 사용한다. 복사한 Input/Textarea에 내부 input ref와 native props 슬롯을 추가해 기존 이벤트의 target/currentTarget과 에디터 선택 영역을 유지한다. Checkbox/Radio의 단순 인라인 사용은 중첩 label 없이 실제 CTDS 내부 input에 연결한다.
 
-- 파일·체크박스·라디오·기타 텍스트가 아닌 input
-- ref, 별도 크기 속성, wrapper 상호작용 이벤트, 명시적 aria-label·role·tabIndex 등이 있는 input
-- ref가 있는 textarea
-- select 및 복합 FormField children
+Select의 보이는 UI는 실제 CTDS/Radix Select다. 숨긴 native select가 name·FormData·required·reset·onChange·ref의 단일 기준이다. 빈 값과 optgroup, disabled 옵션, disabled fieldset을 지원한다. 여러 값 선택은 Checkbox 그룹으로 구현한다. 기본값과 controlled 값은 구분해서 초기화한다.
 
-이 예외도 앱의 CTDS 토큰 스타일을 사용한다. Textarea는 기존 rows와 수동 크기 조정을 유지하도록 `autoResize={false}`로 연결한다. 새 화면에서는 CTDS Input·Textarea를 직접 사용하고 label·description API를 사용할 수 있다.
+Textarea는 기존 rows·ref·수동 크기 조절을 보존한다. Disclosure는 닫혀 있어도 폼 요소를 보존하고 inert/aria-hidden으로 접근을 차단한다. 필수 입력 오류가 있으면 해당 영역을 열고 포커스를 옮긴다. ControlButton은 `layout="content"`로 복합 내용 높이를 유지하며 장식은 CTDS variant가 담당한다.
+
+`ConfirmationProvider`는 동시 요청을 덮어쓰지 않으며 취소·Escape·바깥 클릭·호출자 해제에서 false를 반환한다. 브라우저의 페이지 이탈 보호(beforeunload)는 브라우저가 제공해야 하는 예외로 유지한다. OS 파일 선택기·날짜 선택기의 플랫폼 동작도 유지한다.
 
 ## Modal 수정
 
@@ -76,3 +84,7 @@ CTDS Input은 ref를 컨테이너에 연결하며 일부 이벤트·접근성 �
 ## 통합 탐색
 
 vara의 Sidebar·Topbar·MenuItem·Tabs를 Vite 업무 화면에서 재사용한다. Shortcut의 키 아이콘도 AINS 고정 아이콘 계열인 Lucide로 연결해 별도 Phosphor 런타임이 필요하지 않다. 원본 크기·키 매핑·접근성 동작은 유지한다.
+
+## 적용 검사
+
+`npm run check:ctds`는 토큰 검사와 JSX AST 기반 실제 컴포넌트 검사를 함께 실행한다. 현재 운영 호스트인 `platform/web/src` 최상위 `.jsx` 파일을 검사하며 복사한 `components/`, 검토한 `ui.jsx`·`ui-controls.jsx`, 개발 fixture는 별도 검증한다. 검사 대상에 새 native 입력·버튼·select·details·dialog, 수동 tab/listbox·notice, 버튼형 링크, window.confirm/alert/prompt가 생기면 실패한다. CTDS asChild 슬롯과 검토한 폼 어댑터 내부만 예외다. 개발 전용 `/ctds-contract.html`은 프로덕션 빌드 입력에서 제외된다. 이 페이지에서 브라우저 폼 계약을 검증한다.

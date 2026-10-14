@@ -1,0 +1,78 @@
+# EventCard
+
+### 원칙
+리스트에 쌓이는 **하나의 일정** 아이템. 좌측 날짜 블록(큰 숫자 + 요일) · 세로 hairline · 우측 제목 + status Badge + meta 라인의 고정 anatomy. 캘린더 셀 안 색 바는 [[components/event-chip]]의 몫이고, 이 컴포넌트는 "다가오는 일정 리스트" "결재/행사 리스트"처럼 시간을 축으로 수직 나열되는 자리의 1 레코드.
+
+날짜 숫자는 2자리 기준으로 트랙이 고정되어 리스트가 세로로 쌓여도 제목 시작점이 흔들리지 않는다. status는 enum 4종(upcoming/pending/completed/cancelled)으로 받아 [[components/badge]] soft + 상태색으로 자동 매핑 — 호출부가 Badge를 직접 조립하지 않는다.
+
+### Do
+- 한 아이템엔 **한 일정**. `date` 하나 + `title` 하나 + 선택적 `status` + `meta[]`.
+- status는 enum 4종으로 넘긴다 — 자유 색/텍스트 Badge 조립 금지. 라벨만 override 필요하면 `statusLabel`.
+- 메타 라인 아이템 사이는 **짧은 세로 hairline**으로 분리 (bullet·중점·|·하이픈 금지).
+- 행 전체를 라우팅으로 쓰려면 `href` — hover bg + focus ring 자동.
+- 리스트로 쌓을 때 세로 gap은 `--space-2` ~ `--space-3`. 카드 자체가 chrome(border+radius+padding)을 들고 있어 부모는 수직 flex만.
+
+### Don't
+- [HARD] 안에 다시 Card chrome(추가 border/shadow) 쌓지 않는다 — "리스트 안 카드 안 카드"가 되어 depth가 깨진다.
+- [HARD] status를 자유 색으로 덮어쓰지 않는다. "좋음=green" 같은 가치판단 반전 금지. 색은 **상태 enum**이 결정.
+- [HARD] 날짜 요일 라벨을 UPPERCASE로 강제하지 않는다 — 소문자 유지("fri", "sun"). [[feedback_no_uppercase]].
+- [HARD] 메타 사이 bullet/중점/`|`/em-dash 삽입 금지. 짧은 세로 hairline만.
+- 날짜 숫자 외의 자리에 큰 숫자(가격·카운트) 추가 금지 — 좌측 트랙은 "날짜" 자리 하나.
+- 2줄 이상 서술/본문을 title에 넣지 않는다 — 1줄 ellipsis. 본문이 길면 상세 뷰로.
+- 날짜 블록을 Avatar/Icon으로 대체하지 않는다 — 그러면 이건 [[components/list-item]].
+
+### Fallback
+`status` 애매하면 생략(Badge 안 뜸). `statusLabel`은 enum 기본 라벨(Upcoming/Pending/Completed/Cancelled) 사용. 라우팅 자리 아니면 `href` 생략.
+
+### 관련
+- [[components/event-chip]] — 혼동 금지. EventChip은 캘린더 셀 안 색 바, EventCard는 리스트 카드.
+- [[components/list-item]] — 날짜 자리에 Avatar/Icon이 오는 "누가 뭘 했다" 피드는 ListItem.
+- [[components/metric-card]] — 같은 Card chrome 규칙(그림자 금지, line 기본).
+- [[components/badge]] — status 매핑은 Badge soft + status.
+- [[components/icon]] — meta 아이콘.
+- [[tokens/color]] — `--bg` · `--border` · `--fg-strong` · `--fg-muted` · `--hover`.
+- [[axes/density]] — compact에선 세로 padding 줄어 리스트가 조밀해짐.
+- [[feedback_no_bullet_separator]] — meta 사이 분리 규칙.
+- [[feedback_no_uppercase]] — 요일 소문자 유지.
+- [[feedback_font_weight_cap]] — title은 sm이라 medium, day는 2xl이라 semibold.
+
+### Props 시그니처
+```tsx
+<EventCard
+  date={Date}                                               // required — 날짜 블록으로 자동 포맷
+  title={ReactNode}                                         // required — 1줄 ellipsis
+  status="upcoming | pending | completed | cancelled"       // Badge soft + 상태색 자동
+  statusLabel={ReactNode}                                   // 기본 라벨 override (ex: 한국어 "예정")
+  meta={{ icon?: IconName; label: ReactNode }[]}            // 메타 라인. 사이는 세로 hairline으로 자동 분리
+  href={string}                                             // 있으면 <a> + hover/focus ring 활성
+/>
+```
+
+### Variant 매트릭스
+variant 자체는 없음. 상태는 `status` enum이 담당.
+
+| status | Badge status | 기본 라벨 | 쓰임 |
+|---|---|---|---|
+| `upcoming` | `info` | Upcoming | 다가올 일정 (기본 info 톤) |
+| `pending` | `warning` | Pending | 승인·확정 대기 |
+| `completed` | `success` | Completed | 종료·완료 |
+| `cancelled` | `destructive` | Cancelled | 취소·무산 |
+
+### 조합 예시
+```tsx
+<section>
+  {events.map((e) => (
+    <EventCard
+      key={e.id}
+      href={`/events/${e.id}`}
+      date={e.date}
+      title={e.title}
+      status={e.status}
+      meta={[
+        { icon: "calendar-dots", label: e.when },
+        { icon: "compass", label: e.where },
+      ]}
+    />
+  ))}
+</section>
+```

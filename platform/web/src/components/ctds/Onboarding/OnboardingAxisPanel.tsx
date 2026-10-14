@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import { Icon } from "../Icon";
 import { useTheme } from "../ThemeController";
 import { hexToHue, isValidHex } from "../_color";
-import type { FocusRingValue } from "../ThemeController";
 import type {
   DensityValue,
   IconFamily,
@@ -15,7 +14,6 @@ import type {
 } from "../_data";
 import {
   DENSITIES,
-  HUE_PRESETS,
   ICON_FAMILIES,
   MOTIONS,
   PALETTES,
@@ -69,8 +67,6 @@ export function OnboardingAxisPanel({
     setMotionMode,
     iconFamily,
     setIconFamily,
-    focusRing,
-    setFocusRing,
     voice,
     setVoice,
     reset,
@@ -114,11 +110,11 @@ export function OnboardingAxisPanel({
   return (
     <div
       className={wide ? styles.axisAdv : undefined}
-      aria-label="9축 컨트롤"
+      aria-label="8축 컨트롤"
     >
       {!wide && (
         <div className={styles.axisRailHead}>
-          <span className={styles.axisRailTitle}>9축 컨트롤</span>
+          <span className={styles.axisRailTitle}>8축 컨트롤</span>
           <button type="button" className={styles.axisRailReset} onClick={reset}>
             reset
           </button>
@@ -159,24 +155,6 @@ export function OnboardingAxisPanel({
 
       <AxisRow label="브랜드 색" wide={wide}>
         <div className={wide ? styles.axisAdvHue : styles.hueBox}>
-          <div className={styles.huePresets}>
-            {HUE_PRESETS.map((h) => (
-              <button
-                type="button"
-                key={h.name}
-                className={styles.hueChip}
-                data-active={hue === h.value || undefined}
-                onClick={() => setHue(h.value)}
-                title={`${h.name} · ${h.value}°`}
-              >
-                <span
-                  className={styles.hueSwatch}
-                  style={{ background: `oklch(0.55 0.14 ${h.value})` }}
-                />
-                <span className={styles.hueLabel}>{h.name}</span>
-              </button>
-            ))}
-          </div>
           <div className={styles.hueDial}>
             <input
               type="range"
@@ -323,17 +301,6 @@ export function OnboardingAxisPanel({
         />
       </AxisRow>
 
-      <AxisRow label="포커스 링" wide={wide}>
-        <SegmentGroup
-          wide={wide}
-          options={[
-            { value: "on", label: "표시", preview: wide && <FocusRingPreview on /> },
-            { value: "off", label: "숨김", preview: wide && <FocusRingPreview on={false} /> },
-          ]}
-          value={focusRing}
-          onChange={(v) => setFocusRing(v as FocusRingValue)}
-        />
-      </AxisRow>
     </div>
   );
 }
@@ -502,14 +469,6 @@ function IconFamilyPreview({ family }: { family: IconFamily }) {
       {ICON_TRIO.map((n) => (
         <Icon key={n} name={n} family={family} size={16} />
       ))}
-    </span>
-  );
-}
-
-function FocusRingPreview({ on }: { on: boolean }) {
-  return (
-    <span className={styles.focusRingPreview} aria-hidden>
-      <span className={styles.focusRingButton} data-on={on || undefined} />
     </span>
   );
 }

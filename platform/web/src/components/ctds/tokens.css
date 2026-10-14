@@ -201,15 +201,14 @@
            --border*, --primary, --primary-hover, --primary-subtle,
            --secondary-*, --ring*, --icon-color,
            --success*, --warning*, --destructive*, --info*,
-           --avatar-tint-*, --hover, --tooltip-*, --sidebar-nav-*,
-           --focus-ring-* 등.
+           --avatar-tint-*, --hover, --tooltip-*, --sidebar-nav-* 등.
      === */
   /* ── Theme axes (color) ─────────────────────────────────────
      Hue 축: 브랜드 컬러(primary/accent/ring)의 색상만 결정.
      Palette 축: chroma·lightness 스왑.
      무채색 계열(bg/fg/border)은 별도의 --tone-* 사용해서 hue 스왑의 영향 안 받게 함.
      ───────────────────────────────────────────────────────── */
-  --hue: 210;          /* Hue 프리셋: ocean */
+  --hue: 210;          /* Hue 축: 0~360° (기본 210°, blue) */
   --chroma: 0.15;      /* Palette: standard */
   --lightness: 0.55;   /* Palette × Mode 조합이 직접 지정 (아래 selector들 참고) */
   /* Palette가 브랜드 hue를 인접 색조로 이동시킴 (0=원본, +값=warm 방향, -값=cool 방향).
@@ -406,16 +405,12 @@
 /* ============================================================
    === AXES START ===
    축 셀렉터 블록. 각 축의 값별 토큰 스왑.
-   소속: html[data-focus-ring], [data-palette], [data-shape], [data-density],
+   소속: [data-palette], [data-shape], [data-density],
          [data-motion], [data-lang], [data-mode="dark"],
          @media (prefers-reduced-motion).
+   포커스 링은 축이 아닌 상수 — 모든 컴포넌트가 var(--ring-shadow)로
+   언제나 켜진 상태 사용.
    ============================================================ */
-/* Focus-ring 축: html[data-focus-ring="off"]면 링 숨김.
-   모든 컴포넌트는 var(--ring-shadow)만 참조하면 자동 반응. */
-html[data-focus-ring="off"] {
-  --ring-shadow: none;
-  --ring-shadow-invalid: none;
-}
 
 /* ── Palette 축 ─────────────────────────────────────────────
    OKLCH의 chroma·lightness + hue-shift를 세트로 스왑.
@@ -722,6 +717,49 @@ html[data-focus-ring="off"] {
   /* violet   */ --avatar-tint-7-bg: oklch(0.325 0.080 290); --avatar-tint-7-fg: oklch(0.850 0.115 290);
   /* plum     */ --avatar-tint-8-bg: oklch(0.320 0.075 325); --avatar-tint-8-fg: oklch(0.850 0.110 325);
   /* pink     */ --avatar-tint-9-bg: oklch(0.325 0.075 355); --avatar-tint-9-fg: oklch(0.860 0.115 355);
+}
+
+/* ── Light scope 복원 ───────────────────────────────────────
+   html[data-mode="dark"] 하위에 국소 light 영역(온보딩 등)을 만들 때 사용.
+   dark 블록이 재정의한 토큰만 light 기본값으로 되돌림. 상위 html의 dark 값이
+   상속으로 내려오는 걸 끊어줌. :root의 light 선언과 값은 동일. */
+[data-mode="light"] {
+  --bg:            oklch(1     var(--tone-chroma) var(--tone-hue));
+  --bg-subtle:     oklch(0.978 var(--tone-chroma) var(--tone-hue));
+  --bg-muted:      oklch(0.955 var(--tone-chroma) var(--tone-hue));
+  --fg-strong:     oklch(0.12  var(--tone-chroma) var(--tone-hue));
+  --fg:            oklch(0.22  var(--tone-chroma) var(--tone-hue));
+  --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.60);
+  --fg-subtle:     oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.42);
+  --fg-disabled:   oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.26);
+  --border:        oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.08);
+  --border-strong: oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.14);
+
+  --hover: oklch(0 0 0 / 0.03);
+  --tooltip-bg:   oklch(0.18 0.005 260);
+  --tooltip-fg:   oklch(1 0 0);
+
+  --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-md: 0 6px 16px -4px oklch(var(--shadow-color) / 0.07),
+    0 2px 6px -2px oklch(var(--shadow-color) / 0.04);
+  --shadow-lg: 0 12px 20px -6px oklch(var(--shadow-color) / 0.1),
+    0 4px 8px -4px oklch(var(--shadow-color) / 0.06);
+  --shadow-xl: 0 24px 40px -12px oklch(var(--shadow-color) / 0.16);
+  --shadow-drop: 0 var(--space-1) 12px oklch(var(--shadow-color) / 0.16);
+
+
+  /* Avatar tints — light 기본값 복원 */
+  /* tomato   */ --avatar-tint-0-bg: oklch(0.928 0.038  27); --avatar-tint-0-fg: oklch(0.545 0.190  32);
+  /* orange   */ --avatar-tint-1-bg: oklch(0.925 0.055  70); --avatar-tint-1-fg: oklch(0.545 0.155  55);
+  /* amber    */ --avatar-tint-2-bg: oklch(0.925 0.055  90); --avatar-tint-2-fg: oklch(0.500 0.115  75);
+  /* grass    */ --avatar-tint-3-bg: oklch(0.935 0.055 140); --avatar-tint-3-fg: oklch(0.525 0.135 145);
+  /* teal     */ --avatar-tint-4-bg: oklch(0.930 0.048 175); --avatar-tint-4-fg: oklch(0.500 0.100 180);
+  /* cyan     */ --avatar-tint-5-bg: oklch(0.930 0.045 210); --avatar-tint-5-fg: oklch(0.545 0.135 225);
+  /* blue     */ --avatar-tint-6-bg: oklch(0.930 0.045 255); --avatar-tint-6-fg: oklch(0.520 0.170 260);
+  /* violet   */ --avatar-tint-7-bg: oklch(0.925 0.050 295); --avatar-tint-7-fg: oklch(0.510 0.180 285);
+  /* plum     */ --avatar-tint-8-bg: oklch(0.920 0.055 330); --avatar-tint-8-fg: oklch(0.520 0.180 330);
+  /* pink     */ --avatar-tint-9-bg: oklch(0.925 0.048 355); --avatar-tint-9-fg: oklch(0.545 0.190 355);
 }
 
 /* ── Dark × Shape ───────────────────────────────────────────

@@ -25,6 +25,7 @@
 .root:focus-visible,
 .root:has(:focus-visible) {
   outline: none;
+  box-shadow: var(--ring-shadow);
 }
 
 /* Variants ──────────────────────────────────────────────── */
@@ -79,7 +80,8 @@
   border-color: var(--destructive);
 }
 
-.root[data-disabled] {
+.root[data-disabled],
+.root:has(> .textarea:disabled) {
   cursor: not-allowed;
   opacity: 0.5;
 }

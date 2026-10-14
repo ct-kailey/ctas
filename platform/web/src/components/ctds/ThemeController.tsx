@@ -14,7 +14,6 @@ import type {
 import { IconAxisProvider } from "./Icon";
 
 type ThemeMode = "light" | "dark";
-export type FocusRingValue = "on" | "off";
 
 /**
  * ctds.config.json의 shape. `ctds init` 후 사용자가 /ctds 적용하면 이 모양으로 쓰임.
@@ -32,7 +31,6 @@ export type InitialConfig = {
   iconFamily?: IconFamily;
   voice?: VoiceValue;
   lang?: LangValue;
-  focusRing?: FocusRingValue;
 };
 
 export type ThemeState = {
@@ -56,8 +54,6 @@ export type ThemeState = {
   setIconFamily: (v: IconFamily) => void;
   lang: LangValue;
   setLang: (v: LangValue) => void;
-  focusRing: FocusRingValue;
-  setFocusRing: (v: FocusRingValue) => void;
   voice: VoiceValue;
   setVoice: (v: VoiceValue) => void;
   applyPreset: (preset: ThemePreset) => void;
@@ -96,61 +92,89 @@ export function ThemeController({
   const [motionMode, setMotionMode] = useState<MotionValue>(ic.motion ?? "standard");
   const [iconFamily, setIconFamily] = useState<IconFamily>(ic.iconFamily ?? "phosphor");
   const [lang, setLang] = useState<LangValue>(ic.lang ?? "ko");
-  const [focusRing, setFocusRing] = useState<FocusRingValue>(ic.focusRing ?? "off");
   const [voice, setVoice] = useState<VoiceValue>(ic.voice ?? "neutral");
   const [hydrated, setHydrated] = useState(false);
 
   // Init from localStorage — 반드시 첫 렌더는 서버와 동일한 default로 두고
   // mount 후 한 번에 실제 값으로 스왑한다. 그래야 hydration mismatch가 안 난다.
+  //
+  // Precedence: initialConfig(명시된 축) > localStorage > 디폴트/시스템 선호.
+  // initialConfig은 "프로젝트 소스 오브 트루스" (ctds.config.json)로, 과거 다른
+  // 세션의 localStorage 흔적이 config을 덮지 못하게 보호한다. 사용자가 이 세션에서
+  // setX를 호출하면 그 뒤로 sync effect가 localStorage에 저장 → 다음 세션엔
+  // 사용자 override값이 유지됨.
   useEffect(() => {
     try {
-      const saved =
-        (localStorage.getItem("ctds-mode") as ThemeMode | null) ||
-        (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-      setTheme(saved);
-      const savedPalette = localStorage.getItem("ctds-palette") as PaletteValue | null;
-      if (savedPalette) setPalette(savedPalette);
-      const savedHue = localStorage.getItem("ctds-hue");
-      if (savedHue) setHue(Number(savedHue));
-      const savedAccentHue = localStorage.getItem("ctds-accent-hue");
-      if (savedAccentHue && savedAccentHue !== "") setAccentHue(Number(savedAccentHue));
+      if (ic.mode == null) {
+        const saved =
+          (localStorage.getItem("ctds-mode") as ThemeMode | null) ||
+          (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        setTheme(saved);
+      }
+      if (ic.palette == null) {
+        const savedPalette = localStorage.getItem("ctds-palette") as PaletteValue | null;
+        if (savedPalette) setPalette(savedPalette);
+      }
+      if (ic.hue == null) {
+        const savedHue = localStorage.getItem("ctds-hue");
+        if (savedHue) setHue(Number(savedHue));
+      }
+      if (ic.accentHue === undefined) {
+        const savedAccentHue = localStorage.getItem("ctds-accent-hue");
+        if (savedAccentHue && savedAccentHue !== "") setAccentHue(Number(savedAccentHue));
+      }
       // ctds-accent는 축에서 제거됨. 과거값은 정리.
       try {
         localStorage.removeItem("ctds-accent");
       } catch {}
-      const savedShape = localStorage.getItem("ctds-shape") as ShapeValue | null;
-      if (savedShape) setShape(savedShape);
-      const savedDensity = localStorage.getItem("ctds-density") as DensityValue | null;
-      if (savedDensity) setDensity(savedDensity);
-      const savedMotion = localStorage.getItem("ctds-motion") as MotionValue | null;
-      const motionMigration: Record<string, MotionValue> = {
-        expressive: "bouncy",
-        subtle: "calm",
-      };
-      const validMotion: MotionValue[] = ["bouncy", "standard", "calm", "none"];
-      if (savedMotion) {
-        const next = motionMigration[savedMotion as string] ?? savedMotion;
-        if (validMotion.includes(next as MotionValue)) setMotionMode(next as MotionValue);
+      if (ic.shape == null) {
+        const savedShape = localStorage.getItem("ctds-shape") as ShapeValue | null;
+        if (savedShape) setShape(savedShape);
       }
-      const savedIconFamily = localStorage.getItem("ctds-icon-family") as IconFamily | null;
-      if (savedIconFamily) setIconFamily(savedIconFamily);
+      if (ic.density == null) {
+        const savedDensity = localStorage.getItem("ctds-density") as DensityValue | null;
+        if (savedDensity) setDensity(savedDensity);
+      }
+      if (ic.motion == null) {
+        const savedMotion = localStorage.getItem("ctds-motion") as MotionValue | null;
+        const motionMigration: Record<string, MotionValue> = {
+          expressive: "bouncy",
+          subtle: "calm",
+        };
+        const validMotion: MotionValue[] = ["bouncy", "standard", "calm", "none"];
+        if (savedMotion) {
+          const next = motionMigration[savedMotion as string] ?? savedMotion;
+          if (validMotion.includes(next as MotionValue)) setMotionMode(next as MotionValue);
+        }
+      }
+      if (ic.iconFamily == null) {
+        const savedIconFamily = localStorage.getItem("ctds-icon-family") as IconFamily | null;
+        if (savedIconFamily) setIconFamily(savedIconFamily);
+      }
       // ctds-icon-weight는 축에서 제거됨. 과거값은 정리.
       try {
         localStorage.removeItem("ctds-icon-weight");
       } catch {}
-      const savedLang = localStorage.getItem("ctds-lang") as LangValue | null;
-      const validLang: LangValue[] = ["ko", "en"];
-      if (savedLang && validLang.includes(savedLang)) setLang(savedLang);
-      const savedFocusRing = localStorage.getItem("ctds-focus-ring") as FocusRingValue | null;
-      if (savedFocusRing === "on" || savedFocusRing === "off") setFocusRing(savedFocusRing);
-      const savedVoice = localStorage.getItem("ctds-voice") as VoiceValue | null;
-      const validVoice: VoiceValue[] = ["formal", "neutral", "casual"];
-      if (savedVoice && validVoice.includes(savedVoice)) setVoice(savedVoice);
+      if (ic.lang == null) {
+        const savedLang = localStorage.getItem("ctds-lang") as LangValue | null;
+        const validLang: LangValue[] = ["ko", "en"];
+        if (savedLang && validLang.includes(savedLang)) setLang(savedLang);
+      }
+      try {
+        localStorage.removeItem("ctds-focus-ring");
+      } catch {}
+      if (ic.voice == null) {
+        const savedVoice = localStorage.getItem("ctds-voice") as VoiceValue | null;
+        const validVoice: VoiceValue[] = ["formal", "neutral", "casual"];
+        if (savedVoice && validVoice.includes(savedVoice)) setVoice(savedVoice);
+      }
       try {
         localStorage.removeItem("ctds-typography");
       } catch {}
     } catch {}
     setHydrated(true);
+    // ic는 initialConfig prop 참조고 매 렌더 참조만 바뀌므로 의도적으로 deps 비움.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync -> document + persist
@@ -167,7 +191,7 @@ export function ThemeController({
     document.documentElement.setAttribute("data-icon-family", iconFamily);
     document.documentElement.removeAttribute("data-icon-weight");
     document.documentElement.setAttribute("data-lang", lang);
-    document.documentElement.setAttribute("data-focus-ring", focusRing);
+    document.documentElement.removeAttribute("data-focus-ring");
     document.documentElement.setAttribute("data-voice", voice);
     document.documentElement.removeAttribute("data-typography");
     document.documentElement.lang = lang;
@@ -185,13 +209,12 @@ export function ThemeController({
       localStorage.setItem("ctds-motion", motionMode);
       localStorage.setItem("ctds-icon-family", iconFamily);
       localStorage.setItem("ctds-lang", lang);
-      localStorage.setItem("ctds-focus-ring", focusRing);
       localStorage.setItem("ctds-voice", voice);
       localStorage.setItem("ctds-hue", String(hue));
       if (accentHue == null) localStorage.removeItem("ctds-accent-hue");
       else localStorage.setItem("ctds-accent-hue", String(accentHue));
     } catch {}
-  }, [hydrated, theme, palette, hue, accentHue, shape, density, motionMode, iconFamily, lang, focusRing, voice]);
+  }, [hydrated, theme, palette, hue, accentHue, shape, density, motionMode, iconFamily, lang, voice]);
 
   const toggleTheme = useCallback(
     () => setTheme((t) => (t === "dark" ? "light" : "dark")),
@@ -221,7 +244,6 @@ export function ThemeController({
     setMotionMode("standard");
     setIconFamily("phosphor");
     setLang("ko");
-    setFocusRing("off");
     setVoice("neutral");
   }, []);
 
@@ -246,14 +268,12 @@ export function ThemeController({
       setIconFamily,
       lang,
       setLang,
-      focusRing,
-      setFocusRing,
       voice,
       setVoice,
       applyPreset,
       reset,
     }),
-    [theme, palette, hue, accentHue, shape, density, motionMode, iconFamily, lang, focusRing, voice, toggleTheme, applyPreset, reset]
+    [theme, palette, hue, accentHue, shape, density, motionMode, iconFamily, lang, voice, toggleTheme, applyPreset, reset]
   );
 
   // Icon 축을 Icon 라이브러리 컨텍스트에도 브로드캐스트 (아이콘마다 MutationObserver 제거용)

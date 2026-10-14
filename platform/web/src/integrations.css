@@ -5,9 +5,9 @@
 .integration-intro { background: var(--bg); border: var(--hairline) solid var(--border); border-left: calc(var(--hairline) * 4) solid var(--border); padding: var(--space-6) var(--space-8); border-radius: var(--radius-md) }
 .integration-intro h2 { font-size: var(--text-2xl); margin: var(--space-2_5) 0; line-height: var(--lh-2xl); letter-spacing: var(--type-2xl-tracking) }
 .integration-intro p { max-width: var(--ains-integrations-measure-820); color: var(--fg-muted); line-height: var(--lh-loose) }
-.integration-intro-bottom,.integration-card-head,.integration-detail-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3) }
+.integration-intro-bottom, .integration-card-head, .integration-detail-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3) }
 .integration-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(min(var(--ains-integrations-measure-340),100%),1fr)); gap: var(--space-4) }
-.integration-card,.integration-detail,.integration-form { background: var(--bg); padding: var(--space-6); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); min-width: 0 }
+.integration-card, .integration-detail, .integration-form { background: var(--bg); padding: var(--space-6); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); min-width: 0 }
 .integration-provider { font-size: var(--text-2xs); font-weight: var(--font-weight-semibold); letter-spacing: var(--type-2xs-tracking); text-transform: none; color: var(--fg); line-height: var(--lh-2xs) }
 .integration-card h3 { margin: var(--space-4) 0; font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
 .integration-card dl { font-size: var(--text-2xs); display: grid; grid-template-columns: var(--ains-integrations-measure-90) 1fr; gap: var(--space-2); margin-bottom: var(--space-4); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
@@ -19,18 +19,19 @@
 .integration-warning { padding: var(--space-2_5) var(--space-3); background: var(--warning-subtle); color: var(--warning); font-size: var(--text-sm); border-radius: var(--radius-xs); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .integration-warning code { display: block; overflow-wrap: anywhere }
 .integration-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-4) }
-.integration-help,.integration-detail p { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); letter-spacing: var(--type-sm-tracking) }
+.integration-help, .integration-detail p { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); letter-spacing: var(--type-sm-tracking) }
 .integration-check { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); margin: var(--space-5) 0; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .integration-search { border-bottom: var(--hairline) solid var(--border); padding-bottom: var(--space-5); margin-bottom: var(--space-5) }
 .integration-search form { display: flex; gap: var(--space-2_5) }
-.integration-search input { flex: 1; min-width: 0 }
+.integration-search input:where(:not([data-ctds]):not([data-ctds-control])) { flex: 1; min-width: 0 }
 .integration-search-result { display: grid; gap: var(--space-2); border-bottom: var(--hairline) solid var(--border); padding: var(--space-4) 0; text-decoration: none; color: inherit }
 .integration-search-result strong { display: flex; gap: var(--space-2); align-items: center; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .integration-search-result span { font-size: var(--text-sm); color: var(--fg-muted); white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .integration-runs { list-style: none; padding: 0 }
 .integration-runs li { display: flex; gap: var(--space-4); flex-wrap: wrap; font-size: var(--text-2xs); padding: var(--space-3) 0; border-bottom: var(--hairline) solid var(--border); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .integration-detail details { margin: var(--space-5) 0 }
-.integration-detail details summary { cursor: pointer; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.integration-detail details summary { cursor: pointer }
+.integration-detail details summary:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .integration-detail details form { display: grid; gap: var(--space-3); max-width: var(--ains-integrations-measure-560); margin-top: var(--space-5) }
 .integration-detail pre { overflow: auto; font-size: var(--text-2xs); background: var(--bg-subtle); padding: var(--space-3); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .integration-detail textarea { display: block; width: 100%; margin: var(--space-3) 0 }
@@ -38,7 +39,7 @@
 .integration-detail code { overflow-wrap: anywhere }
 @media(max-width:640px){
 .integration-form-grid { grid-template-columns: 1fr }
-.integration-intro,.integration-card,.integration-detail,.integration-form { padding: var(--space-5) }
+.integration-intro, .integration-card, .integration-detail, .integration-form { padding: var(--space-5) }
 .integration-intro h2 { font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
 .integration-intro-bottom { align-items: flex-start }
 .integration-search form { flex-direction: column }

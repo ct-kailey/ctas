@@ -158,6 +158,7 @@ export function ToastViewport({
         .join(" ")}
       label={label}
       data-placement={placement}
+      data-ctds="toast-viewport"
     />
   );
 }
@@ -200,6 +201,7 @@ export const Toast = forwardRef<HTMLLIElement, ToastProps>(function Toast(
   return (
     <RadixToast.Root
       ref={ref}
+      data-ctds="toast"
       open={open}
       onOpenChange={onOpenChange}
       duration={duration}
@@ -239,6 +241,7 @@ export const Toast = forwardRef<HTMLLIElement, ToastProps>(function Toast(
         <RadixToast.Close asChild>
           <IconButton
             className={styles.close}
+            data-ctds="button"
             size="sm"
             variant="ghost"
             icon={<Icon name="x" />}

@@ -166,6 +166,70 @@
   color: var(--fg);
 }
 
+/* Menu trigger ─── segment 자체가 트리거. Link와 같은 xs · ghost 스펙 + ▾ caret.
+   active=true일 때는 Current와 같은 톤(--fg-strong) + hover는 그대로 유지. */
+.menuTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: var(--control-h-xs);
+  padding-inline: var(--space-1);
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--fg-muted);
+  font-family: var(--label-font);
+  font-weight: var(--label-weight);
+  font-size: var(--label-sm-size);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--label-tracking);
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+  transition: var(--transition-colors), var(--transition-ring), var(--transition-press);
+}
+.menuTrigger:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.menuTrigger:active {
+  transform: translateY(var(--space-0_5));
+}
+.menuTrigger:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+.menuTrigger[data-state="open"] {
+  background: var(--hover);
+  color: var(--fg);
+}
+.menuTriggerActive {
+  color: var(--fg-strong);
+}
+.menuTrigger:hover .linkIcon,
+.menuTrigger[data-state="open"] .linkIcon {
+  opacity: 1;
+}
+
+/* ▾ caret ─── 트리거 끝에 붙는 작은 꼬리표. Separator처럼 반응 없음. */
+.menuCaret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--fg-muted);
+  opacity: 0.5;
+  transition: opacity var(--duration-slow) var(--ease-out);
+}
+.menuCaret > svg {
+  display: block;
+}
+.menuTrigger:hover .menuCaret,
+.menuTrigger[data-state="open"] .menuCaret {
+  opacity: 0.9;
+}
+
 /* Popover surface ─── Select · ContextMenu와 동일한 팝오버 표면.
    ContextMenu.module.css의 .surface를 composes해 시각 규칙 원본을 재사용. */
 .popoverContent {

@@ -1,0 +1,203 @@
+/* CommandPalette ─────────────────────────────────────────────────
+   ⌘K 전역 명령 창. Modal과 다른 쉘:
+   - 세로: top 20vh (중앙 아님). 리스트가 아래로 자라야.
+   - 너비: 좁음(640 수준). 리스트 모양 집중.
+   - dismiss: 바깥 클릭 허용(가벼운 상호작용).
+   아이템 시각은 MenuItem이 담당 — 여기선 쉘·Input·List 트랙·cmdk 매핑만. */
+
+/* Overlay ───────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--scrim);
+  animation: cmdk-overlay-in var(--duration-base) var(--ease-out);
+}
+
+.overlay[data-state="closed"] {
+  animation: cmdk-overlay-out var(--duration-fast) var(--ease-in);
+}
+
+/* Content ───────────────────────────────────────────────── */
+.content {
+  position: fixed;
+  top: 20vh;
+  left: 50%;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  width: calc(100vw - var(--space-8));
+  /* 640 = space-2(8) * 80. Modal(440)보다 넓다 — 리스트가 들어가야. */
+  max-width: calc(var(--space-2) * 80);
+  /* 아래로 자라는 영역: 상단 20vh + 하단 10vh 여백 확보 → 최대 70vh. */
+  max-height: 70vh;
+  background: var(--bg);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  font-family: var(--font-sans);
+  color: var(--fg);
+  outline: none;
+  overflow: hidden;
+  animation: cmdk-content-in var(--duration-slow) var(--ease-out);
+  transform: translateX(-50%);
+  will-change: transform, opacity;
+}
+
+.content[data-state="closed"] {
+  animation: cmdk-content-out var(--duration-base) var(--ease-in);
+}
+
+/* cmdk 루트 — content 내부 꽉 채움. 세로 flex. */
+.command {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Input row ─────────────────────────────────────────────── */
+/* 상단 고정 영역: 좌측 아이콘 + 네이티브 input.
+   border-bottom만 — 전체 border는 content가 담당. */
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  height: calc(var(--space-2) * 7);
+  border-bottom: var(--hairline) solid var(--border);
+  flex-shrink: 0;
+}
+
+.inputIcon {
+  display: inline-flex;
+  color: var(--fg-muted);
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.input::placeholder {
+  color: var(--fg-subtle);
+}
+
+/* List ──────────────────────────────────────────────────── */
+/* 2단 스크롤 패턴: 바깥(.list)이 overflow, padding은 아이템이 담당하는 그룹/트랙에.
+   cmdk가 내부에 .list 콘텐츠 트랙을 자동 생성하지 않으므로 padding을 여기 직접. */
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1);
+  scroll-padding: var(--space-1);
+}
+
+/* Empty ─────────────────────────────────────────────────── */
+.empty {
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+/* Group ─────────────────────────────────────────────────── */
+/* heading은 MenuItem variant="section"으로 렌더되므로 Group 자체 스타일은 거의 없음.
+   그룹 간 상단 여백만 — 첫 그룹은 제외. */
+.group {
+  /* cmdk가 heading을 [cmdk-group-heading] div로 감싸므로 그 내부 레이아웃만 조정. */
+}
+
+.group + .group {
+  margin-top: var(--space-1);
+}
+
+/* heading 자체는 MenuItem variant="section" 시각 — 추가 marginReset만. */
+.groupHeading {
+  margin: 0;
+}
+
+/* Separator ─────────────────────────────────────────────── */
+/* DropdownMenu·ContextMenu의 separator 규칙과 동일 — 토큰 재사용. */
+.separator {
+  height: var(--hairline);
+  margin: var(--space-1) var(--space-2);
+  background: var(--border);
+}
+
+/* cmdk ↔ MenuItem 매핑 ────────────────────────────────────
+   cmdk는 활성 아이템(↑↓ 선택)에 data-selected="true"를 세팅.
+   MenuItem은 data-active를 fill 스타일로 처리하므로, 둘을 동일 셀렉터에 매핑.
+   asChild로 MenuItem에 cmdk 속성이 전달됨 → 하위 요소에 그대로 적용된다. */
+.list [cmdk-item][data-selected="true"] {
+  background: var(--menu-active-bg, var(--hover));
+  color: var(--menu-active-fg, var(--fg-strong));
+}
+
+/* 활성 아이템 안의 leading 아이콘 색도 fg-strong으로 전파. MenuItem과 동일 규칙. */
+.list [cmdk-item][data-selected="true"] [data-slot="leading"] {
+  color: var(--menu-active-fg, var(--fg-strong));
+}
+
+/* 비활성(cmdk-disabled) 아이템은 MenuItem이 이미 disabled 시각 처리하지만,
+   cmdk 측 상호작용(선택/엔터)이 꺼지는 건 cmdk가 담당. */
+
+/* Animations ────────────────────────────────────────────── */
+@keyframes cmdk-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes cmdk-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes cmdk-content-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(var(--space-1) * -1)) scale(var(--cmdk-scale-from, 0.98));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+@keyframes cmdk-content-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(var(--space-1) * -1)) scale(var(--cmdk-scale-from, 0.98));
+  }
+}
+
+:root[data-motion="bouncy"]   .content { --cmdk-scale-from: 0.96; }
+:root[data-motion="standard"] .content { --cmdk-scale-from: 0.98; }
+:root[data-motion="calm"]     .content { --cmdk-scale-from: 0.99; }
+:root[data-motion="none"]     .content { --cmdk-scale-from: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .overlay[data-state="closed"],
+  .content,
+  .content[data-state="closed"] {
+    animation: none;
+  }
+}

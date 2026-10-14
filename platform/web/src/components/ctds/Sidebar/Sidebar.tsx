@@ -61,7 +61,11 @@ const SidebarRoot = forwardRef<HTMLElement, SidebarProps>(function SidebarRoot(
 /* Header ───────────────────────────────────────────── */
 function SidebarHeader({ children, className, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={[styles.header, className ?? ""].filter(Boolean).join(" ")} {...rest}>
+    <div
+      data-sidebar-slot="header"
+      className={[styles.header, className ?? ""].filter(Boolean).join(" ")}
+      {...rest}
+    >
       {children}
     </div>
   );
@@ -95,6 +99,7 @@ function SidebarBody({ children, className, ...rest }: HTMLAttributes<HTMLDivEle
   return (
     <div
       ref={ref}
+      data-sidebar-slot="body"
       className={[styles.body, className ?? ""].filter(Boolean).join(" ")}
       {...rest}
     >
@@ -116,7 +121,11 @@ export interface SidebarBrandProps extends HTMLAttributes<HTMLDivElement> {
 function SidebarBrand({ symbol, wordmark, className, ...rest }: SidebarBrandProps) {
   const { collapsed } = useSidebar();
   return (
-    <div className={[styles.brand, className ?? ""].filter(Boolean).join(" ")} {...rest}>
+    <div
+      data-sidebar-slot="brand"
+      className={[styles.brand, className ?? ""].filter(Boolean).join(" ")}
+      {...rest}
+    >
       <div className={styles.brandSymbol}>{symbol}</div>
       {!collapsed && wordmark && (
         <div className={styles.brandWordmark}>{wordmark}</div>
@@ -132,6 +141,7 @@ function SidebarFooter({ children, className, ...rest }: HTMLAttributes<HTMLDivE
   const { bodyOverflow } = useSidebar();
   return (
     <div
+      data-sidebar-slot="footer"
       className={[styles.footer, className ?? ""].filter(Boolean).join(" ")}
       data-overflow={bodyOverflow || undefined}
       {...rest}
@@ -177,6 +187,7 @@ function SidebarProfile({
       className={[styles.profile, className ?? ""].filter(Boolean).join(" ")}
       aria-label={collapsed ? name : undefined}
       onClick={onClick}
+      data-sidebar-slot="profile"
     />
   );
 }
@@ -191,6 +202,7 @@ function SidebarSection({ title, className, children, ...rest }: SidebarSectionP
   const { collapsed } = useSidebar();
   return (
     <div
+      data-sidebar-slot="section"
       className={[styles.section, className ?? ""].filter(Boolean).join(" ")}
       role="group"
       aria-label={title}
@@ -210,6 +222,7 @@ function SidebarSection({ title, className, children, ...rest }: SidebarSectionP
 function SidebarSeparator({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      data-sidebar-slot="separator"
       role="separator"
       className={[styles.separator, className ?? ""].filter(Boolean).join(" ")}
       {...rest}

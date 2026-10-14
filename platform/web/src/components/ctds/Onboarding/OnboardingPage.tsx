@@ -42,6 +42,7 @@ type Answers = {
   hue: number | null;
   hueSource: "preset" | "hex" | null;
   brandHex: string;
+  mode: "light" | "dark";
   density: DensityChoiceId | null;
   layout: LayoutId | null;
 };
@@ -59,6 +60,13 @@ export function OnboardingPage() {
   const {
     theme,
     setTheme,
+    palette: currentPalette,
+    hue: currentHue,
+    accentHue: currentAccentHue,
+    shape: currentShape,
+    density: currentDensity,
+    motionMode: currentMotion,
+    iconFamily: currentIconFamily,
     setShape,
     setMotionMode,
     setPalette,
@@ -66,7 +74,6 @@ export function OnboardingPage() {
     setDensity,
     applyPreset,
     voice,
-    focusRing,
   } = useTheme();
   const [mode, setMode] = useState<"wizard" | "free">("wizard");
   const [stepIdx, setStepIdx] = useState(0);
@@ -86,6 +93,7 @@ export function OnboardingPage() {
     hue: 210,
     hueSource: "preset",
     brandHex: "",
+    mode: "light",
     density: "default",
     layout: "topbar-sidebar",
   });
@@ -104,7 +112,13 @@ export function OnboardingPage() {
       theme: t,
       vibe: vibeFallback,
       density: preset.density,
+      mode: preset.mode,
     }));
+  };
+
+  const applyMode = (m: "light" | "dark") => {
+    setTheme(m);
+    setAnswers((a) => ({ ...a, mode: m }));
   };
 
   const applyVibe = (v: VibeId) => {
@@ -150,12 +164,15 @@ export function OnboardingPage() {
       setAnswers((a) => ({ ...a, brandHex: trimmed }));
       return;
     }
-    // L/C 평면에서 가장 가까운 preset (chroma 가중치 ↑ — chroma가 톤 성격을 더 좌우)
+    // L/C 평면에서 가장 가까운 preset. chroma 가중치 ↑↑ (×3) — 사용자가 지정한 hex의
+    // 채도가 preset 재현에서 톤 "느낌"을 가장 좌우. 가중치가 낮으면 인디고(#5865F2)
+    // 같이 chroma가 꽤 있는 색이 standard(chroma 0.14)로 매핑되면서 밝고 흐린 하늘색이
+    // 돼 사용자가 "형광 하늘색이 됐다"고 느낀다.
     const nearest = palettePresets.reduce((best, p) => {
       const d =
-        (p.lightness - oklch.l) ** 2 + ((p.chroma - oklch.c) * 2) ** 2;
+        (p.lightness - oklch.l) ** 2 + ((p.chroma - oklch.c) * 3) ** 2;
       const bestD =
-        (best.lightness - oklch.l) ** 2 + ((best.chroma - oklch.c) * 2) ** 2;
+        (best.lightness - oklch.l) ** 2 + ((best.chroma - oklch.c) * 3) ** 2;
       return d < bestD ? p : best;
     }, palettePresets[0]);
     const baseHue = ((Math.round(oklch.h - nearest.hueShift) % 360) + 360) % 360;
@@ -181,10 +198,8 @@ export function OnboardingPage() {
   };
 
   const runApply = async () => {
-    const vibe = VIBE_CHOICES.find((c) => c.id === answers.vibe);
-    const paletteChoice = PALETTE_CHOICES.find((c) => c.id === answers.palette);
-    const density = DENSITY_CHOICES.find((c) => c.id === answers.density);
-    if (!vibe || !paletteChoice || !density || !answers.theme) {
+    const layoutChoice = LAYOUT_CHOICES.find((c) => c.id === answers.layout);
+    if (!answers.theme || !layoutChoice) {
       setApplyState({ phase: "error", message: "선택값이 비어있습니다", files: [] });
       return;
     }
@@ -192,41 +207,53 @@ export function OnboardingPage() {
     const overwrite =
       applyState.phase === "confirm" && applyState.existing.length > 0;
     setApplyState({ phase: "applying" });
-    const hue = answers.hue ?? 210;
-    // 1) 브라우저 미리보기 반영
-    applyPreset({
-      mode: "light",
-      palette: paletteChoice.id,
-      hue,
-      shape: vibe.values.shape,
-      density: density.id,
-      motion: vibe.values.motion,
-      iconFamily: "phosphor",
-      lang: "ko",
-    });
-    // 2) 파일 쓰기 (server action)
+    // ThemeController 현재값이 소스 오브 트루스 — Summary 고급설정에서 바꾼 값이
+    // answers에는 반영되지 않으므로 useTheme() 현재값을 그대로 쓴다.
+    // 파일 쓰기 (server action)
     // server action이 reject되면(네트워크 끊김·배포환경·내부 throw 등) applying에 멈춰서
     // 무한로딩처럼 보이므로 반드시 try/catch로 감싸서 error phase로 떨어뜨린다.
     try {
       const result = await applyOnboarding(
         {
           theme: answers.theme,
-          mode: "light",
-          palette: paletteChoice.id,
-          hue,
-          accentHue: null,
-          shape: vibe.values.shape,
-          density: density.id,
-          motion: vibe.values.motion,
-          iconFamily: "phosphor",
+          mode: answers.mode,
+          palette: currentPalette,
+          hue: currentHue,
+          accentHue: currentAccentHue,
+          shape: currentShape,
+          density: currentDensity,
+          motion: currentMotion,
+          iconFamily: currentIconFamily,
           voice,
           lang: "ko",
-          focusRing,
+          layout: {
+            id: layoutChoice.id,
+            sidebar: layoutChoice.sidebar,
+            topbar: layoutChoice.topbar,
+            appFrameLayout: layoutChoice.appFrameLayout,
+            tabs: layoutChoice.tabs,
+          },
           appliedAt: new Date().toISOString(),
         },
         { overwrite }
       );
       if (result.ok) {
+        // 적용 성공 시 과거 축 값 흔적 제거. 다음 리프레시부터 ctds.config.json이
+        // 유일한 소스가 되게 — 안 지우면 과거 ctds-mode=dark 등이 config을 덮어씀.
+        try {
+          [
+            "ctds-mode",
+            "ctds-palette",
+            "ctds-hue",
+            "ctds-accent-hue",
+            "ctds-shape",
+            "ctds-density",
+            "ctds-motion",
+            "ctds-icon-family",
+            "ctds-lang",
+            "ctds-voice",
+          ].forEach((k) => localStorage.removeItem(k));
+        } catch {}
         setApplyState({ phase: "done", files: result.files });
       } else {
         setApplyState({
@@ -281,7 +308,7 @@ export function OnboardingPage() {
   }
 
   return (
-    <div className={styles.shell} data-palette="standard">
+    <div className={styles.shell} data-mode="light" data-palette="standard">
       <Rail
         stepIdx={stepIdx}
         answers={answers}
@@ -314,6 +341,8 @@ export function OnboardingPage() {
                 hue={answers.hue ?? 210}
                 hueSource={answers.hueSource}
                 brandHex={answers.brandHex}
+                mode={answers.mode}
+                onMode={applyMode}
                 onPalette={applyPalette}
                 onHueChange={applyHue}
                 onBrandHex={applyBrandHex}
@@ -740,6 +769,8 @@ function ColorStep({
   hue,
   hueSource,
   brandHex,
+  mode,
+  onMode,
   onPalette,
   onHueChange,
   onBrandHex,
@@ -748,6 +779,8 @@ function ColorStep({
   hue: number;
   hueSource: "preset" | "hex" | null;
   brandHex: string;
+  mode: "light" | "dark";
+  onMode: (v: "light" | "dark") => void;
   onPalette: (v: PaletteValue) => void;
   onHueChange: (v: number) => void;
   onBrandHex: (hex: string) => void;
@@ -769,6 +802,26 @@ function ColorStep({
 
   return (
     <div className={styles.colorStep}>
+      <section className={styles.colorSection}>
+        <span className={styles.colorSectionTitle}>밝기 모드</span>
+        <div className={styles.paletteRow} role="radiogroup" aria-label="밝기 모드">
+          <FilterButton
+            size="md"
+            selected={mode === "light"}
+            onClick={() => onMode("light")}
+          >
+            밝게
+          </FilterButton>
+          <FilterButton
+            size="md"
+            selected={mode === "dark"}
+            onClick={() => onMode("dark")}
+          >
+            어둡게
+          </FilterButton>
+        </div>
+      </section>
+
       <section className={styles.colorSection}>
         <div className={styles.colorSectionHead}>
           <span className={styles.colorSectionTitle}>팔레트 선택</span>

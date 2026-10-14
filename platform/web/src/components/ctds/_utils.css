@@ -17,3 +17,108 @@
   white-space: nowrap;
   border: 0;
 }
+
+/* ── emerge — 앵커(트리거)에서 튀어나오는 등장 ──────────────
+   overlay(Tooltip/Popover/Dropdown/Menu 등)가 data-side 값에 따라
+   "버튼에서 멀어지는 방향으로" 슬라이드 + 스케일 인.
+   Radix의 --radix-*-content-transform-origin과 결합해 앵커 엣지에서 자라남.
+   컴포넌트가 아래 클래스를 붙이거나, [data-state="open"][data-side] 셀렉터로 직접 매칭. */
+@keyframes m-emerge-from-top {
+  from { opacity: 0; transform: translateY(calc(-4px * var(--motion-distance-scale))) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes m-emerge-from-bottom {
+  from { opacity: 0; transform: translateY(calc(4px * var(--motion-distance-scale))) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes m-emerge-from-left {
+  from { opacity: 0; transform: translateX(calc(-4px * var(--motion-distance-scale))) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes m-emerge-from-right {
+  from { opacity: 0; transform: translateX(calc(4px * var(--motion-distance-scale))) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.m-emerge-from-top    { animation: m-emerge-from-top    var(--duration-fast) var(--ease-out); }
+.m-emerge-from-bottom { animation: m-emerge-from-bottom var(--duration-fast) var(--ease-out); }
+.m-emerge-from-left   { animation: m-emerge-from-left   var(--duration-fast) var(--ease-out); }
+.m-emerge-from-right  { animation: m-emerge-from-right  var(--duration-fast) var(--ease-out); }
+
+/* ── recede — emerge의 대칭 프리미티브. 앵커 쪽으로 살짝 물러나며 사라짐 ──
+   overlay 닫힘용. 이동량은 emerge의 절반(2px) — 닫힘은 짧고 담백하게. */
+@keyframes m-recede-to-top {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(calc(-2px * var(--motion-distance-scale))) scale(0.98); }
+}
+@keyframes m-recede-to-bottom {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(calc(2px * var(--motion-distance-scale))) scale(0.98); }
+}
+@keyframes m-recede-to-left {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(calc(-2px * var(--motion-distance-scale))) scale(0.98); }
+}
+@keyframes m-recede-to-right {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(calc(2px * var(--motion-distance-scale))) scale(0.98); }
+}
+.m-recede-to-top    { animation: m-recede-to-top    var(--duration-fast) var(--ease-in); }
+.m-recede-to-bottom { animation: m-recede-to-bottom var(--duration-fast) var(--ease-in); }
+.m-recede-to-left   { animation: m-recede-to-left   var(--duration-fast) var(--ease-in); }
+.m-recede-to-right  { animation: m-recede-to-right  var(--duration-fast) var(--ease-in); }
+
+/* ── m-float — 플로팅 서페이스(오버레이·팝오버·툴팁·메뉴·셀렉트·데이트픽커…) 공통 in/out ──
+   원칙: "떠오르는 표면"은 항상 이 유틸 하나로 등장·퇴장한다. 컴포넌트마다 다른 애니메이션 규칙을
+   만들지 말고, 반드시 Radix Content(또는 그 상응 요소)의 className에 "m-float"을 추가한다.
+
+   Radix는 오버레이 Content에 자동으로 다음 attribute를 부여한다:
+     data-state = "open" | "closed" | "delayed-open"  (Tooltip은 hover 지연으로 delayed-open 사용)
+     data-side  = "top" | "bottom" | "left" | "right"  (position=popper일 때)
+   → 이 유틸은 두 attribute 조합만으로 매칭되므로 컴포넌트 CSS Module 안에서 반복 정의할 필요 없음.
+
+   왜 전역 클래스인가:
+   Turbopack의 CSS Modules는 `animation: <name>` shorthand의 keyframe identifier를 로컬 스코프로
+   rewrite한다(예: m-emerge-from-top → xItvXq__m-emerge-from-top). 우회하려면 컴포넌트마다
+   `--anim` 변수로 이름을 넘기는 보일러플레이트가 필요했다. 규칙 자체를 _utils.css로 올리면
+   스코핑을 아예 회피할 수 있어 각 컴포넌트는 클래스 문자열 하나만 붙이면 된다.
+
+   왜 globals.css가 아니라 _utils.css인가:
+   globals.css는 로컬 Next 앱 전용이고 ctds npm 패키지엔 번들되지 않는다. 반면 _utils.css는
+   tokens.css가 import하고 tokens.css는 소비자 globals.css에 자동 패치로 끼워지므로,
+   `ctds init`로 설치한 소비자 앱에서도 .m-float이 그대로 로드된다.
+
+   방향 규칙:
+     - open  → 앵커 반대편에서 자라남 (data-side=bottom → 트리거 아래 → 위쪽에서 내려옴)
+     - close → 앵커 쪽으로 되감김     (data-side=bottom → 위쪽으로 물러남)
+   시간·곡선(모두 Motion 축 토큰 경유):
+     - open  : --duration-base + --ease-emphasized  (정착감 있는 등장)
+     - close : --duration-fast + --ease-in          (담백한 이탈, 이동량 절반) */
+.m-float {
+  will-change: transform, opacity;
+}
+.m-float[data-state="open"][data-side="top"],
+.m-float[data-state="delayed-open"][data-side="top"]    { animation: m-emerge-from-bottom var(--duration-base) var(--ease-emphasized); }
+.m-float[data-state="open"][data-side="bottom"],
+.m-float[data-state="delayed-open"][data-side="bottom"] { animation: m-emerge-from-top    var(--duration-base) var(--ease-emphasized); }
+.m-float[data-state="open"][data-side="left"],
+.m-float[data-state="delayed-open"][data-side="left"]   { animation: m-emerge-from-right  var(--duration-base) var(--ease-emphasized); }
+.m-float[data-state="open"][data-side="right"],
+.m-float[data-state="delayed-open"][data-side="right"]  { animation: m-emerge-from-left   var(--duration-base) var(--ease-emphasized); }
+
+.m-float[data-state="closed"][data-side="top"]    { animation: m-recede-to-bottom var(--duration-fast) var(--ease-in); }
+.m-float[data-state="closed"][data-side="bottom"] { animation: m-recede-to-top    var(--duration-fast) var(--ease-in); }
+.m-float[data-state="closed"][data-side="left"]   { animation: m-recede-to-right  var(--duration-fast) var(--ease-in); }
+.m-float[data-state="closed"][data-side="right"]  { animation: m-recede-to-left   var(--duration-fast) var(--ease-in); }
+
+/* data-side가 없는 경우(Tooltip이 아직 위치 계산 전, 또는 popper가 아닌 경우) 폴백: 페이드+살짝 스케일 */
+.m-float[data-state="open"]:not([data-side]),
+.m-float[data-state="delayed-open"]:not([data-side]) {
+  animation: m-emerge-from-top var(--duration-base) var(--ease-emphasized);
+}
+.m-float[data-state="closed"]:not([data-side]) {
+  animation: m-recede-to-top var(--duration-fast) var(--ease-in);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m-float { animation: none !important; }
+}

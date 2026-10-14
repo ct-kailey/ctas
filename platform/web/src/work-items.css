@@ -4,7 +4,7 @@
 .work-board { min-width: 0 }
 .work-board-intro { display: flex; justify-content: space-between; gap: var(--space-6); align-items: center; margin-bottom: var(--space-6) }
 .work-board-intro h2 { font-size: var(--text-2xl); letter-spacing: var(--type-2xl-tracking); margin: var(--space-2) 0; line-height: var(--lh-2xl) }
-.work-board-intro p,.work-board-footnote,.work-helper { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.work-board-intro p, .work-board-footnote, .work-helper { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .work-board-filters { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4) }
 .work-board-filters button { display: flex; gap: var(--space-3); align-items: center; cursor: pointer }
 .work-board-filters button:where(:not([data-ctds]):not([data-ctds-control])) { border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); background: var(--bg); padding: var(--space-2) var(--space-3); font: inherit; font-size: var(--text-sm); color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
@@ -13,12 +13,13 @@
 .work-board-toolbar { display: flex; justify-content: space-between; gap: var(--space-4); align-items: center; margin: var(--space-4) 0 }
 .work-board-toolbar>span { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .work-search { display: flex; align-items: center; gap: var(--space-2); min-width: 0; width: var(--ains-work-items-measure-340); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: 0 var(--space-3); color: var(--fg-muted) }
-.work-search input { min-width: 0; width: 100% }
+.work-search input:where(:not([data-ctds]):not([data-ctds-control])) { min-width: 0; width: 100% }
 .work-search input:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; background: transparent; font: inherit; font-size: var(--text-sm); padding: var(--space-2_5) 0; outline-offset: var(--ring-offset); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .work-item-list { border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg); overflow: hidden }
-.work-item-row { display: flex; align-items: center; gap: var(--space-5); width: 100%; border: 0; border-bottom: var(--hairline) solid var(--border); background: transparent; padding: var(--space-6); text-align: left; font: inherit; cursor: pointer; color: inherit }
-.work-item-row:last-child { border-bottom: 0 }
-.work-item-row:hover { background: var(--hover) }
+.work-item-row { display: flex; align-items: center; gap: var(--space-5); width: 100%; text-align: left; cursor: pointer }
+.work-item-row:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; border-bottom: var(--hairline) solid var(--border); background: transparent; padding: var(--space-6); font: inherit; color: inherit }
+.work-item-row:where(:not([data-ctds]):not([data-ctds-control])):last-child { border-bottom: 0 }
+.work-item-row:where(:not([data-ctds]):not([data-ctds-control])):hover { background: var(--hover) }
 .work-item-row:focus-visible:where(:not([data-ctds]):not([data-ctds-control])) { outline: var(--ring-width) solid var(--ring); outline-offset: calc(var(--ring-offset) * -1) }
 .work-item-row:disabled { cursor: wait }
 .work-item-main { flex: 1; min-width: 0 }
@@ -40,12 +41,16 @@
 .work-detail-section>ul { padding-left: var(--space-5); line-height: var(--lh-sm); font-size: var(--text-sm); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
 .work-dependencies { list-style: none; padding: 0!important }
 .work-dependencies li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin: var(--space-2) 0 }
-.work-source { background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-3); margin-top: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.work-source summary { cursor: pointer; font-weight: var(--font-weight-semibold) }
-.work-source article { border-top: var(--hairline) solid var(--border); margin-top: var(--space-3); padding-top: var(--space-3); overflow-wrap: anywhere }
-.work-source article p { white-space: pre-wrap; line-height: var(--lh-loose); color: var(--fg-muted) }
+.work-source { margin-top: var(--space-5) }
+.work-source:where(:not([data-ctds]):not([data-ctds-control])) { background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-3); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.work-source summary { cursor: pointer }
+.work-source summary:where(:not([data-ctds]):not([data-ctds-control])) { font-weight: var(--font-weight-semibold) }
+.work-source article { margin-top: var(--space-3); overflow-wrap: anywhere }
+.work-source:where(:not([data-ctds]):not([data-ctds-control])) article { border-top: var(--hairline) solid var(--border); padding-top: var(--space-3) }
+.work-source article p { white-space: pre-wrap }
+.work-source:where(:not([data-ctds]):not([data-ctds-control])) article p { line-height: var(--lh-loose); color: var(--fg-muted) }
 .work-source a { display: inline-flex; gap: var(--space-1_5); align-items: center }
-.work-source a:where(:not([data-ctds]):not([data-ctds-control])) { color: var(--ains-primary-text) }
+.work-source:where(:not([data-ctds]):not([data-ctds-control])) a:where(:not([data-ctds]):not([data-ctds-control])) { color: var(--ains-primary-text) }
 .work-edit-form { margin-top: var(--space-6); border-top: var(--hairline) solid var(--border); padding-top: var(--space-6) }
 .work-edit-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-3) }
 .work-edit-form .field { margin-bottom: var(--space-4) }
@@ -72,7 +77,8 @@
 .work-board-intro h2 { font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
 .work-board-toolbar { align-items: flex-start; flex-direction: column; gap: var(--space-2_5) }
 .work-search { width: 100%; box-sizing: border-box }
-.work-item-row { gap: var(--space-2_5); padding: var(--space-4) var(--space-4); flex-wrap: wrap }
+.work-item-row { gap: var(--space-2_5); flex-wrap: wrap }
+.work-item-row:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-4) var(--space-4) }
 .work-item-main { flex-basis: 100% }
 .work-item-meta { flex: 1; align-items: flex-start; flex-direction: row; justify-content: space-between; gap: var(--space-2) }
 .work-item-title { gap: var(--space-2) }

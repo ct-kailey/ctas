@@ -111,6 +111,12 @@
   --btn-icon-size: var(--space-5);
 }
 
+/* Intrinsic content is opt-in for composed card/row buttons; ordinary controls keep their size. */
+.root.contentLayout { height: auto; min-height: var(--control-h-sm); white-space: normal; }
+.contentLayout.md { min-height: var(--control-h-md); }
+.contentLayout.lg { min-height: var(--control-h-lg); }
+.contentLayout.xs { min-height: var(--control-h-xs); }
+
 
 /* Icon / label slots ─────────────────────────────────────────── */
 /* 아이콘 슬롯을 고정 정사각 박스로 강제. SVG viewBox 내부 여백이

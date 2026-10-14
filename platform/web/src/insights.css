@@ -5,7 +5,8 @@
 .insight-daily-links { display: grid; gap: var(--space-1); margin: var(--space-4) 0 }
 .insight-daily-links button { display: flex; gap: var(--space-3); align-items: center; text-align: left }
 .insight-daily-links button:where(:not([data-ctds]):not([data-ctds-control])) { background: none; border: 0; padding: var(--space-1_5) 0; color: inherit }
-.insight-daily-links button span { font-size: var(--text-2xs); color: var(--fg-muted); white-space: nowrap; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.insight-daily-links button span { white-space: nowrap }
+.insight-daily-links button:where(:not([data-ctds]):not([data-ctds-control])) span { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .insight-daily-links svg { flex-shrink: 0 }
 .insight-toolbar { display: flex; gap: var(--space-2_5); flex-wrap: wrap }
 .insight-toolbar select:where(:not([data-ctds]):not([data-ctds-control])) { border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); padding: var(--space-2_5); background: var(--bg) }
@@ -24,7 +25,7 @@
 .insight-projects label { font-size: var(--text-sm); display: flex; gap: var(--space-1_5); align-items: center; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .insight-patterns article { padding: var(--space-4) 0; border-top: var(--hairline) solid var(--border); margin-top: var(--space-4) }
 .insight-patterns p { font-size: var(--text-sm); line-height: var(--lh-sm); white-space: pre-wrap; letter-spacing: var(--type-sm-tracking) }
-.insight-patterns details { padding: var(--space-2) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.insight-patterns details:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-2) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .insights-workspace small { color: var(--fg-muted); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 @media(max-width:800px){
 .insight-grid { grid-template-columns: 1fr }

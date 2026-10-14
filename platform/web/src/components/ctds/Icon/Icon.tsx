@@ -4,14 +4,22 @@
 import * as React from "react";
 import type { IconFamily, IconWeight } from "../_data";
 // Lucide ──────────────────────────────────────────────────────────
+// phosphor 이름 → lucide의 가장 자연스러운 대응. 수렴 OK.
 import {
   Check as LuCheck,
   AlertTriangle as LuWarning,
+  AlertCircle as LuWarningCircle,
+  CheckCircle as LuCheckCircle,
+  CheckSquare as LuCheckSquare,
+  ShieldCheck as LuSealCheck,
   Star as LuStar,
   Heart as LuHeart,
   User as LuUser,
+  UserCircle as LuUserCircle,
+  IdCard as LuIdCard,
   Search as LuSearch,
   Settings as LuGear,
+  SlidersHorizontal as LuSliders,
   Trash as LuTrash,
   ArrowRight as LuArrowRight,
   X as LuX,
@@ -24,6 +32,8 @@ import {
   ChevronsUpDown as LuCaretUpDown,
   ChevronsLeft as LuCaretDoubleLeft,
   ChevronsRight as LuCaretDoubleRight,
+  ArrowDownCircle as LuCaretCircleDown,
+  ArrowUpDown as LuArrowsVertical,
   Columns as LuColumns,
   Scissors as LuScissors,
   Copy as LuCopy,
@@ -38,117 +48,156 @@ import {
   LayoutGrid as LuLayoutGrid,
   Grid3X3 as LuGrid3X3,
   Square as LuSquare,
+  Home as LuHouse,
+  Palette as LuPalette,
+  Ruler as LuRuler,
+  Tag as LuTag,
+  Minus as LuMinus,
+  Plus as LuPlus,
+  MinusSquare as LuMinusSquare,
+  Type as LuTextAa,
+  PaintBucket as LuPaintBucket,
+  Layers as LuStack,
+  AudioWaveform as LuWaveform,
+  MousePointer as LuCursorClick,
+  Keyboard as LuKeyboard,
+  TextSelection as LuSelection,
+  Circle as LuRadioButton,
+  ToggleRight as LuToggleRight,
+  ToggleLeft as LuToggleLeft,
+  Calendar as LuCalendar,
+  Clock as LuClock,
+  Upload as LuUpload,
+  Download as LuDownload,
+  Table as LuTable,
+  CreditCard as LuCards,
+  LineChart as LuChartLine,
+  TrendingUp as LuTrendUp,
+  TrendingDown as LuTrendDown,
+  CircleOff as LuEmpty,
+  ListChecks as LuListBullets,
+  AlignJustify as LuListDashes,
+  Minus as LuLineSegments,
+  LayoutTemplate as LuTabs,
+  Route as LuPath,
+  PanelLeft as LuSidebar,
+  PanelLeftClose as LuSidebarSimple,
+  MoreHorizontal as LuDotsThree,
+  Compass as LuCompass,
+  MessageCircle as LuChatCircle,
+  MessageSquare as LuChatText,
+  Radio as LuBroadcast,
+  Bell as LuBell,
+  Megaphone as LuMegaphone,
+  Gauge as LuSpeedometer,
+  Loader2 as LuCircleNotch,
+  Command as LuCommand,
+  PlusSquare as LuRowsPlusBottom,
+  Code as LuBracketsSquare,
+  Mail as LuEnvelope,
+  Eye as LuEye,
+  EyeOff as LuEyeSlash,
+  Camera as LuCamera,
+  Globe as LuGlobe,
+  Rows as LuRows,
+  RectangleHorizontal as LuRectangle,
+  SplitSquareVertical as LuSplitVertical,
+  SplitSquareHorizontal as LuSplitHorizontal,
+  Grid as LuGridNine,
+  LayoutDashboard as LuLayout,
+  Pilcrow as LuTextbox,
+  MonitorSmartphone as LuDevices,
+  Footprints as LuSteps,
+  Contrast as LuSquareHalf,
+  Folder as LuFolder,
+  FolderOpen as LuFolderOpen,
+  File as LuFile,
+  Link as LuLink,
+  Link2 as LuLinkSimple,
+  Lock as LuLock,
+  Unlock as LuLockOpen,
+  Key as LuKey,
+  LogOut as LuSignOut,
+  LogIn as LuSignIn,
+  CloudUpload as LuCloudUp,
+  CloudDownload as LuCloudDown,
+  Cloud as LuCloud,
+  MapPin as LuMapPin,
+  Send as LuPaperPlane,
+  Hash as LuHash,
+  AtSign as LuAt,
+  Pin as LuPushPin,
+  Bookmark as LuBookmark,
+  Flag as LuFlag,
+  Zap as LuLightning,
+  Lightbulb as LuLightbulb,
+  Flame as LuFire,
+  Users as LuUsers,
+  UsersRound as LuUsersThree,
+  PlusCircle as LuPlusCircle,
+  MinusCircle as LuMinusCircleBig,
+  XCircle as LuXCircle,
+  ArrowLeft as LuArrowLeft,
+  ArrowUp as LuArrowUp,
+  ArrowDown as LuArrowDown,
+  RotateCw as LuArrowClockwise,
+  RotateCcw as LuArrowCCW,
+  Repeat as LuArrowsClockwise,
+  ArrowLeftRight as LuArrowsLeftRight,
+  Maximize2 as LuArrowsOut,
+  Minimize2 as LuArrowsIn,
+  Play as LuPlay,
+  Pause as LuPause,
+  Square as LuStop,
+  SkipForward as LuSkipForward,
+  SkipBack as LuSkipBack,
+  Volume2 as LuSpeakerHigh,
+  Volume as LuSpeakerLow,
+  VolumeX as LuSpeakerX,
+  Mic as LuMicrophone,
+  MicOff as LuMicrophoneSlash,
+  Headphones as LuHeadphones,
+  Music as LuMusicNote,
+  Image as LuImage,
+  Video as LuVideoCamera,
+  Paperclip as LuPaperclip,
+  Save as LuFloppyDisk,
+  Printer as LuPrinter,
+  Package as LuPackage,
+  Gift as LuGift,
+  ShoppingCart as LuShoppingCart,
+  DollarSign as LuCurrencyDollar,
+  CreditCard as LuCreditCard,
+  Wallet as LuWallet,
+  Receipt as LuReceipt,
+  Coins as LuCoins,
+  Building2 as LuBuildings,
+  Factory as LuFactory,
+  Store as LuStorefront,
+  Truck as LuTruck,
+  Plane as LuAirplane,
+  Car as LuCar,
+  Bike as LuBicycle,
+  Map as LuMapTrifold,
+  Navigation as LuNavigation,
+  Shield as LuShield,
+  LifeBuoy as LuLifebuoy,
+  HelpCircle as LuQuestion,
+  Smile as LuSmiley,
+  Meh as LuSmileyMeh,
+  Frown as LuSmileySad,
+  ThumbsUp as LuThumbsUp,
+  ThumbsDown as LuThumbsDown,
+  Hand as LuHandWaving,
+  Trophy as LuTrophy,
+  Medal as LuMedal,
+  Crown as LuCrown,
+  Flower as LuFlower,
+  Leaf as LuLeaf,
+  Trees as LuTree,
 } from "lucide-react";
 
-export type IconName =
-  | "check"
-  | "warning"
-  | "star"
-  | "heart"
-  | "user"
-  | "search"
-  | "gear"
-  | "trash"
-  | "arrow-right"
-  | "arrows-down-up"
-  | "x"
-  | "sun"
-  | "moon"
-  | "caret-down"
-  | "caret-left"
-  | "caret-right"
-  | "caret-up"
-  | "caret-up-down"
-  | "caret-double-left"
-  | "caret-double-right"
-  | "columns"
-  | "house"
-  | "palette"
-  | "ruler"
-  | "square"
-  | "text-aa"
-  | "paint-bucket"
-  | "stack"
-  | "waveform"
-  | "devices"
-  | "squares-four"
-  | "cursor-click"
-  | "split-vertical"
-  | "rectangle"
-  | "list"
-  | "rows"
-  | "seal-check"
-  | "user-circle"
-  | "info"
-  | "tag"
-  | "minus"
-  | "plus"
-  | "placeholder"
-  | "textbox"
-  | "keyboard"
-  | "article"
-  | "selection"
-  | "check-square"
-  | "radio-button"
-  | "toggle-right"
-  | "toggle-left"
-  | "sliders"
-  | "calendar"
-  | "calendar-blank"
-  | "calendar-dots"
-  | "clock"
-  | "upload-simple"
-  | "download-simple"
-  | "identification-card"
-  | "table"
-  | "grid-four"
-  | "list-bullets"
-  | "cards"
-  | "chart-line"
-  | "trend-up"
-  | "trend-down"
-  | "empty"
-  | "list-dashes"
-  | "line-segments"
-  | "tabs"
-  | "path"
-  | "sidebar"
-  | "sidebar-simple"
-  | "dots-three"
-  | "compass"
-  | "steps"
-  | "warning-circle"
-  | "check-circle"
-  | "square-half"
-  | "chat-circle"
-  | "chat-text"
-  | "broadcast"
-  | "bell"
-  | "megaphone"
-  | "speedometer"
-  | "circle-notch"
-  | "dots-three-outline"
-  | "caret-circle-down"
-  | "command"
-  | "rows-plus-bottom"
-  | "minus-square"
-  | "brackets-square"
-  | "grid-nine"
-  | "arrows-vertical"
-  | "split-horizontal"
-  | "layout"
-  | "envelope"
-  | "eye"
-  | "eye-slash"
-  | "arrow-square-out"
-  | "pencil-simple"
-  | "share-network"
-  | "copy"
-  | "copy-simple"
-  | "scissors"
-  | "clipboard-text"
-  | "camera"
-  | "globe";
+export type IconName = string;
 
 type AnyComp = React.ComponentType<any>;
 
@@ -156,11 +205,18 @@ type AnyComp = React.ComponentType<any>;
 const lucideSet: Partial<Record<IconName, AnyComp>> = {
   check: LuCheck,
   warning: LuWarning,
+  "warning-circle": LuWarningCircle,
+  "check-circle": LuCheckCircle,
+  "check-square": LuCheckSquare,
+  "seal-check": LuSealCheck,
   star: LuStar,
   heart: LuHeart,
   user: LuUser,
+  "user-circle": LuUserCircle,
+  "identification-card": LuIdCard,
   search: LuSearch,
   gear: LuGear,
+  sliders: LuSliders,
   trash: LuTrash,
   "arrow-right": LuArrowRight,
   x: LuX,
@@ -173,8 +229,72 @@ const lucideSet: Partial<Record<IconName, AnyComp>> = {
   "caret-up-down": LuCaretUpDown,
   "caret-double-left": LuCaretDoubleLeft,
   "caret-double-right": LuCaretDoubleRight,
+  "caret-circle-down": LuCaretCircleDown,
+  "arrows-vertical": LuArrowsVertical,
   columns: LuColumns,
   square: LuSquare,
+  placeholder: LuSquare,
+  rectangle: LuRectangle,
+  layout: LuLayout,
+  house: LuHouse,
+  palette: LuPalette,
+  ruler: LuRuler,
+  tag: LuTag,
+  minus: LuMinus,
+  plus: LuPlus,
+  "minus-square": LuMinusSquare,
+  "text-aa": LuTextAa,
+  "paint-bucket": LuPaintBucket,
+  stack: LuStack,
+  waveform: LuWaveform,
+  "cursor-click": LuCursorClick,
+  keyboard: LuKeyboard,
+  textbox: LuTextbox,
+  selection: LuSelection,
+  "radio-button": LuRadioButton,
+  "toggle-right": LuToggleRight,
+  "toggle-left": LuToggleLeft,
+  calendar: LuCalendar,
+  "calendar-blank": LuCalendar,
+  "calendar-dots": LuCalendar,
+  clock: LuClock,
+  "upload-simple": LuUpload,
+  "download-simple": LuDownload,
+  table: LuTable,
+  cards: LuCards,
+  "chart-line": LuChartLine,
+  "trend-up": LuTrendUp,
+  "trend-down": LuTrendDown,
+  empty: LuEmpty,
+  "list-bullets": LuListBullets,
+  "list-dashes": LuListDashes,
+  "line-segments": LuLineSegments,
+  rows: LuRows,
+  tabs: LuTabs,
+  path: LuPath,
+  sidebar: LuSidebar,
+  "sidebar-simple": LuSidebarSimple,
+  "dots-three": LuDotsThree,
+  "dots-three-outline": LuDotsThree,
+  compass: LuCompass,
+  "chat-circle": LuChatCircle,
+  "chat-text": LuChatText,
+  broadcast: LuBroadcast,
+  bell: LuBell,
+  megaphone: LuMegaphone,
+  speedometer: LuSpeedometer,
+  "circle-notch": LuCircleNotch,
+  command: LuCommand,
+  "rows-plus-bottom": LuRowsPlusBottom,
+  "brackets-square": LuBracketsSquare,
+  "grid-nine": LuGridNine,
+  "split-vertical": LuSplitVertical,
+  "split-horizontal": LuSplitHorizontal,
+  envelope: LuEnvelope,
+  eye: LuEye,
+  "eye-slash": LuEyeSlash,
+  camera: LuCamera,
+  globe: LuGlobe,
   "squares-four": LuGrid3X3,
   list: LuList,
   info: LuInfo,
@@ -187,6 +307,101 @@ const lucideSet: Partial<Record<IconName, AnyComp>> = {
   "copy-simple": LuFiles,
   scissors: LuScissors,
   "clipboard-text": LuClipboardType,
+  devices: LuDevices,
+  steps: LuSteps,
+  "square-half": LuSquareHalf,
+  folder: LuFolder,
+  "folder-open": LuFolderOpen,
+  "folder-simple": LuFolder,
+  file: LuFile,
+  "file-text": LuFileText,
+  link: LuLink,
+  "link-simple": LuLinkSimple,
+  lock: LuLock,
+  "lock-open": LuLockOpen,
+  key: LuKey,
+  "sign-out": LuSignOut,
+  "sign-in": LuSignIn,
+  "cloud-up": LuCloudUp,
+  "cloud-down": LuCloudDown,
+  cloud: LuCloud,
+  "map-pin": LuMapPin,
+  "push-pin": LuPushPin,
+  "paper-plane": LuPaperPlane,
+  "chat-centered-dots": LuChatText,
+  hash: LuHash,
+  at: LuAt,
+  bookmark: LuBookmark,
+  flag: LuFlag,
+  lightning: LuLightning,
+  lightbulb: LuLightbulb,
+  fire: LuFire,
+  users: LuUsers,
+  "users-three": LuUsersThree,
+  "plus-circle": LuPlusCircle,
+  "minus-circle": LuMinusCircleBig,
+  "x-circle": LuXCircle,
+  "arrow-left": LuArrowLeft,
+  "arrow-up": LuArrowUp,
+  "arrow-down": LuArrowDown,
+  "arrow-clockwise": LuArrowClockwise,
+  "arrow-counter-clockwise": LuArrowCCW,
+  "arrows-clockwise": LuArrowsClockwise,
+  "arrows-left-right": LuArrowsLeftRight,
+  "arrows-out": LuArrowsOut,
+  "arrows-in": LuArrowsIn,
+  "corners-out": LuArrowsOut,
+  "corners-in": LuArrowsIn,
+  play: LuPlay,
+  pause: LuPause,
+  stop: LuStop,
+  "skip-forward": LuSkipForward,
+  "skip-back": LuSkipBack,
+  "speaker-high": LuSpeakerHigh,
+  "speaker-low": LuSpeakerLow,
+  "speaker-x": LuSpeakerX,
+  microphone: LuMicrophone,
+  "microphone-slash": LuMicrophoneSlash,
+  headphones: LuHeadphones,
+  "music-note": LuMusicNote,
+  image: LuImage,
+  "video-camera": LuVideoCamera,
+  paperclip: LuPaperclip,
+  "floppy-disk": LuFloppyDisk,
+  printer: LuPrinter,
+  package: LuPackage,
+  gift: LuGift,
+  "shopping-cart": LuShoppingCart,
+  "currency-dollar": LuCurrencyDollar,
+  "credit-card": LuCreditCard,
+  wallet: LuWallet,
+  receipt: LuReceipt,
+  coins: LuCoins,
+  buildings: LuBuildings,
+  factory: LuFactory,
+  storefront: LuStorefront,
+  truck: LuTruck,
+  airplane: LuAirplane,
+  car: LuCar,
+  bicycle: LuBicycle,
+  "map-trifold": LuMapTrifold,
+  navigation: LuNavigation,
+  shield: LuShield,
+  "shield-check": LuSealCheck,
+  lifebuoy: LuLifebuoy,
+  question: LuQuestion,
+  smiley: LuSmiley,
+  "smiley-meh": LuSmileyMeh,
+  "smiley-sad": LuSmileySad,
+  "thumbs-up": LuThumbsUp,
+  "thumbs-down": LuThumbsDown,
+  "hand-waving": LuHandWaving,
+  trophy: LuTrophy,
+  medal: LuMedal,
+  crown: LuCrown,
+  flower: LuFlower,
+  leaf: LuLeaf,
+  tree: LuTree,
 };
 
 /* family 공통 fallback — 매핑 없는 아이콘 호출 시 "사각형 + 대각선" 금지표시 느낌.

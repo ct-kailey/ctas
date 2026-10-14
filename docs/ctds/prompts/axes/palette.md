@@ -26,9 +26,9 @@ OKLCH의 chroma·lightness를 스왑.
 `standard`
 
 ### 페어링
-- `calm` + [[axes/hue]] `ocean`·`forest`·`slate` — 신뢰·안정 인상 (금융·의료·공공)
-- `vivid` + [[axes/hue]] `sunset`·`crimson` — 강한 브랜드 인상 (스타트업·프로모션)
-- `pastel` + [[axes/hue]] `lavender` — 부드러움 (교육·라이프스타일)
+- `calm` + 낮은 chroma hue(220~260°) — 신뢰·안정 인상 (금융·의료·공공)
+- `vivid` + 따뜻한 hue(0~40°) — 강한 브랜드 인상 (스타트업·프로모션)
+- `pastel` + 중간 hue — 부드러움 (교육·라이프스타일)
 - `pastel` + [[axes/mode]] `dark` — 비권장. 파스텔은 밝은 배경에서 최적화됨
 
 ### 관련

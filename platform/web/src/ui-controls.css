@@ -1,0 +1,3 @@
+/* Adapter layout only. CTDS modules own control color, spacing, shape and focus. */
+.ains-select { display: inline-block; width: 100%; min-width: 0; position: relative; }
+.ains-select > [data-ctds="select-trigger"] { width: 100%; }

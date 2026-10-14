@@ -141,22 +141,6 @@ export const PALETTE_CHOICES: PaletteChoice[] = [
   },
 ];
 
-export type HuePreset = {
-  id: string;
-  label: string;
-  hue: number;
-  desc: string;
-};
-
-export const HUE_PRESET_CHOICES: HuePreset[] = [
-  { id: "ocean", label: "Ocean", hue: 210, desc: "신뢰 · 금융/공공" },
-  { id: "forest", label: "Forest", hue: 145, desc: "안정 · 헬스케어" },
-  { id: "sunset", label: "Sunset", hue: 25, desc: "활력 · 스타트업" },
-  { id: "lavender", label: "Lavender", hue: 280, desc: "창의 · 교육" },
-  { id: "crimson", label: "Crimson", hue: 355, desc: "강조 · 프로모션" },
-  { id: "slate", label: "Slate", hue: 220, desc: "무채색 · 관리 도구" },
-];
-
 export type DensityChoice = {
   id: DensityChoiceId;
   title: string;

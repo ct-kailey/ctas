@@ -2,16 +2,17 @@
 /* AINS page column widths and scroll limits; CTDS controls visual tokens. */
 :root { --ains-work-governance-measure-292: 292px; --ains-work-governance-measure-230: 230px; --ains-work-governance-measure-100: 100px }
 .wg-workspace { min-width: 0 }
-.wg-heading,.wg-section-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5) }
+.wg-heading, .wg-section-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5) }
 .wg-heading { margin-bottom: var(--space-6) }
 .wg-heading h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: var(--type-2xl-tracking); margin: var(--space-2) 0 }
-.wg-heading p,.wg-help { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); margin: var(--space-1_5) 0; letter-spacing: var(--type-sm-tracking) }
+.wg-heading p, .wg-help { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); margin: var(--space-1_5) 0; letter-spacing: var(--type-sm-tracking) }
 .wg-process { padding: 0; margin: 0 0 var(--space-6); list-style: none; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg) }
 .wg-process li { padding: var(--space-4) var(--space-5); display: flex; gap: var(--space-3); align-items: center; border-right: var(--hairline) solid var(--border) }
 .wg-process li:last-child { border: 0 }
 .wg-process li>span { font-family: var(--font-normal); font-size: var(--text-2xl); line-height: var(--lh-2xl); color: var(--fg-muted); letter-spacing: var(--type-2xl-tracking) }
 .wg-process strong { font-size: var(--text-sm); color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-tabs { display: flex; gap: var(--space-6); border-bottom: var(--hairline) solid var(--border); margin-bottom: var(--space-6) }
+.wg-tabs { display: flex; gap: var(--space-6); margin-bottom: var(--space-6) }
+.wg-tabs:where(:not([data-ctds]):not([data-ctds-control])) { border-bottom: var(--hairline) solid var(--border) }
 .wg-tabs button { cursor: pointer }
 .wg-tabs button:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; border-bottom: calc(var(--hairline) * 2) solid transparent; background: none; padding: var(--space-3) 0; font: inherit; font-size: var(--text-sm); color: var(--fg-muted); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-tabs button[aria-selected=true]:where(:not([data-ctds]):not([data-ctds-control])) { border-color: var(--primary-border-color); color: var(--ains-primary-text); font-weight: var(--font-weight-semibold) }
@@ -36,29 +37,32 @@
 .wg-resources small { color: var(--fg-muted); font-size: var(--text-2xs); flex-shrink: 0; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-resources code { font-size: var(--text-2xs); line-height: var(--lh-2xs); overflow-wrap: anywhere; white-space: pre-wrap; color: var(--fg); letter-spacing: var(--type-2xs-tracking) }
 .wg-fieldset { border: 0; padding: 0; margin: 0; min-width: 0 }
-.wg-fieldset .field,.wg-review-form .field,.wg-artifact-form .field { margin-bottom: var(--space-4) }
+.wg-fieldset .field, .wg-review-form .field, .wg-artifact-form .field { margin-bottom: var(--space-4) }
 .wg-source-picker { margin: var(--space-6) 0; border-top: var(--hairline) solid var(--border); padding-top: var(--space-4) }
 .wg-source-picker h4 { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-source-picker>small { font-size: var(--text-2xs); color: var(--fg-muted); display: block; margin: var(--space-3) 0; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-search { display: flex; gap: var(--space-2); margin-top: var(--space-3) }
-.wg-search input { min-width: 0; flex: 1 }
+.wg-search input:where(:not([data-ctds]):not([data-ctds-control])) { min-width: 0; flex: 1 }
 .wg-source-option { display: flex; align-items: flex-start; gap: var(--space-2_5); padding: var(--space-3) 0; border-bottom: var(--hairline) solid var(--border); cursor: pointer }
-.wg-source-option input { margin-top: var(--space-0_5); accent-color: var(--primary) }
+.wg-source-option input:where(:not([data-ctds]):not([data-ctds-control])) { margin-top: var(--space-0_5) }
+.wg-source-option input:where(:not([data-ctds]):not([data-ctds-control])) { accent-color: var(--primary) }
 .wg-source-option span { min-width: 0 }
 .wg-source-option strong { font-size: var(--text-sm); font-weight: var(--font-weight-medium); line-height: var(--lh-sm); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
 .wg-source-option small { display: block; font-size: var(--text-2xs); color: var(--fg-muted); margin-top: var(--space-1); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-pagination { display: flex; gap: var(--space-3); align-items: center; justify-content: center; margin-top: var(--space-4); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-pagination button { cursor: pointer }
 .wg-pagination button:where(:not([data-ctds]):not([data-ctds-control])) { background: var(--bg); border: var(--hairline) solid var(--border); padding: var(--space-1_5) var(--space-3); border-radius: var(--radius-xs); font: inherit }
-.wg-advanced { margin-top: var(--space-5); background: var(--bg-subtle); padding: var(--space-3); border-radius: var(--radius-xs) }
-.wg-advanced summary { font-size: var(--text-sm); cursor: pointer; color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.wg-advanced { margin-top: var(--space-5) }
+.wg-advanced:where(:not([data-ctds]):not([data-ctds-control])) { background: var(--bg-subtle); padding: var(--space-3); border-radius: var(--radius-xs) }
+.wg-advanced summary { cursor: pointer }
+.wg-advanced summary:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-advanced>.field { margin-top: var(--space-4) }
 .wg-detail-back { margin-bottom: var(--space-4) }
 .wg-detail-title { padding-bottom: var(--space-5); border-bottom: var(--hairline) solid var(--border); margin-bottom: var(--space-5) }
 .wg-detail-title h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); margin: var(--space-2_5) 0; overflow-wrap: anywhere; letter-spacing: var(--type-2xl-tracking) }
 .wg-detail-meta { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-detail-grid { display: grid; grid-template-columns: minmax(0,1fr) var(--ains-work-governance-measure-292); align-items: start; gap: var(--space-6) }
-.wg-detail-main,.wg-detail-aside { min-width: 0 }
+.wg-detail-main, .wg-detail-aside { min-width: 0 }
 .wg-detail-section { padding: var(--space-5) 0; border-bottom: var(--hairline) solid var(--border) }
 .wg-detail-section:first-child { padding-top: 0 }
 .wg-detail-section h3 { font-size: var(--text-base); margin: 0 0 var(--space-3); display: flex; align-items: center; gap: var(--space-2); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
@@ -98,7 +102,7 @@
 .wg-decision-box textarea { min-height: var(--ains-work-governance-measure-100)}
 .wg-decision-box .button { width: 100%; margin-top: var(--space-2_5) }
 .wg-decision-box .checkbox-label { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-decision-box .checkbox-label input { flex-shrink: 0 }
+.wg-decision-box .checkbox-label input:where(:not([data-ctds]):not([data-ctds-control])) { flex-shrink: 0 }
 .wg-detail-aside>section { margin-bottom: var(--space-4) }
 .wg-next-links { border-top: var(--hairline) solid var(--border); margin-top: var(--space-4); padding-top: var(--space-3); display: grid; gap: var(--space-2_5) }
 .wg-next-links button { justify-content: flex-start }
@@ -110,12 +114,13 @@
 .wg-artifact-card a { display: inline-flex; gap: var(--space-1); align-items: center; max-width: 100%; overflow-wrap: anywhere; margin: var(--space-2_5) 0 }
 .wg-artifact-card a:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); color: var(--ains-primary-text); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-artifact-card small { display: block; font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-artifact-card details { font-size: var(--text-sm); line-height: var(--lh-sm); margin-top: var(--space-2_5); letter-spacing: var(--type-sm-tracking) }
+.wg-artifact-card details { margin-top: var(--space-2_5) }
+.wg-artifact-card details:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-artifact-card summary { cursor: pointer }
 .wg-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) }
 .wg-form-grid .full { grid-column: 1/-1 }
 .wg-inline-check { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); margin: var(--space-3) 0; letter-spacing: var(--type-sm-tracking) }
-.wg-inline-check input { margin-top: var(--space-1) }
+.wg-inline-check input:where(:not([data-ctds]):not([data-ctds-control])) { margin-top: var(--space-1) }
 .wg-validation { border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-4); margin-top: var(--space-3); background: var(--bg) }
 .wg-validation header { display: flex; gap: var(--space-3); align-items: center; justify-content: space-between }
 .wg-validation h4 { font-size: var(--text-sm); margin: 0; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
@@ -148,8 +153,8 @@
 .wg-process strong { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 }
 @media(max-width:650px){
-.wg-heading,.wg-section-heading { align-items: flex-start; flex-direction: column; gap: var(--space-3) }
-.wg-heading h2,.wg-detail-title h2 { font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
+.wg-heading, .wg-section-heading { align-items: flex-start; flex-direction: column; gap: var(--space-3) }
+.wg-heading h2, .wg-detail-title h2 { font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
 .wg-process { grid-template-columns: 1fr 1fr }
 .wg-process li:nth-child(2) { border-right: 0 }
 .wg-process li:nth-child(-n+2) { border-bottom: var(--hairline) solid var(--border) }
@@ -160,13 +165,13 @@
 .wg-item-list>button>div { flex-basis: calc(100% - var(--space-12)) }
 .wg-item-list>button>.badge { margin-left: var(--space-12) }
 .wg-item-list>button>svg { margin-left: auto }
-.wg-lock-grid,.wg-detail-aside,.wg-form-grid { grid-template-columns: 1fr }
+.wg-lock-grid, .wg-detail-aside, .wg-form-grid { grid-template-columns: 1fr }
 .wg-checks { gap: var(--space-1_5) }
 .wg-check { padding: var(--space-3) var(--space-2) }
 .wg-check>span { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-check strong { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-decision-box,.wg-maintenance-card,.wg-maintenance-form { padding: var(--space-4) }
-.wg-artifact-card header,.wg-validation header { align-items: flex-start; flex-wrap: wrap }
+.wg-decision-box, .wg-maintenance-card, .wg-maintenance-form { padding: var(--space-4) }
+.wg-artifact-card header, .wg-validation header { align-items: flex-start; flex-wrap: wrap }
 .wg-detail-meta { gap: var(--space-2) }
 .wg-resources>span { max-width: 100% }
 .wg-summary-actions { align-items: stretch; flex-direction: column }
@@ -179,12 +184,13 @@
 .wg-ai { margin: var(--space-6) 0; padding: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); min-width: 0 }
 .wg-ai>.inline-actions { flex-wrap: wrap }
 .wg-ai h3 { font-size: var(--text-base); margin: 0 auto 0 0; line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
-.wg-ai .muted,.wg-ai p { font-size: var(--text-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
+.wg-ai .muted, .wg-ai p { font-size: var(--text-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
 .wg-ai .field { margin: var(--space-4) 0 }
 .wg-ai .checkbox-label { font-size: var(--text-sm); line-height: var(--lh-sm); margin: var(--space-3) 0; letter-spacing: var(--type-sm-tracking) }
 .wg-ai .notice:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-ai ul { padding-left: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-ai summary { font-size: var(--text-2xs); cursor: pointer; margin: var(--space-3) 0; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.wg-ai summary { cursor: pointer; margin: var(--space-3) 0 }
+.wg-ai summary:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-ai>article>.button { margin-top: var(--space-4) }
 .wg-ai .inline-actions { gap: var(--space-2_5) }
 .wg-ai .inline-actions>.button:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }

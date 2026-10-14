@@ -14,9 +14,12 @@
 - **패널 콘텐츠에 상태(폼, 스크롤 위치)가 있으면 `keepMounted`**. 탭 전환마다 리셋되는 폼은 아주 나쁜 경험.
 - **키보드**: 컴포넌트가 ← → Home End 처리. Tab 키는 탭 리스트 밖으로 나가 활성 패널로 이동한다 (roving tabindex).
 - **한 화면에 탭 계층은 하나까지**. 탭 안에 다시 탭을 두면 방향 감각이 무너진다.
+- **`underline` Tabs는 담고 있는 컨테이너의 "바닥"에 flush 로 배치**. 컨테이너 header/toolbar 영역이면 그 영역의 **맨 아래 줄**이 Tabs여야 하고, 아래쪽 패딩·여백 없이 바로 다음 블록(패널·본문)과 맞닿아야 한다. 트랙 라인이 그 자리 자체가 섹션 구분선 역할을 하도록.
 
 ### Don't
 - `underline` 하단 border/두께를 CSS로 덮어쓰지 않는다 — `--border` + `--space-0_5` 조합이 Density·Mode 축에 반응한다.
+- **`underline` Tabs 바로 아래(또는 그 Tabs를 담고 있는 header 컨테이너의 border-bottom)에 또 다른 `border-bottom` 금지** — Tabs 자체 트랙 라인과 두 줄로 겹쳐 "이중 스트로크" 현상이 생긴다. 해결: 외부 컨테이너의 border-bottom을 제거하고 Tabs 트랙 라인이 그 역할을 하게 한다. Tabs 위쪽에 title/toolbar가 있다면 그 영역은 border 없이, Tabs 트랙만 유일한 구분선.
+- `underline` Tabs 아래쪽에 padding/margin 금지 — "탭 밑에 떠있는 트랙" 느낌이 되어 소속감이 깨진다. Tabs는 **컨테이너 바닥에 딱 붙어** 다음 영역과 트랙 라인이 바로 맞닿아야 한다.
 - `segmented`를 5개 이상으로 늘리지 않는다. 5개 이상이면 [[components/select]] 또는 [[components/dropdown-menu]].
 - `segmented` 안 트리거에 **가변 너비 라벨** 금지 — flex 균등 분배가 무너져 pill이 어색해진다. 라벨 길이가 심하게 차이나면 `underline`으로.
 - 패널 헤더(title + Tabs가 `space-between`으로 양쪽 배치되는 레이아웃)에 `segmented`를 넣지 않는다 — segmented는 라벨 합산 폭이 커서 반대편 title을 밀어내 세로로 쪼개 놓는다. 패널 헤더 안 뷰 스위처가 필요하면 `text` variant 또는 `underline` sm 쓰거나, title을 `flex-shrink: 0`·`white-space: nowrap`으로 고정하고 Tabs는 그 다음 자리에만.

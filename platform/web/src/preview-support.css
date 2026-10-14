@@ -5,12 +5,12 @@
 .wp-security-scope strong { font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
 .wp-security-scope > .wp-muted { font-size: var(--text-xs); }
 .wp-support-switcher { display: flex; gap: var(--space-1); flex-wrap: wrap; }
-.wp-support-feedback { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--fg); font-size: var(--text-xs); line-height: var(--lh-xs); overflow-wrap: anywhere; }
-.wp-support-feedback > svg { flex-shrink: 0; margin-top: var(--space-0_5); color: var(--success); }
+.wp-support-feedback:not([data-ctds]) { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--fg); font-size: var(--text-xs); line-height: var(--lh-xs); overflow-wrap: anywhere; }
+.wp-support-feedback:not([data-ctds]) > svg { flex-shrink: 0; margin-top: var(--space-0_5); color: var(--success); }
 .wp-security-test { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); padding: var(--space-5); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); }
 .wp-security-test > strong { font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
 .wp-support-check { display: flex; gap: var(--space-2); align-items: flex-start; font-size: var(--text-sm); line-height: var(--lh-sm); }
-.wp-support-check input { flex-shrink: 0; margin-top: var(--space-0_5); }
+.wp-support-check input:where(:not([data-ctds]):not([data-ctds-control])) { flex-shrink: 0; margin-top: var(--space-0_5); }
 .wp-security-sample { padding: var(--space-5); background: var(--bg-subtle); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: var(--space-3); }
 .wp-security-sample p { font-size: var(--text-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; }
 .wp-security-retention { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
@@ -40,12 +40,13 @@
 .wp-roadmap-deliverables dt { color: var(--fg-muted); font-size: var(--text-xs); margin-bottom: var(--space-2); }
 .wp-roadmap-deliverables dd { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; }
 .wp-roadmap-days { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
-.wp-roadmap-day { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); text-align: left; transition: var(--transition-colors), var(--transition-ring); }
-.wp-roadmap-day:hover { background: var(--bg-subtle); }
-.wp-roadmap-day[aria-pressed="true"] { background: var(--bg-muted); border-color: var(--border-strong); }
-.wp-roadmap-day:focus-visible { outline: none; box-shadow: var(--ring-shadow); }
-.wp-roadmap-day > span:first-child { font-size: var(--text-xs); color: var(--fg-muted); }
-.wp-roadmap-day > strong { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--font-weight-medium); }
+.wp-roadmap-day { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); text-align: left; }
+.wp-roadmap-day:where(:not([data-ctds]):not([data-ctds-control])) { background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); padding: var(--space-4); transition: var(--transition-colors), var(--transition-ring); }
+.wp-roadmap-day:where(:not([data-ctds]):not([data-ctds-control])):hover { background: var(--bg-subtle); }
+.wp-roadmap-day:where(:not([data-ctds]):not([data-ctds-control]))[aria-pressed="true"] { background: var(--bg-muted); border-color: var(--border-strong); }
+.wp-roadmap-day:where(:not([data-ctds]):not([data-ctds-control])):focus-visible { outline: none; box-shadow: var(--ring-shadow); }
+.wp-roadmap-day:where(:not([data-ctds]):not([data-ctds-control])) > span:first-child { font-size: var(--text-xs); color: var(--fg-muted); }
+.wp-roadmap-day:where(:not([data-ctds]):not([data-ctds-control])) > strong { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--font-weight-medium); }
 .wp-roadmap-dependencies { margin: 0; padding-left: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-base); }
 .wp-roadmap-dependencies li + li { margin-top: var(--space-2); }
 @media (max-width: 1000px) { .wp-security-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); } .wp-security-scope { grid-column: 1 / -1; } .wp-roadmap-summary { align-items: flex-start; flex-direction: column; } .wp-roadmap-allocation { grid-template-columns: repeat(5, minmax(0, 1fr)); } }

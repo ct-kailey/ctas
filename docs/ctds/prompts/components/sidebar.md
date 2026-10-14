@@ -1,12 +1,21 @@
+<!-- lint-sidebar-legacy-tokens: ignore-file  이 문서는 폐기 토큰 사용 금지를 설명한다. -->
+
 # Sidebar
 
 ### 원칙
 좌측 세로 nav. **라우팅 전용** — Tabs/필터는 쓸 곳이 아님. Header(고정) + Body(스크롤) + Footer(고정) 3영역 세로 쉘에, Brand + Section + Item + Separator + Profile을 compound로 조합. `collapsed`로 icon-only 축소. Item은 [[components/menu-item]]을 그대로 어댑트 — 시각·상태 규칙 공유.
 
-### 좌우 축 단일화 (중요)
-Sidebar 내부 **모든 좌우 padding은 단일 축 `--sidebar-pad-x`** (= expanded `--space-4`, collapsed `--space-2`). Header·Section·Separator·Footer·Profile이 각자 복제. Body에는 padding-inline을 **절대** 걸지 않는다 — 스크롤바가 가장자리에 안 붙는다.
+### 좌우/상하 축 공급 (중요)
+**벤더 Sidebar는 좌우/상하 padding을 공급하지 않는다**. `.root/.header/.body/.footer` 어디에도 `padding-inline`·`padding-block`을 깔지 않음. preset(`.brand/.profile/.section`)도 자체 padding 없음. `--sidebar-pad-x`·`--sidebar-pad-y` 토큰은 폐기.
 
-사이드바 안에 추가로 끼워 넣는 블록(검색 input, Primary 액션 버튼, 안내 Callout 등)도 반드시 좌우 padding을 `var(--sidebar-pad-x)`로 복제. 임의로 `--space-3` 등을 쓰면 Header·Section과 축이 어긋나 "뭔가 안 맞음" 느낌의 1순위 원인이 된다.
+소비처가 공급 책임. 세 가지 패턴:
+- **Slot 전역**: `:global([data-sidebar-slot="brand|section|profile"])` 셀렉터로 preset에 일괄 공급. 벤더가 preset마다 `data-sidebar-slot` 속성을 자동 부여함. theme-demo(expressive/spare/pure)가 이 패턴.
+- **영역별 콘텐츠 래퍼**: Sidebar.Header 자식 또는 Body 안 inner div에 className 걸고 거기에 padding. docs 사이드바·workspace 템플릿.
+- **Full-bleed**: minimal/aurora처럼 특정 요소(brand/profile)만 수동 들여쓰기, 나머지는 가장자리까지 flush.
+
+**금지**:
+- Sidebar 큰 컨테이너(root/Header/Body/Footer wrapper)에 `padding-inline` 금지. 벤더가 공급 안 하므로 중첩 함정은 없지만, "큰 컨테이너에 padding" 자체가 스크롤 트랙·안쪽 요소 정렬을 틀어뜨리는 패턴.
+- Body에 직접 `padding-inline` 금지 — 스크롤바가 가장자리와 떨어진다. Body 안쪽에 inner div 두고 거기에.
 
 사이드바 안쪽 세로 간격은 `--space-2`(섹션 사이·블록 사이) / `--space-1`(섹션 헤더 아래) / `--space-0_5`(아이템 사이) 세 리듬만. 다른 값 금지.
 
@@ -54,8 +63,8 @@ Header는 **가로 행**이기 때문에 Section을 넣으면 nav 전체가 가�
 - 페이지 안 뷰 전환에 쓰지 않는다 — 그건 [[components/tabs]].
 - Item 안에 variant로 다른 톤을 쓰지 않는다. active 외의 강조 금지.
 - Sidebar 자체에 padding/width를 CSS로 덮지 않는다. `--sidebar-w*` 토큰 경유.
-- `.root`에 padding을 꽂지 않는다 — Body가 스크롤 컨테이너라 스크롤바가 안쪽으로 밀려 가장자리에 안 붙는다. 좌우 여백은 Header/Section/Footer가 각자 담당([[project_scroll_rule]]).
-- **Sidebar 좌우 축은 `--sidebar-pad-x` 단일 토큰만** — Header `--space-4`, body 안 임의 블록 `--space-3`, Section `--space-5`처럼 섞어 쓰면 안쪽 정렬이 전부 어긋난다. 소비처가 Body 안에 삽입하는 블록도 `padding-inline: var(--sidebar-pad-x)` 복제.
+- `.root`에 padding을 꽂지 않는다 — Body가 스크롤 컨테이너라 스크롤바가 안쪽으로 밀려 가장자리에 안 붙는다 ([[project_scroll_rule]]).
+- **Sidebar 큰 컨테이너(root/Header/Body/Footer wrapper)에 좌우 패딩 금지**. 좌우/상하 축은 preset slot(`data-sidebar-slot`) 또는 안쪽 콘텐츠 래퍼에 공급. `--sidebar-pad-x`·`--sidebar-pad-y` 토큰 사용 금지(벤더에서 폐기됨).
 - **Sidebar 내부 Input은 `line` 금지** — `outline`(기본) 또는 `filled`만. 사이드바 안은 ghost 리듬이라 밑줄 variant가 녹아 보임.
 - Brand symbol·wordmark 크기 override 금지. `--sidebar-brand-symbol-max`·`--sidebar-brand-wordmark-max` 상한 안에서만.
 - **Body 안 섹션 리스트가 길어서 스크롤이 필요할 때**, 섹션들에 `flex-shrink`를 그대로 두지 않는다. Body는 `display:flex column`이라 자식(Section)이 기본 `flex-shrink:1`로 수축되어 header가 몇 px로 뭉개지고 아이템이 사라져 보인다. 해결: Body 직속 자식에 `flex: 0 0 auto`를 걸어 각 섹션이 자기 콘텐츠 전체 높이를 유지하게 하고, 스크롤은 Body의 `overflow-y:auto`가 담당하게 한다.

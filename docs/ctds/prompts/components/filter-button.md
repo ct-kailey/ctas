@@ -14,6 +14,7 @@ count는 [[components/badge]]로 위임 — unselected는 `variant="soft"`, sele
 ### Don't
 - Chip(정보 라벨)로 오해되게 두지 않는다 — FilterButton은 언제나 **인터랙션 컨트롤**, `<button>` 시맨틱.
 - 폼 시맨틱(체크박스·라디오)이 필요한 곳에 대체품으로 쓰지 않는다 — 시맨틱이 다르다.
+- 핸들러 이름을 `onToggle`로 되돌리지 않는다 — React 19부터 HTMLElement 네이티브 `onToggle`(popover용)과 타입 충돌. Radix Toggle 관습과 `aria-pressed`에 맞춰 **`onPressedChange`** 사용.
 
 ### Fallback
 size 애매하면 `md`.
@@ -28,7 +29,7 @@ size 애매하면 `md`.
 <FilterButton
   size="sm | md"                                     // default: md
   selected={boolean}
-  onToggle={(next: boolean) => void}
+  onPressedChange={(next: boolean) => void}          // aria-pressed와 쌍
   leftIcon={ReactNode}
   count={number}                                      // Badge로 위임
   disabled={boolean}

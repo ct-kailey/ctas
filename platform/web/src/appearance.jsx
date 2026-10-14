@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useLayoutEffect, useState 
 import { Monitor, Palette, Check } from 'lucide-react';
 import config from '../../../ctds.config.json';
 import { IconAxisProvider } from './components/ctds/Icon';
-import { Button, Badge, FormField, Modal } from './ui.jsx';
+import { Button, Badge, FormField, Modal, Input, Select } from './ui.jsx';
 import { THEME_STORAGE_KEY, normalizeTheme, readTheme, persistTheme, applyThemeToDocument } from './theme-state.mjs';
 import { applyThemeContrast } from './theme-contrast.mjs';
 import './appearance.css';
@@ -49,12 +49,12 @@ export function AppearanceSettings({ onClose }) {
       <div className="modal-body appearance-settings">
         <p className="appearance-description">업무 화면의 색상과 밀도를 조절합니다. 설정은 이 브라우저에만 저장됩니다.</p>
         <div className="appearance-fields">
-          <FormField label="화면 모드"><select value={draft.mode} onChange={(e) => change('mode', e.target.value)}><option value="light">밝게</option><option value="dark">어둡게</option></select></FormField>
-          <FormField label="팔레트"><select value={draft.palette} onChange={(e) => change('palette', e.target.value)}><option value="calm">차분하게</option><option value="standard">기본</option><option value="mono">단색</option><option value="vivid">선명하게</option><option value="pastel">파스텔</option></select></FormField>
-          <FormField label="브랜드 색상" hint={`0~360의 색상 각도입니다. 기본 카키는 ${DEFAULT_THEME.hue}입니다.`}><input type="number" min="0" max="360" required value={draft.hue} onChange={(e) => change('hue', e.target.value === '' ? '' : Number(e.target.value))} /></FormField>
-          <FormField label="모서리"><select value={draft.shape} onChange={(e) => change('shape', e.target.value)}><option value="standard">기본</option><option value="soft">둥글게</option><option value="crisp">각지게</option></select></FormField>
-          <FormField label="화면 밀도"><select value={draft.density} onChange={(e) => change('density', e.target.value)}><option value="compact">촘촘하게</option><option value="default">기본</option><option value="comfortable">여유롭게</option></select></FormField>
-          <FormField label="움직임"><select value={draft.motion} onChange={(e) => change('motion', e.target.value)}><option value="calm">차분하게</option><option value="standard">기본</option><option value="bouncy">탄력 있게</option><option value="none">없음</option></select></FormField>
+          <FormField label="화면 모드"><Select value={draft.mode} onChange={(e) => change('mode', e.target.value)}><option value="light">밝게</option><option value="dark">어둡게</option></Select></FormField>
+          <FormField label="팔레트"><Select value={draft.palette} onChange={(e) => change('palette', e.target.value)}><option value="calm">차분하게</option><option value="standard">기본</option><option value="mono">단색</option><option value="vivid">선명하게</option><option value="pastel">파스텔</option></Select></FormField>
+          <FormField label="브랜드 색상" hint={`0~360의 색상 각도입니다. 기본 카키는 ${DEFAULT_THEME.hue}입니다.`}><Input type="number" min="0" max="360" required value={draft.hue} onChange={(e) => change('hue', e.target.value === '' ? '' : Number(e.target.value))} /></FormField>
+          <FormField label="모서리"><Select value={draft.shape} onChange={(e) => change('shape', e.target.value)}><option value="standard">기본</option><option value="soft">둥글게</option><option value="crisp">각지게</option></Select></FormField>
+          <FormField label="화면 밀도"><Select value={draft.density} onChange={(e) => change('density', e.target.value)}><option value="compact">촘촘하게</option><option value="default">기본</option><option value="comfortable">여유롭게</option></Select></FormField>
+          <FormField label="움직임"><Select value={draft.motion} onChange={(e) => change('motion', e.target.value)}><option value="calm">차분하게</option><option value="standard">기본</option><option value="bouncy">탄력 있게</option><option value="none">없음</option></Select></FormField>
         </div>
         <p className="appearance-description">아이콘은 Lucide, 글꼴은 한국어 Pretendard를 사용합니다. 기기의 동작 줄이기 설정과 키보드 포커스를 항상 지원합니다.</p>
         <div className="appearance-sample" aria-label="현재 적용된 컴포넌트">

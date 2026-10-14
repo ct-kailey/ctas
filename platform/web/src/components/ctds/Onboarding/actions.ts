@@ -30,6 +30,17 @@ import type {
   ShapeValue,
   VoiceValue,
 } from "../_data";
+import type { LayoutId } from "./wizardData";
+
+export type AppliedLayout = {
+  id: LayoutId;
+  sidebar: "left" | "right" | "dual" | "none";
+  topbar: boolean;
+  /** AppFrame layout prop과 1:1. topbar=false면 생략. */
+  appFrameLayout?: "sidebar-first" | "topbar-first";
+  /** 탑바 아래 탭 바 유무. */
+  tabs?: boolean;
+};
 
 export type AppliedConfig = {
   theme: "none" | "pure" | "spare" | "expressive";
@@ -43,7 +54,7 @@ export type AppliedConfig = {
   iconFamily: IconFamily;
   voice: VoiceValue;
   lang: LangValue;
-  focusRing: "on" | "off";
+  layout: AppliedLayout;
   /** 참고용 메타. */
   appliedAt: string;
 };
@@ -191,7 +202,10 @@ ${themeLine}
 | Icon Family | \`${c.iconFamily}\` | 아이콘 세트 |
 | Voice | \`${c.voice}\` | ${voiceDesc(c.voice)} |
 | Lang | \`${c.lang}\` | UI 언어 |
-| Focus Ring | \`${c.focusRing}\` | 포커스 링 ${c.focusRing === "on" ? "표시" : "숨김"} |
+
+## 레이아웃
+
+${layoutSection(c.layout)}
 
 ## AI 에이전트에게
 
@@ -201,6 +215,7 @@ ${themeLine}
 - 축 값은 [ctds.config.json](ctds.config.json)이 소스 오브 트루스.
   런타임엔 \`ThemeController\`가 관리하며, 사용자가 축을 바꿀 때마다 \`<html data-*>\` 속성이 갱신됩니다.
 - 토큰·축의 상세 규칙은 [prompts/](prompts/) 하위 문서들을 참조하세요.
+- **레이아웃 조립**은 위 "레이아웃" 섹션의 \`AppFrame\` 조합을 따르세요. 페이지마다 다시 결정하지 말고 이 조합을 재사용.
 ${
   c.theme === "none"
     ? ""
@@ -211,6 +226,34 @@ ${
 
 - ${date}: 온보딩 적용
 `;
+}
+
+/**
+ * 레이아웃 섹션 — AppFrame 조합을 사람·AI 모두 읽을 수 있게 산문으로.
+ * 사이드바 위치·탑바·탭·AppFrame layout prop을 명시해 페이지 조립 시 재사용되도록.
+ */
+function layoutSection(l: AppliedLayout): string {
+  const sidebarText =
+    l.sidebar === "none"
+      ? "사이드바 없음"
+      : l.sidebar === "left"
+        ? "왼쪽 사이드바"
+        : l.sidebar === "right"
+          ? "오른쪽 사이드바"
+          : "양쪽 사이드바 (좌: 네비 · 우: 속성 패널)";
+  const topbarText = l.topbar ? "탑바 있음" : "탑바 없음";
+  const tabsText = l.tabs ? " · 탑바 아래 탭 바" : "";
+  const frameText = l.topbar
+    ? l.appFrameLayout === "topbar-first"
+      ? "탑바가 **가로 전체**를 차지하고, 그 아래에 사이드바가 들어갑니다 (`<AppFrame layout=\"topbar-first\">`)."
+      : "사이드바가 **세로 전체**를 차지하고, 탑바는 콘텐츠 영역 위에만 걸칩니다 (`<AppFrame layout=\"sidebar-first\">`)."
+    : "탑바 없는 레이아웃이라 `AppFrame layout` prop은 의미 없음.";
+
+  return `**조합**: ${sidebarText} · ${topbarText}${tabsText}
+
+${frameText}
+
+머신 리더블 형태는 \`ctds.config.json\`의 \`layout\` 객체 참조.`;
 }
 
 function paletteDesc(v: PaletteValue): string {

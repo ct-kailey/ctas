@@ -1,12 +1,19 @@
 "use client";
 
-import { useCallback, useState, type HTMLAttributes, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import {
   CodeSimple as PhCodeSimple,
   Copy as PhCopy,
   Check as PhCheck,
 } from "@phosphor-icons/react";
-import { Tooltip } from "@/components/ctds/Tooltip";
+import { Tooltip, TooltipProvider } from "@/components/ctds/Tooltip";
 import styles from "./CodeBlock.module.css";
 
 export interface CodeBlockProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
@@ -27,6 +34,14 @@ export function CodeBlock({
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const codeText = typeof code === "string" ? code : "";
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   const handleCopy = useCallback(() => {
     if (onCopyCode) {
@@ -35,37 +50,42 @@ export function CodeBlock({
       navigator.clipboard.writeText(codeText).catch(() => {});
     }
     setCopied(true);
-    const t = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(t);
+    if (timerRef.current !== null) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setCopied(false);
+      timerRef.current = null;
+    }, 1500);
   }, [codeText, onCopyCode]);
 
   const cls = [styles.root, className].filter(Boolean).join(" ");
 
   return (
-    <div className={cls} {...rest}>
-      <div className={styles.header}>
-        <div className={styles.lang}>
-          <PhCodeSimple className={styles.langIcon} weight="regular" aria-hidden />
-          {language ? <span className={styles.langLabel}>{language}</span> : null}
+    <TooltipProvider>
+      <div className={cls} {...rest}>
+        <div className={styles.header}>
+          <div className={styles.lang}>
+            <PhCodeSimple className={styles.langIcon} weight="regular" aria-hidden />
+            {language ? <span className={styles.langLabel}>{language}</span> : null}
+          </div>
+          <Tooltip content={copied ? "복사됨" : "복사"}>
+            <button
+              type="button"
+              className={styles.copyBtn}
+              onClick={handleCopy}
+              aria-label={copied ? "복사됨" : "코드 복사"}
+            >
+              {copied ? (
+                <PhCheck className={styles.copyIcon} weight="bold" />
+              ) : (
+                <PhCopy className={styles.copyIcon} weight="regular" />
+              )}
+            </button>
+          </Tooltip>
         </div>
-        <Tooltip content={copied ? "복사됨" : "복사"}>
-          <button
-            type="button"
-            className={styles.copyBtn}
-            onClick={handleCopy}
-            aria-label={copied ? "복사됨" : "코드 복사"}
-          >
-            {copied ? (
-              <PhCheck className={styles.copyIcon} weight="bold" />
-            ) : (
-              <PhCopy className={styles.copyIcon} weight="regular" />
-            )}
-          </button>
-        </Tooltip>
+        <pre className={styles.code}>
+          <code>{code}</code>
+        </pre>
       </div>
-      <pre className={styles.code}>
-        <code>{code}</code>
-      </pre>
-    </div>
+    </TooltipProvider>
   );
 }

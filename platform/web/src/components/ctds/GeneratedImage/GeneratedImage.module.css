@@ -43,7 +43,8 @@
 }
 
 .spinner {
-  color: var(--bg);
+  /* image-gen 로띠는 다크/라이트 상관없이 언제나 흰색 — 배경 플레이스홀더가 어둡다. */
+  color: var(--fixed-white);
   /* image-gen 로띠는 공간이 넉넉해야 보기 좋음 — loader-size override. */
   --loader-size: var(--space-16);
 }

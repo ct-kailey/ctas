@@ -114,6 +114,11 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     ref
   ) => {
     const innerRef = useRef<HTMLTextAreaElement>(null);
+    const setInputRef = useCallback((node: HTMLTextAreaElement | null) => {
+      innerRef.current = node;
+      if (typeof ref === "function") ref(node);
+      else if (ref) ref.current = node;
+    }, [ref]);
     const rootRef = useRef<HTMLDivElement>(null);
 
     const hasWarning = warning != null && warning !== false;
@@ -132,6 +137,16 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const isControlled = value !== undefined;
     const currentValue = isControlled ? String(value ?? "") : uncontrolledValue;
+
+    useEffect(() => {
+      const input = innerRef.current, form = input?.form;
+      if (!input || !form || isControlled) return;
+      const reset = (event: Event) => queueMicrotask(() => {
+        if (!event.defaultPrevented && input.isConnected) setUncontrolledValue(input.value);
+      });
+      form.addEventListener("reset", reset);
+      return () => form.removeEventListener("reset", reset);
+    }, [isControlled, props.form]);
 
     const handleChange = useCallback(
       (e: ChangeEvent<HTMLTextAreaElement>) => {
@@ -267,14 +282,6 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       };
     }, []);
 
-    /* ref 병합 */
-    useEffect(() => {
-      if (typeof ref === "function") ref(innerRef.current);
-      else if (ref)
-        (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current =
-          innerRef.current;
-    }, [ref]);
-
     const widthStyle: string | undefined =
       width === "fill"
         ? undefined
@@ -307,6 +314,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     const control = (
       <div
         ref={rootRef}
+        data-ctds="textarea"
         className={rootClass}
         style={rootStyle}
         data-invalid={invalid || undefined}
@@ -319,7 +327,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         }}
       >
         <textarea
-          ref={innerRef}
+          ref={setInputRef}
+          data-ctds-control="textarea"
           id={textareaId}
           className={styles.textarea}
           rows={rows}
@@ -339,6 +348,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           <div
             className={styles.handle}
             data-textarea-handle="true"
+            data-ctds="textarea-resize"
             data-active={dragging || undefined}
             role="separator"
             aria-orientation="horizontal"

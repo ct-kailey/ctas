@@ -1,20 +1,21 @@
 /* Root ─────────────────────────────────────────────────
    세 영역 구조: Header(상단 고정, flex:0) · Body(flex:1, 세로 스크롤) · Footer(하단 고정, flex:0).
-   padding-inline은 두지 않음 — Body가 스크롤 컨테이너라, root에 좌우 padding을 두면
-   스크롤바가 padding 안쪽에 생겨 "오른쪽 끝에 붙지 않는" 꼴이 됨.
 
-   좌우/상하 축 단일화 규칙 (중요):
-   Sidebar 내부 모든 좌우 padding은 `--sidebar-pad-x`, 모든 상하 padding은
-   `--sidebar-pad-y` 하나로 통일. 두 토큰 값은 동일(--space-4) — 가로/세로가
-   같은 숨돌림을 가져 영역별로 상하 padding이 달라 보이는 어긋남 방지.
-   Header·Section·Separator·Footer·Body에 삽입하는 바깥 블록 전부 동일 축.
-   Body 자체엔 padding-inline 금지(스크롤바 가장자리 밀어냄).
-   Section·Header·Footer는 각자 `padding-inline: var(--sidebar-pad-x)` +
-   `padding-block: var(--sidebar-pad-y)`로 복제. */
+   패딩 공급 원칙 (중요):
+   Sidebar 벤더는 좌우/상하 패딩을 공급하지 않는다. root/Header/Body/Footer wrapper
+   어디에도 padding-inline·padding-block을 깔지 않음. 이유 — Body가 스크롤 컨테이너라
+   wrapper에 패딩을 깔면 스크롤바가 가장자리와 떨어지고, 벤더가 자동 공급하면
+   소비처가 그걸 모르고 또 깔아 이중 패딩이 나는 함정이 반복됨.
+
+   공급 책임은 소비처에 있음. 두 가지 패턴:
+   - 패턴 1 (단일 축): 세 영역이 모두 같은 축을 쓰면, 각 영역의 콘텐츠 래퍼에
+     동일한 padding-inline을 하나씩 깔거나 가장 큰 그룹 하나에 공급.
+   - 패턴 2 (섹션별 다른 축): 각 섹션(nav 묶음·profile 등)이 자기 padding을 깐다.
+     Minimal/Aurora 템플릿이 이 패턴.
+
+   Separator의 좌우 inset은 `--separator-inset-x` 변수로 노출(기본 0 = full-bleed).
+   소비처가 inset이 필요하면 토큰 override. */
 .root {
-  /* 좌우/상하 축 토큰 — 전 영역이 공유. 두 값은 동일. */
-  --sidebar-pad-x: var(--space-4);
-  --sidebar-pad-y: var(--space-4);
   display: flex;
   flex-direction: column;
   width: var(--sidebar-w);
@@ -27,21 +28,14 @@
      percent-height가 auto로 떨어져 Body가 0px로 붕괴한다. */
   align-self: stretch;
   min-height: 0;
-  /* padding-block을 root에 두면 Footer 없는 구성에서 Body(flex:1) 아래로
-     그 패딩만큼 빈 공간이 남는다. 상/하 숨돌림은 Header/Body/Footer가
-     각자 담당(Header padding-block, Body padding-top, Footer padding-block). */
-  transition:
-    width var(--duration-base) var(--ease-out),
-    padding var(--duration-base) var(--ease-out);
+  transition: width var(--duration-base) var(--ease-out);
 }
 
 .root[data-collapsed] {
-  --sidebar-pad-x: var(--space-2);
-  --sidebar-pad-y: var(--space-2);
   width: var(--sidebar-w-collapsed);
 }
 
-/* Header / Footer — 좌우는 공통 `--sidebar-pad-x` 축. 상하는 영역별 리듬이 다름. */
+/* Header / Footer — 레이아웃만. 좌우/상하 padding은 소비처가 공급. */
 .header,
 .footer {
   display: flex;
@@ -49,26 +43,12 @@
   gap: var(--space-2);
   min-height: var(--control-h-md);
   flex: 0 0 auto;
-  padding-inline: var(--sidebar-pad-x);
 }
 
-/* Header — 위 숨돌림을 더 크게(--space-3), 아래는 Brand와 Body 상단 fade mask가
-   받으므로 짧게(--space-1). Body `padding-top: --space-3`이 Header bottom을 보완. */
-.header {
-  padding-top: var(--space-3);
-  padding-bottom: var(--space-1);
-}
-
-/* Footer — 상하 패딩을 좌우 축(--sidebar-pad-y = --sidebar-pad-x)과 동일하게.
-   Profile(IdentityButton)의 안쪽 콘텐츠가 Footer border와 사이드바 좌/우에서
-   모두 같은 거리를 두도록 사방 균형. */
 /* Footer — 기본은 선 없음(사이드바 안쪽 ghost 리듬 유지). Body가 스크롤
    가능할 때만(data-overflow) 상단 hairline을 켬 — 스크롤되는 콘텐츠가 Footer
-   뒤로 깔릴 때 분리가 필요하기 때문. 짧은 메뉴에서는 선이 없어 깔끔.
-   line-heavy theme(spare 등)은 소비처에서 항상 켜고 싶을 수 있는데, 그땐
-   `[data-sidebar-always-divider]` 등 상위 토글로 해결 — 기본은 overflow 조건부. */
+   뒤로 깔릴 때 분리가 필요하기 때문. 짧은 메뉴에서는 선이 없어 깔끔. */
 .footer {
-  padding-block: var(--sidebar-pad-y);
   margin-top: auto;
 }
 
@@ -78,8 +58,7 @@
 
 /* Body — 세로 스크롤 영역.
    여러 개를 두면 각각 독립 스크롤 트랙. flex:1로 남은 공간을 균등 분배.
-   상단 fade mask로 Header와 자연스럽게 이어짐 — 하단은 Footer border로 끊음.
-   padding-bottom으로 Footer 바로 위에 숨돌릴 여백 — scroll 끝에서 마지막 항목이 border에 치이지 않도록. */
+   상하/좌우 padding은 소비처가 Body 안쪽 콘텐츠 래퍼에 공급. */
 .body {
   display: flex;
   flex-direction: column;
@@ -88,38 +67,32 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  /* 'none': 스크롤 체인 차단 + 바운스/러버밴드 자체도 억제.
-     스크롤이 생길 콘텐츠면 자기 영역에서만 스크롤, 콘텐츠가 짧으면 바운스 없음. */
+  /* 'none': 스크롤 체인 차단 + 바운스/러버밴드 자체도 억제. */
   overscroll-behavior-y: none;
-  /* Header 바로 아래 숨돌림 — Footer보다 짧게. Header padding-bottom(--space-1)과
-     합쳐서 Body 첫 항목이 Header와 적당히 분리되어 보이는 리듬. */
-  padding-top: var(--space-2);
-  /* padding-inline 금지 — 스크롤바가 가장자리에 안 붙음.
-     좌우 축은 Section·Separator·외부 삽입 블록이 `--sidebar-pad-x`로 각자 담당. */
+  /* padding-inline 금지 — 스크롤바가 가장자리와 떨어짐. 좌우 축은 소비처가
+     Body 안쪽 콘텐츠 래퍼(nav/섹션 리스트 등)에 깐다. */
+  /* padding-top·padding-bottom도 두지 않음 — Header 아래 숨돌림, Footer 위
+     마지막 항목 숨돌림 모두 소비처가 안쪽 래퍼의 padding-block으로 공급. */
   /* mask-image 금지 — Body 안에 "고정 상단 블록(railTop 등 primary CTA + 검색)"을
      꽂는 소비처가 많아서 fade가 걸리면 그 블록 상단이 흐려져 "밝은 입체 바"
-     착시를 만듦(특히 primary solid 버튼에서 심함). Header와의 경계는
-     Header border 혹은 Header padding-bottom으로 처리. */
-  /* padding-bottom은 두지 않음 — Footer가 있으면 Footer 자체 padding이 받고,
-     없으면 콘텐츠가 사이드바 끝까지 자연스럽게 흐르게. */
+     착시를 만듦(특히 primary solid 버튼에서 심함). */
 }
 
-/* Body 자식(섹션 등)이 flex column에서 수축돼 header가 뭉개지는 걸 방지.
-   각 섹션은 자기 콘텐츠 높이 유지, Body가 overflow-y로 스크롤. */
+/* Body 자식이 flex column에서 수축돼 header가 뭉개지는 걸 방지.
+   좌우/상하 padding 공급은 **하지 않음** — 소비처 책임. */
 .body > * {
   flex: 0 0 auto;
 }
 
-/* Brand ───────────────────────────────────────────────
-   symbol은 항상, wordmark는 expanded일 때만 렌더.
+/* Brand preset ─────────────────────────────────────────
+   Header 안에 꽂히는 preset. symbol은 항상, wordmark는 expanded일 때만 렌더.
    상한선 토큰으로 max-height 강제 — 사용처가 그 안에서 자유롭게 크기 지정.
-   자식 svg/img/text 어떤 형태든 잘리지 않고 상한만 존중. */
+   좌우/상하 padding은 소비처가 공급. */
 .brand {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--control-h-md);
-  /* padding-inline 없음 — Header가 `--sidebar-pad-x`로 좌우 축 담당. */
 }
 
 .brandSymbol {
@@ -156,26 +129,19 @@
   height: auto;
 }
 
-/* Profile ──────────────────────────────────────────────
-   IdentityButton의 preset 래퍼. Footer의 좌우/상하 padding(`--sidebar-pad-x/y`)은
-   그대로 유지 — 안쪽 Avatar/라벨이 Section 아이템과 동일 축에 정렬됨.
+/* Profile preset — Footer 안에 꽂히는 preset. 좌우/상하 padding은 소비처가 공급.
    IdentityButton 기본이 inline-flex라 Footer flex 안에서 콘텐츠 폭에 머무름 →
-   display: flex + width 100%로 가로만 끝까지 받게 하고, 세로는 늘리지 않음
-   (flex: 1 1 auto로 세로 당기면 Footer bottom padding이 Profile 안으로 흡수돼
-   아래 패딩이 "없어 보임"). */
+   display: flex + width 100%로 가로만 끝까지 받게 하고, 세로는 늘리지 않음. */
 .profile {
   display: flex;
   width: 100%;
 }
 
-/* Section ────────────────────────────────────────────
-   스크롤 트랙(.body) 안쪽의 "items" 레이어. 좌우 padding은 여기가 담당.
-   .body 자체에 두면 스크롤바가 padding 안쪽으로 밀려 좌/우 끝에 안 붙음. */
+/* Section preset — Body 안쪽에 꽂히는 preset. 좌우/상하 padding은 소비처가 공급. */
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding-inline: var(--sidebar-pad-x);
 }
 
 .sectionItems {
@@ -185,11 +151,12 @@
 }
 
 /* Separator ──────────────────────────────────────────
-   스크롤 트랙(.body) 바로 아래 자식. section의 padding-inline과 폭 맞추기 위해
-   같은 inline padding을 margin으로 복제 — 라인은 아이템과 좌/우 정렬. */
+   기본은 full-bleed(좌우 가장자리까지). 소비처가 inset이 필요하면
+   `--separator-inset-x` 토큰 override. */
 .separator {
   height: var(--hairline);
-  margin: var(--space-1) var(--sidebar-pad-x);
+  margin-block: var(--space-1);
+  margin-inline: var(--separator-inset-x, 0);
   background: var(--border);
 }
 

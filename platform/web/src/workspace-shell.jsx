@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { Bell, BookOpen, ChevronRight, FolderKanban, Home, LogOut, Menu, Plus, Settings2, FileText, Files, ClipboardCheck, CheckSquare, Code2, Library, Users } from 'lucide-react';
 import { Sidebar } from './components/ctds/Sidebar/Sidebar';
 import { Topbar } from './components/ctds/Topbar/Topbar';
-import { Badge, Button, Modal, ROLES } from './ui.jsx';
+import { IconButton } from './components/ctds/IconButton/IconButton';
+import { Avatar } from './components/ctds/Avatar/Avatar';
+import { Breadcrumb } from './components/ctds/Breadcrumb/Breadcrumb';
+import { Badge, Button, Modal, ROLES, Select, Tabs } from './ui.jsx';
 import { WORKFLOW_STEPS, WORKSPACE_VIEWS } from './workspace-flow.mjs';
 import './workspace-shell.css';
 
@@ -18,28 +21,27 @@ export function WorkspaceShell({ user, project, projects, tab, activeStep, alert
       <Sidebar.Header><Brand /></Sidebar.Header>
       <Sidebar.Body>
         <Sidebar.Section>
-          <Sidebar.Item icon={<Home size={17}/>} label="홈" active={tab === 'home'} asChild><button type="button" onClick={() => run(() => onNavigate('home'))}>홈</button></Sidebar.Item>
-          <Sidebar.Item icon={<Bell size={17}/>} label="알림함" active={tab === 'alerts'} trailing={alertCount ? <Badge tone="amber">{alertCount}</Badge> : null} asChild><button type="button" onClick={() => run(() => onNavigate('alerts'))}>알림함</button></Sidebar.Item>
+          <Sidebar.Item icon={<Home size={17}/>} label="홈" active={tab === 'home'} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('home'))}>홈</button></Sidebar.Item>
+          <Sidebar.Item icon={<Bell size={17}/>} label="알림함" active={tab === 'alerts'} trailing={alertCount ? <Badge tone="amber">{alertCount}</Badge> : null} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('alerts'))}>알림함</button></Sidebar.Item>
         </Sidebar.Section>
         <Sidebar.Separator />
         <Sidebar.Section title="내 프로젝트">
-          {projects.map(item => <Sidebar.Item key={item.id} icon={<FolderKanban size={16}/>} label={item.name} active={item.id === project?.id} asChild><button type="button" onClick={() => run(() => onProjectSelect(item.id))}>{item.name}</button></Sidebar.Item>)}
-          <Sidebar.Item icon={<Plus size={16}/>} label="새 프로젝트" asChild><button type="button" onClick={() => run(onNewProject)}>새 프로젝트</button></Sidebar.Item>
+          {projects.map(item => <Sidebar.Item key={item.id} icon={<FolderKanban size={16}/>} label={item.name} active={item.id === project?.id} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onProjectSelect(item.id))}>{item.name}</button></Sidebar.Item>)}
+          <Sidebar.Item icon={<Plus size={16}/>} label="새 프로젝트" asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(onNewProject)}>새 프로젝트</button></Sidebar.Item>
         </Sidebar.Section>
         {project ? <><Sidebar.Separator /><Sidebar.Section title="프로젝트 업무">
-          {WORKFLOW_STEPS.filter(area => !area.management).map(area => { const Icon = AREA_ICONS[area.id]; return <Sidebar.Item key={area.id} icon={<Icon size={16}/>} label={area.label} active={activeStep?.id === area.id} asChild><button type="button" onClick={() => run(() => onNavigate(area.primaryTab, { workflowStep: area.id }))}>{area.label}</button></Sidebar.Item>; })}
-        </Sidebar.Section><Sidebar.Separator /><Sidebar.Section title="프로젝트 관리"><Sidebar.Item icon={<Users size={16}/>} label="구성원" active={tab === 'members'} asChild><button type="button" onClick={() => run(() => onNavigate('members'))}>구성원</button></Sidebar.Item><Sidebar.Item icon={<Settings2 size={16}/>} label="저장소·AI 설정" active={tab === 'settings'} asChild><button type="button" onClick={() => run(() => onNavigate('settings'))}>저장소·AI 설정</button></Sidebar.Item></Sidebar.Section></> : null}
-        <Sidebar.Separator /><Sidebar.Section><Sidebar.Item icon={<BookOpen size={16}/>} label="사용 안내" asChild><button type="button" onClick={() => run(onGuide)}>사용 안내</button></Sidebar.Item><Sidebar.Item icon={<Settings2 size={16}/>} label="화면 설정" asChild><button type="button" onClick={() => run(onAppearance)}>화면 설정</button></Sidebar.Item></Sidebar.Section>
+          {WORKFLOW_STEPS.filter(area => !area.management).map(area => { const Icon = AREA_ICONS[area.id]; return <Sidebar.Item key={area.id} icon={<Icon size={16}/>} label={area.label} active={activeStep?.id === area.id} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate(area.primaryTab, { workflowStep: area.id }))}>{area.label}</button></Sidebar.Item>; })}
+        </Sidebar.Section><Sidebar.Separator /><Sidebar.Section title="프로젝트 관리"><Sidebar.Item icon={<Users size={16}/>} label="구성원" active={tab === 'members'} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('members'))}>구성원</button></Sidebar.Item><Sidebar.Item icon={<Settings2 size={16}/>} label="저장소·AI 설정" active={tab === 'settings'} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('settings'))}>저장소·AI 설정</button></Sidebar.Item></Sidebar.Section></> : null}
+        <Sidebar.Separator /><Sidebar.Section><Sidebar.Item icon={<BookOpen size={16}/>} label="사용 안내" asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(onGuide)}>사용 안내</button></Sidebar.Item><Sidebar.Item icon={<Settings2 size={16}/>} label="화면 설정" asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(onAppearance)}>화면 설정</button></Sidebar.Item></Sidebar.Section>
       </Sidebar.Body>
-      <Sidebar.Footer><div className="unified-account"><span className="avatar">{(user.name || user.email).slice(0,1)}</span><div><strong>{user.name || user.email}</strong><small>{ROLES[project?.role] || '구성원'}</small></div><button className="icon-button" type="button" aria-label="로그아웃" onClick={() => run(onLogout)}><LogOut size={16}/></button></div></Sidebar.Footer>
+      <Sidebar.Footer><div className="unified-account"><Avatar size="sm" name={user.name || user.email} data-ctds="avatar" /><div><strong>{user.name || user.email}</strong><small>{ROLES[project?.role] || '구성원'}</small></div><IconButton size="sm" icon={<LogOut size={16}/>} aria-label="로그아웃" onClick={() => run(onLogout)} data-ctds="icon-button" /></div></Sidebar.Footer>
     </Sidebar>;
   }
   return <div className="unified-shell"><a href="#workspace" className="skip-link">본문으로 바로가기</a>
     <aside className="unified-rail">{navigation()}</aside>
-    <div className="unified-main"><Topbar className="unified-topbar"><button className="icon-button unified-mobile-menu" type="button" aria-label="탐색 메뉴 열기" onClick={() => setMenuOpen(true)}><Menu size={20}/></button><nav className="unified-breadcrumb" aria-label="현재 위치"><button type="button" onClick={() => onNavigate('home')}>AINS</button><ChevronRight size={13}/><span>{project?.name || '프로젝트'}</span>{activeStep ? <><ChevronRight size={13}/><strong>{activeStep.label}</strong></> : <><ChevronRight size={13}/><strong>{WORKSPACE_VIEWS[tab]?.label || '홈'}</strong></>}</nav><Topbar.Spacer/>{project ? <Button type="button" icon={Plus} onClick={onUpload} disabled={!canWrite}>자료 등록</Button> : null}</Topbar>
-      {project ? <div className="unified-project-bar"><label htmlFor="project-selector">프로젝트</label><select id="project-selector" aria-label="프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select><span>{ROLES[project.role]}</span></div> : null}
-      {activeStep?.tabs.length > 1 ? <nav className="unified-view-tabs" aria-label={`${activeStep.label} 메뉴`}>{activeStep.tabs.map(id => <button type="button" key={id} aria-current={tab === id ? 'page' : undefined} onClick={() => onNavigate(id, {workflowStep: activeStep.id})}>{activeStep.id === 'knowledge' && id === 'context' ? '재사용 자료' : WORKSPACE_VIEWS[id]?.label}</button>)}</nav> : null}
-      {children}
+    <div className="unified-main"><Topbar className="unified-topbar"><IconButton className="unified-mobile-menu" icon={<Menu size={20}/>} aria-label="탐색 메뉴 열기" onClick={() => setMenuOpen(true)} data-ctds="icon-button" /><Breadcrumb className="unified-breadcrumb" aria-label="현재 위치" data-ctds="breadcrumb"><Breadcrumb.Link href="/?tab=home" onClick={event => { event.preventDefault(); onNavigate('home'); }}>AINS</Breadcrumb.Link><Breadcrumb.Link href={`/?${new URLSearchParams({ tab: 'home', ...(project ? {project: project.id} : {}) })}`} onClick={event => { event.preventDefault(); onNavigate('home'); }}>{project?.name || '프로젝트'}</Breadcrumb.Link><Breadcrumb.Current>{activeStep?.label || WORKSPACE_VIEWS[tab]?.label || '홈'}</Breadcrumb.Current></Breadcrumb><Topbar.Spacer/>{project ? <Button type="button" icon={Plus} onClick={onUpload} disabled={!canWrite}>자료 등록</Button> : null}</Topbar>
+      {project ? <div className="unified-project-bar"><label htmlFor="project-selector">프로젝트</label><Select id="project-selector" aria-label="프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</Select><span>{ROLES[project.role]}</span></div> : null}
+      {activeStep?.tabs.length > 1 ? <Tabs value={tab} onValueChange={id => onNavigate(id, { workflowStep: activeStep.id })} variant="underline" size="sm" className="unified-view-container"><Tabs.List className="unified-view-tabs" aria-label={`${activeStep.label} 메뉴`}>{activeStep.tabs.map(id => <Tabs.Trigger key={id} value={id}>{activeStep.id === 'knowledge' && id === 'context' ? '재사용 자료' : WORKSPACE_VIEWS[id]?.label}</Tabs.Trigger>)}</Tabs.List><Tabs.Panel value={tab}>{children}</Tabs.Panel></Tabs> : children}
     </div>
     {menuOpen ? <Modal title="업무 탐색" onClose={() => setMenuOpen(false)}><div className="unified-mobile-navigation">{navigation()}</div></Modal> : null}
   </div>;

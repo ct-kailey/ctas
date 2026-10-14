@@ -4,7 +4,7 @@
 .cw-panel { margin-top: var(--space-8); padding: var(--space-6); border: var(--hairline) solid var(--border); border-radius: var(--radius-xl); background: var(--bg) }
 .cw-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); margin-bottom: var(--space-6) }
 .cw-heading h2 { font-size: var(--text-2xl); letter-spacing: var(--type-2xl-tracking); margin: var(--space-1_5) 0 var(--space-2); line-height: var(--lh-2xl) }
-.cw-heading p,.cw-help { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); margin: var(--space-2) 0 var(--space-4); letter-spacing: var(--type-sm-tracking) }
+.cw-heading p, .cw-help { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); margin: var(--space-2) 0 var(--space-4); letter-spacing: var(--type-sm-tracking) }
 .cw-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); gap: var(--space-6) }
 .cw-step { display: flex; gap: var(--space-2_5); align-items: flex-start; margin-bottom: var(--space-3) }
 .cw-step>span { background: var(--bg-subtle); color: var(--fg); width: var(--space-8); height: var(--space-8); display: grid; place-items: center; border-radius: var(--radius-full); font-size: var(--text-2xs); flex: none; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
@@ -16,7 +16,8 @@
 .cw-message.is-selected { border-color: var(--primary-border-color); background: var(--primary-subtle) }
 .cw-message label { display: flex; gap: var(--space-2_5); align-items: flex-start; cursor: pointer }
 .cw-message label span { display: flex; flex-direction: column; gap: var(--space-1) }
-.cw-message label input { margin-top: var(--space-0_5); accent-color: var(--primary) }
+.cw-message label input:where(:not([data-ctds]):not([data-ctds-control])) { margin-top: var(--space-0_5) }
+.cw-message label input:where(:not([data-ctds]):not([data-ctds-control])) { accent-color: var(--primary) }
 .cw-message strong { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .cw-message small { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .cw-message p { white-space: pre-wrap; font-size: var(--text-sm); line-height: var(--lh-sm); margin: var(--space-3) 0 var(--space-1); letter-spacing: var(--type-sm-tracking) }
@@ -26,7 +27,8 @@
 .cw-modes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2) }
 .cw-modes label { padding: var(--space-3) var(--space-2); display: flex; align-items: center; gap: var(--space-1_5); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); cursor: pointer; min-width: 0 }
 .cw-modes label.is-active { background: var(--primary-subtle); border-color: var(--primary-border-color) }
-.cw-modes input { accent-color: var(--primary); margin: 0 }
+.cw-modes input:where(:not([data-ctds]):not([data-ctds-control])) { margin: 0 }
+.cw-modes input:where(:not([data-ctds]):not([data-ctds-control])) { accent-color: var(--primary) }
 .cw-modes svg { flex: none }
 .cw-modes strong { display: block; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .cw-modes small { display: block; font-size: var(--text-2xs); color: var(--fg-muted); margin-top: var(--space-0_5); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
@@ -35,7 +37,8 @@
 .cw-question p { line-height: var(--lh-loose); white-space: pre-wrap }
 .cw-question small { display: block; color: var(--fg-muted); line-height: var(--lh-loose); margin-bottom: var(--space-2) }
 .cw-ack { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); padding: var(--space-3) 0; letter-spacing: var(--type-sm-tracking) }
-.cw-ack input { margin-top: var(--space-1); accent-color: var(--primary) }
+.cw-ack input:where(:not([data-ctds]):not([data-ctds-control])) { margin-top: var(--space-1) }
+.cw-ack input:where(:not([data-ctds]):not([data-ctds-control])) { accent-color: var(--primary) }
 .cw-compose>.button { margin-top: var(--space-2_5) }
 .cw-final-note { font-size: var(--text-sm); margin-top: var(--space-3); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .cw-success { display: flex; align-items: center; gap: var(--space-3); background: var(--success-subtle); border: var(--hairline) solid var(--success-border-color); border-radius: var(--radius-md); padding: var(--space-4); margin-top: var(--space-6) }
@@ -52,7 +55,7 @@
 .cw-history small { display: block; font-size: var(--text-2xs); color: var(--fg-muted); margin-top: var(--space-1_5); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .cw-history p { font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .cw-history-dot { width: var(--space-1_5); height: var(--space-1_5); flex: none; border-radius: var(--radius-full); background: var(--border-strong); margin-top: var(--space-1) }
-.cw-panel input,.cw-panel textarea,.cw-panel select { min-width: 0; max-width: 100% }
+.cw-panel input:where(:not([data-ctds]):not([data-ctds-control])), .cw-panel textarea, .cw-panel select:where(:not([data-ctds]):not([data-ctds-control])) { min-width: 0; max-width: 100% }
 .cw-panel input:focus-visible:where(:not([data-ctds]):not([data-ctds-control])), .cw-panel button:focus-visible:where(:not([data-ctds]):not([data-ctds-control])), .cw-panel select:focus-visible:where(:not([data-ctds]):not([data-ctds-control])), .cw-panel a:focus-visible:where(:not([data-ctds]):not([data-ctds-control])) { outline: var(--ring-width) solid var(--ring); outline-offset: var(--ring-offset) }
 @media(max-width:1000px){
 .cw-grid { grid-template-columns: 1fr }
@@ -70,9 +73,10 @@
 .cw-history .text-button { margin-left: var(--space-5) }
 .cw-grid { gap: var(--space-6) }
 }
-.cw-modes input,.cw-message input,.cw-ack input { width: var(--icon-size-sm); flex: 0 0 var(--icon-size-sm) }
+.cw-modes input:where(:not([data-ctds]):not([data-ctds-control])), .cw-message input:where(:not([data-ctds]):not([data-ctds-control])), .cw-ack input:where(:not([data-ctds]):not([data-ctds-control])) { width: var(--icon-size-sm); flex: 0 0 var(--icon-size-sm) }
 .cw-modes input:where(:not([data-ctds]):not([data-ctds-control])), .cw-message input:where(:not([data-ctds]):not([data-ctds-control])), .cw-ack input:where(:not([data-ctds]):not([data-ctds-control])) { height: var(--icon-size-sm) }
 .cw-modes label>span { flex: 1; min-width: 0 }
-.cw-history details { margin-top: var(--space-2); font-size: var(--text-sm); color: var(--fg-muted); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.cw-history details { margin-top: var(--space-2) }
+.cw-history details:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); color: var(--fg-muted); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .cw-history-source { border-left: calc(var(--hairline) * 2) solid var(--border); padding-left: var(--space-3); margin-top: var(--space-3) }
 .cw-retained-draft { margin: var(--space-4) 0 }
