@@ -152,7 +152,12 @@ async function getFollowupInput(db, { projectId, noteId, actorId, expectedVersio
   let originalTask = null;
   if (row.automation_task_id) {
     const task = (await db.query('SELECT id,title,description,acceptance_criteria,evidence,artifact FROM automation_tasks WHERE project_id=$1 AND id=$2 FOR SHARE',[projectId,row.automation_task_id])).rows[0];
-    originalTask = { ...task,kind:'automation_task',artifact:Number.isSafeInteger(task.artifact?.pr_number) && task.artifact.pr_number > 0 ? Object.fromEntries(['pr_url','pr_number','head_sha','base_sha','target_branch','preview_url'].map(k=>[k,task.artifact[k]])) : null };
+    const artifact=task.artifact;
+    const code=artifact?.kind==='git_commit'&&artifact.evidence_status==='verified'
+      ? Object.fromEntries(['kind','head_sha','base_sha','target_branch','preview_url'].map(k=>[k,artifact[k]]))
+      : Number.isSafeInteger(artifact?.pr_number)&&artifact.pr_number>0
+        ? Object.fromEntries(['pr_url','pr_number','head_sha','base_sha','target_branch','preview_url'].map(k=>[k,artifact[k]])) : null;
+    originalTask = { ...task,kind:'automation_task',artifact:code };
   } else if (row.task_draft_id) {
     const task = (await db.query('SELECT id,title,description,acceptance_criteria,evidence FROM project_task_drafts WHERE project_id=$1 AND id=$2 FOR SHARE',[projectId,row.task_draft_id])).rows[0];
     originalTask = { ...task,kind:'task_draft',artifact:null };

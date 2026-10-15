@@ -2,6 +2,9 @@
 const {createTaskAutomation}=require('./task-automation');
 function mountTaskAutomationRoutes(router,{pool,write,review,owner,provider={}}){
   const service=createTaskAutomation({pool,provider});
+  router.get('/task-automation/sdk-connections',owner,async(req,res)=>res.json(await service.sdkConnections(req.params.p,req.user.id)));
+  router.post('/task-automation/sdk-connections',owner,async(req,res)=>res.status(202).json(await service.connectSdk(req.params.p,req.user.id,req.body)));
+  router.post('/task-automation/tasks/:id/refresh-artifact',write,async(req,res)=>res.json({task:await service.refreshArtifact(req.params.p,req.user.id,req.params.id,req.body)}));
   router.get('/task-automation',async(req,res)=>res.json(await service.overview(req.params.p,req.user.id)));
   router.post('/task-automation/analyze',write,async(req,res)=>res.status(202).json({analysis:await service.analyze(req.params.p,req.user.id,req.body)}));
   router.put('/task-automation/settings',owner,async(req,res)=>res.json({settings:await service.saveSettings(req.params.p,req.user.id,req.body)}));

@@ -58,7 +58,7 @@ function projectSharedJSON(value) {
   if (!value || typeof value !== 'object' || value instanceof Date) return value;
   const out = {};
   for (const [key, item] of Object.entries(value)) {
-    if (['email', 'token_hash', 'csrf_token', 'secret_envelope', 'runner_token_hash', 'lease_token', 'access_token', 'api_key', 'patch', 'diff'].includes(key)) continue;
+    if (['email', 'token_hash', 'csrf_token', 'secret_envelope', 'runner_token_hash', 'lease_token', 'access_token', 'api_key', 'patch', 'diff', 'reported_checks', 'sdk_working_folder', 'sdk_connection_id', 'working_folder', 'task_working_folder'].includes(key)) continue;
     out[key] = projectSharedJSON(item);
   }
   return out;

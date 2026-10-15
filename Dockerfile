@@ -24,6 +24,8 @@ COPY nora/flow/manifest.json nora/flow/review-core.js ./nora/flow/
 COPY nora/pipeline/manifest.json ./nora/pipeline/
 COPY nora/registration/manifest.json nora/registration/request.schema.json nora/registration/suggestion.schema.json ./nora/registration/
 COPY nora/channel-triage/manifest.json nora/channel-triage/request.schema.json nora/channel-triage/result.schema.json ./nora/channel-triage/
+COPY nora/channel-triage/project-flow.js nora/channel-triage/prompt.md ./nora/channel-triage/
+COPY nora/channel-ingestion ./nora/channel-ingestion/
 COPY nora/implementation-plan/manifest.json nora/implementation-plan/request.schema.json nora/implementation-plan/result.schema.json ./nora/implementation-plan/
 COPY nora/commercial-drafting/manifest.json nora/commercial-drafting/request.schema.json nora/commercial-drafting/result.schema.json ./nora/commercial-drafting/
 COPY nora/context/manifest.json nora/context/client.js nora/context/contract.js nora/context/request.schema.json nora/context/result.schema.json ./nora/context/

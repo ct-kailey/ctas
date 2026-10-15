@@ -19,6 +19,18 @@ test('task artifact validation binds repository, preview origin, source commit, 
  assert.throws(()=>A.validateMerge({project_id:'p',task_id:row.id,input_sha256:row.input_sha256,head_sha:HEAD,target_branch:'main',pr_number:12,merged:false},row),{code:'TASK_MERGE_NOT_CONFIRMED'});
 });
 
+test('legacy artifact policy is derived without altering evidence already approved for merge',()=>{
+ const hash=require('../server/context-contract').hash;
+ const artifact={head_sha:HEAD,diff:'verified changes'},row={artifact,input_snapshot:{automation:{settings_version:4,preview_origins:['https://preview.example.test']}},execution_context:null};
+ assert.deepEqual(A.effectiveArtifact(row).verification_policy,{settings_version:4,preview_origins:['https://preview.example.test'],execution_profile:null});
+ row.review={artifact_sha256:hash(artifact)};
+ assert.deepEqual(A.effectiveArtifact(row),artifact);
+ assert.equal(hash(A.effectiveArtifact(row)),row.review.artifact_sha256);
+ assert.deepEqual(A.artifactVerificationPolicy(row),{settings_version:4,preview_origins:['https://preview.example.test'],execution_profile:null});
+ row.review.artifact_sha256='f'.repeat(64);
+ assert.ok(A.effectiveArtifact(row).verification_policy);
+});
+
 test('policy automation creates reviewed drafts or tasks and merges only exact approved evidence', {skip:!process.env.TEST_DATABASE_URL},async t=>{
  const schema='task_auto_'+randomUUID().replaceAll('-',''),admin=createPool(process.env.TEST_DATABASE_URL);let pool;
  t.after(async()=>{if(pool)await pool.end();await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await admin.end();});
@@ -76,7 +88,7 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   assert.equal(view.capabilities.risk_analysis,true);assert.equal(view.capabilities.development,false);assert.ok(view.capabilities.blockers.some(b=>b.code==='TASK_REPOSITORY_REQUIRED'));
   await assert.rejects(f.service.transition(f.p,users.member,r.id,{expected_version:r.version,status:'in_progress'}),{code:'TASK_DEVELOPMENT_UNAVAILABLE'});
   const config=view.settings;await f.service.saveSettings(f.p,users.owner,{expected_version:config.version,enabled:true,risk_flow_slug:null,development_flow_slug:null,preview_origins:[]});
-  const missing=(await f.service.overview(f.p,users.owner)).capabilities.blockers;assert.ok(missing.some(b=>b.code==='TASK_DEVELOPMENT_FLOW_REQUIRED'));assert.ok(missing.some(b=>b.code==='TASK_PREVIEW_ORIGIN_REQUIRED'));
+  const missing=(await f.service.overview(f.p,users.owner)).capabilities.blockers;assert.ok(missing.some(b=>b.code==='TASK_DEVELOPMENT_FLOW_REQUIRED'));assert.equal(missing.some(b=>b.code==='TASK_PREVIEW_ORIGIN_REQUIRED'),false);
  });
  await t.test('blocking risk or question creates existing question drafts atomically with no tasks or outbound messages',async()=>{
   const provider=remote({async analyzeRisk(i){const result=await remote().analyzeRisk(i);return {...result,risks:[{id:'risk1',blocking:true,description:'승인 담당자가 불명확함',evidence:[{segment_id:'s1',quote:'승인 조건'}]}],questions:[{question:'승인 담당자는 누구인가요?',evidence:[{segment_id:'s1',quote:'승인 조건'}]}]};}});
@@ -148,6 +160,7 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   const provider=remote({async analyzeRisk(i){return {schema_version:'2.0',project_id:i.projectId,request_id:i.requestId,input_sha256:i.snapshotHash,trace_id:'trc_risk_synthetic12345',risks:[],questions:[],temporary_decisions:[],work_gaps:[],tasks:[{title:'목록',description:'목록 구현',acceptance_criteria:['정렬된 목록 표시'],evidence}]};},async develop(i){return {schema_version:'2.0',project_id:i.projectId,task_id:i.taskId,input_sha256:i.snapshotHash,trace_id:'trc_develop_synthetic123',artifact:null,implementation_report:{contract_version:'2.0',completion:'blocked',remaining_criteria:['정렬된 목록 표시'],notes:[gap]}};}});
   const f=await fixture({provider,mode:'provisional',policyText:'목록 정렬 기준은 미정이다.'}),task=await todo(f);await f.service.transition(f.p,users.member,task.id,{status:'in_progress',expected_version:task.version});await f.worker.runOnce();const blocked=await f.service.getTask(f.p,users.owner,task.id);
   assert.equal(blocked.status,'blocked');assert.equal(blocked.artifact.pr_url,undefined);assert.equal(blocked.artifact.implementation_report.completion,'blocked');
+  await assert.rejects(f.service.refreshArtifact(f.p,users.owner,task.id,{expected_version:blocked.version}),{code:'TASK_REFRESH_NOT_READY'});
   const records=(await pool.query('SELECT * FROM project_implementation_notes WHERE automation_task_id=$1',[task.id])).rows;assert.equal(records.length,1);assert.equal(records[0].origin,'nora');assert.equal(records[0].status,'open');assert.equal(records[0].trace_id,'trc_develop_synthetic123');
   await assert.rejects(f.service.approveMerge(f.p,users.owner,task.id,{expected_version:blocked.version,head_sha:HEAD,note:'PR 없음'}),{code:'TASK_REVIEW_STALE'});
   const notes=require('../server/implementation-notes').createImplementationNotes({pool}),feedback=await notes.feedback(f.p,users.member,records[0].id,{request_id:randomUUID(),expected_version:records[0].version,text:'최신순으로 목록을 구현해 주세요.'});
@@ -174,6 +187,9 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
  });
  await t.test('missing connector operations stay explicit and uncertain development is never automatically repeated',async()=>{
   const missing=await fixture({provider:remote({async capabilities(){return{risk_analysis:false,development:false,merge:false,blockers:[{code:'NORA_AUTH_REQUIRED',message:'Nora 로그인 필요'}]};}})});await missing.worker.runOnce();assert.equal((await missing.service.overview(missing.p,users.owner)).analyses[0].status,'awaiting_connection');
+  // This scenario deliberately leaves an unavailable provider. Do not let its
+  // 30-second retry run under a later scenario's different synthetic provider.
+  await pool.query("UPDATE task_automation_jobs SET next_attempt_at=now()+interval '1 year' WHERE project_id=$1 AND status='awaiting_connection'",[missing.p]);
   const provider=remote({async develop(i){calls.push(['unknown-development',i]);throw Error('Lost response');}}),f=await fixture({provider}),r=await todo(f);await f.service.transition(f.p,users.member,r.id,{expected_version:r.version,status:'in_progress'});await f.worker.runOnce();assert.equal((await f.service.getTask(f.p,users.owner,r.id)).execution_status,'uncertain');await f.worker.runOnce();assert.equal(calls.filter(c=>c[0]==='unknown-development'&&c[1].taskId===r.id).length,1);
  });
  await t.test('uncertain merge only permits read-only reconciliation of the approved operation',async()=>{
@@ -222,18 +238,18 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   assert.equal((await pool.query("SELECT trace_id FROM task_automation_jobs WHERE task_id=$1 AND kind='develop'",[task.id])).rows[0].trace_id,current.execution_trace_id);
  });
 
- await t.test('a verified code change with failing CI or no preview keeps its actual history but cannot enter QA or merge',async()=>{
+ await t.test('a verified code change with failing CI or no preview enters review with its history but cannot merge',async()=>{
   const evidence=[{segment_id:'s1',quote:'목록 정렬 기준은 미정이다.'}],gap={id:'remaining',kind:'work_gap',category:'ui_behavior',reversible:true,title:'최종 정렬 검토',uncertainty:'표시 기준 미확정',temporary_approach:null,rationale:'결과 검토 대기',impact:'목록 표시',replacement_condition:'검토 후 보완',evidence};
   const provider=remote({async analyzeRisk(i){return {schema_version:'3.0',project_id:i.projectId,request_id:i.requestId,input_sha256:i.snapshotHash,trace_id:'trc_review_pending_synthetic',risks:[],questions:[],temporary_decisions:[],work_gaps:[],tasks:[{title:'목록',description:'목록 구현',acceptance_criteria:['목록 표시'],evidence}]};},async develop(i){const raw=await remote().develop(i);return {...raw,artifact:{...raw.artifact,preview_url:null,checks:[{name:'unit',status:'failed'},{name:'웹 프리뷰 배포',status:'pending'}]},implementation_report:{completion:'partial',remaining_criteria:['목록 표시'],notes:[gap]}};}});
   const f=await fixture({provider,policyText:'목록 정렬 기준은 미정이다.'}),task=await todo(f);await f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version});await f.worker.runOnce();
-  const blocked=await f.service.getTask(f.p,users.owner,task.id);assert.equal(blocked.status,'blocked');assert.equal(blocked.artifact.preview_url,null);assert.equal(blocked.artifact.pr_number,12);assert.equal((await pool.query('SELECT 1 FROM project_implementation_notes WHERE automation_task_id=$1',[task.id])).rowCount,1);
-  await assert.rejects(f.service.approveMerge(f.p,users.owner,task.id,{expected_version:blocked.version,head_sha:HEAD,note:'미검증 결과 병합 시도'}),{code:'TASK_REVIEW_STALE'});
+  const blocked=await f.service.getTask(f.p,users.owner,task.id);assert.equal(blocked.status,'qa');assert.equal(blocked.artifact.preview_url,null);assert.equal(blocked.artifact.pr_number,12);assert.equal((await pool.query('SELECT 1 FROM project_implementation_notes WHERE automation_task_id=$1',[task.id])).rowCount,1);
+  await assert.rejects(f.service.approveMerge(f.p,users.owner,task.id,{expected_version:blocked.version,head_sha:HEAD,note:'미검증 결과 병합 시도'}),{code:'TASK_CHECKS_NOT_PASSED'});
   const archive=require('../server/implementation-notes').createImplementationNotes({pool}),note=(await archive.list(f.p,users.owner,{automation_task_id:task.id})).notes[0];
   const feedback=await archive.feedback(f.p,users.owner,note.id,{request_id:randomUUID(),expected_version:note.version,text:'실패한 테스트와 웹 프리뷰 배포를 보완해 주세요.'});
   const followup=await f.service.analyzeFeedback(f.p,users.owner,{note_id:note.id,expected_version:feedback.note.version,request_id:randomUUID()});
   const frozen=(await pool.query('SELECT input_snapshot FROM task_automation_analyses WHERE id=$1',[followup.id])).rows[0].input_snapshot;
   assert.equal(frozen.feedback.original_task.artifact.pr_number,12);assert.equal(frozen.feedback.original_task.artifact.preview_url,null);
-  await f.worker.runOnce();const next=(await f.service.overview(f.p,users.owner)).tasks.find(t=>t.id!==task.id);assert.ok(next);assert.equal(next.status,'todo');assert.equal((await f.service.getTask(f.p,users.owner,task.id)).status,'blocked');
+  await f.worker.runOnce();const next=(await f.service.overview(f.p,users.owner)).tasks.find(t=>t.id!==task.id);assert.ok(next);assert.equal(next.status,'todo');assert.equal((await f.service.getTask(f.p,users.owner,task.id)).status,'qa');
 
  });
 
@@ -242,6 +258,38 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   await f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version});await f.worker.runOnce();
   const current=await f.service.getTask(f.p,users.owner,task.id);assert.equal(current.status,'blocked',JSON.stringify({status:current.status,execution_status:current.execution_status,error_code:current.error_code}));assert.equal(current.error_code,'TASK_SOURCE_STALE');assert.equal(current.artifact.pr_number,12);assert.ok(current.execution_context.confirmed_at);assert.equal(current.execution_trace_id,'trc_develop_synthetic123');
   await assert.rejects(f.service.approveMerge(f.p,users.owner,task.id,{expected_version:current.version,head_sha:HEAD,note:'변경 전 근거로 생성된 PR'}),{code:'TASK_MERGE_UNAVAILABLE'});
+ });
+
+ await t.test('refresh stores verification separately, never reruns development, and merge uses the reviewed observation',async()=>{
+  const provider=remote({async develop(i){return {project_id:i.projectId,task_id:i.taskId,input_sha256:i.snapshotHash,trace_id:'trc_refresh_code_12345',artifact:{pr_number:12,pr_url:'https://github.com/acme/demo/pull/12',head_sha:HEAD,base_sha:BASE,target_branch:'main',preview_url:null,diff:'diff --git a/a b/a\n+policy implementation',checks:[{name:'CI 검사 결과',status:'pending'},{name:'웹 프리뷰 배포',status:'pending'}]}};},async refreshArtifact(i){calls.push(['refresh',i]);return {...i.artifact,preview_url:'https://preview.example.test/build/12',checks:[{name:'CI 검사 결과',status:'passed'}],ci_status:'passed',preview_status:'passed',verification_status:'passed'};}});
+  const f=await fixture({provider}),todoTask=await todo(f);await f.service.transition(f.p,users.owner,todoTask.id,{status:'in_progress',expected_version:todoTask.version});await f.worker.runOnce();let task=await f.service.getTask(f.p,users.owner,todoTask.id);const original=(await pool.query('SELECT artifact FROM automation_tasks WHERE id=$1',[task.id])).rows[0].artifact;
+  assert.equal(task.status,'qa');await assert.rejects(f.service.refreshArtifact(f.p,users.viewer,task.id,{expected_version:task.version}),{code:'FORBIDDEN'});
+  const before=calls.filter(c=>c[0]==='develop').length;task=await f.service.refreshArtifact(f.p,users.member,task.id,{expected_version:task.version});assert.equal(task.artifact.preview_url,'https://preview.example.test/build/12');assert.equal(task.artifact.verification_status,'passed');assert.deepEqual((await pool.query('SELECT artifact FROM automation_tasks WHERE id=$1',[task.id])).rows[0].artifact,original);assert.equal(calls.filter(c=>c[0]==='develop').length,before);
+  await assert.rejects(f.service.refreshArtifact(f.p,users.owner,task.id,{expected_version:task.version-1}),{code:'TASK_VERSION_CONFLICT'});
+  await f.service.approveMerge(f.p,users.owner,task.id,{expected_version:task.version,head_sha:HEAD,note:'코드와 갱신된 검사 확인'});await f.worker.runOnce();task=await f.service.getTask(f.p,users.owner,task.id);assert.equal(task.status,'done');
+  await assert.rejects(pool.query("UPDATE automation_tasks SET verification='{}'::jsonb WHERE id=$1",[task.id]),{code:'23514'});
+  await assert.rejects(f.service.refreshArtifact(f.p,users.owner,task.id,{expected_version:task.version}),{code:'TASK_REFRESH_NOT_READY'});
+ });
+ await t.test('refresh cannot replace original commits or code and settings retain explicit SDK scope',async()=>{
+  const provider=remote({async refreshArtifact(i){return {...i.artifact,head_sha:'e'.repeat(40)};}}),f=await fixture({provider}),item=await todo(f);await f.service.transition(f.p,users.owner,item.id,{status:'in_progress',expected_version:item.version});await f.worker.runOnce();const task=await f.service.getTask(f.p,users.owner,item.id);await assert.rejects(f.service.refreshArtifact(f.p,users.owner,task.id,{expected_version:task.version}),{code:'TASK_REFRESH_EVIDENCE_CHANGED'});assert.equal((await f.service.getTask(f.p,users.owner,item.id)).version,task.version);
+  const settings=(await f.service.overview(f.p,users.owner)).settings,body={expected_version:settings.version,enabled:true,risk_flow_slug:null,development_flow_slug:'sdk-flow',preview_origins:[],execution_mode:'nora_sdk',sdk_provider:'codex',sdk_connection_id:null,sdk_working_folder:'/tmp/project-sdk'};
+  const saved=await f.service.saveSettings(f.p,users.owner,body);assert.equal(saved.execution_mode,'nora_sdk');assert.equal(saved.sdk_connection_id,null);assert.equal(saved.sdk_working_folder,'/tmp/project-sdk');
+  await assert.rejects(f.service.saveSettings(f.p,users.owner,{...body,expected_version:saved.version,sdk_working_folder:'/tmp/../other'}),{code:'NORA_SDK_SETTINGS_REQUIRED'});
+ });
+
+ await t.test('unverified local SDK patch preserves reported history without entering the verified implementation archive',async()=>{
+  const provider=remote({async develop(i){return {project_id:i.projectId,task_id:i.taskId,input_sha256:i.snapshotHash,trace_id:'trc_local_patch_reported',artifact:{kind:'local_patch',pr_number:null,pr_url:null,head_sha:null,base_sha:BASE,target_branch:'main',preview_url:null,diff:'diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-before\n+after',changed_files:['a'],evidence_status:'unverified',ci_status:'unavailable',preview_status:'unavailable',verification_status:'unavailable',checks:[{name:'코드 변경 근거',status:'unavailable'}]}};}}),f=await fixture({provider}),item=await todo(f);await f.service.transition(f.p,users.owner,item.id,{status:'in_progress',expected_version:item.version});await f.worker.runOnce();const task=await f.service.getTask(f.p,users.owner,item.id);assert.equal(task.status,'qa');assert.equal(task.artifact.evidence_status,'unverified');assert.equal(task.artifact.implementation_report,undefined);assert.equal(task.artifact.reported_implementation_report.contract_version,'3.0');assert.equal((await pool.query('SELECT 1 FROM project_implementation_notes WHERE automation_task_id=$1',[item.id])).rowCount,0);await assert.rejects(f.service.approveMerge(f.p,users.owner,item.id,{expected_version:task.version,head_sha:HEAD,note:'미확인 변경안'}),{code:'TASK_REVIEW_STALE'});
+ });
+
+ await t.test('preview can be configured after code is produced but policy changes require a fresh verification before approval',async()=>{
+  const provider=remote({async develop(i){return {project_id:i.projectId,task_id:i.taskId,input_sha256:i.snapshotHash,trace_id:'trc_late_preview_code',artifact:{pr_number:12,pr_url:'https://github.com/acme/demo/pull/12',head_sha:HEAD,base_sha:BASE,target_branch:'main',preview_url:null,diff:'diff --git a/a b/a\n+policy implementation',checks:[{name:'웹 프리뷰 배포',status:'unavailable'}]}};},async refreshArtifact(i){return {...i.artifact,preview_url:i.settings.preview_origins[0]+'/build',checks:[{name:'CI 검사 결과',status:'passed'}],ci_status:'passed',preview_status:'passed',verification_status:'passed'};}}),f=await fixture({provider});
+  let config=(await f.service.overview(f.p,users.owner)).settings;const set=patch=>f.service.saveSettings(f.p,users.owner,{expected_version:config.version,enabled:true,risk_flow_slug:config.risk_flow_slug,development_flow_slug:config.development_flow_slug,preview_origins:config.preview_origins,...patch});config=await set({preview_origins:[]});const item=await todo(f);await f.service.transition(f.p,users.owner,item.id,{status:'in_progress',expected_version:item.version});await f.worker.runOnce();let task=await f.service.getTask(f.p,users.owner,item.id);assert.equal(task.artifact.preview_url,null);
+  config=await set({preview_origins:['https://later-preview.example.test']});task=await f.service.refreshArtifact(f.p,users.owner,item.id,{expected_version:task.version});assert.equal(task.status,'qa');assert.equal(task.artifact.preview_url,'https://later-preview.example.test/build');assert.equal(task.artifact.verification_policy.settings_version,config.version);
+  config=await set({preview_origins:['https://newer-preview.example.test']});await assert.rejects(f.service.approveMerge(f.p,users.owner,item.id,{expected_version:task.version,head_sha:HEAD,note:'오래된 검증 정책'}),{code:'TASK_VERIFICATION_STALE'});task=await f.service.refreshArtifact(f.p,users.owner,item.id,{expected_version:task.version});await f.service.approveMerge(f.p,users.owner,item.id,{expected_version:task.version,head_sha:HEAD,note:'최신 검증 정책 확인'});await assert.rejects(set({preview_origins:[]}),{code:'TASK_APPROVAL_IN_PROGRESS'});await f.worker.runOnce();assert.equal((await f.service.getTask(f.p,users.owner,item.id)).status,'done');
+ });
+
+ await t.test('verified commit can gain an exact PR through verification while its original evidence stays immutable',async()=>{
+  const provider=remote({async develop(i){return {project_id:i.projectId,task_id:i.taskId,input_sha256:i.snapshotHash,trace_id:'trc_commit_then_pr',artifact:{kind:'git_commit',pr_number:null,pr_url:null,head_sha:HEAD,base_sha:BASE,target_branch:'main',preview_url:null,diff:'diff --git a/a b/a\n+implementation',evidence_status:'verified',checks:[{name:'PR 확인',status:'unavailable'}]}};},async refreshArtifact(i){return {...i.artifact,kind:'pull_request',pr_number:12,pr_url:'https://github.com/acme/demo/pull/12',preview_url:'https://preview.example.test/build',checks:[{name:'CI',status:'passed'}],ci_status:'passed',preview_status:'passed',verification_status:'passed'};}}),f=await fixture({provider}),item=await todo(f);await f.service.transition(f.p,users.owner,item.id,{status:'in_progress',expected_version:item.version});await f.worker.runOnce();let task=await f.service.getTask(f.p,users.owner,item.id);const before=(await pool.query('SELECT artifact FROM automation_tasks WHERE id=$1',[item.id])).rows[0].artifact;task=await f.service.refreshArtifact(f.p,users.member,item.id,{expected_version:task.version});assert.equal(task.artifact.kind,'pull_request');assert.equal(task.artifact.pr_number,12);assert.deepEqual((await pool.query('SELECT artifact FROM automation_tasks WHERE id=$1',[item.id])).rows[0].artifact,before);await f.service.approveMerge(f.p,users.owner,item.id,{expected_version:task.version,head_sha:HEAD,note:'동일 변경의 PR과 검증 확인'});await f.worker.runOnce();assert.equal((await f.service.getTask(f.p,users.owner,item.id)).status,'done');
  });
 
 });

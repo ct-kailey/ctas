@@ -4,7 +4,7 @@ import { Badge, Button, ControlButton, Disclosure, ErrorNotice, FormField, Input
 import { useSharedView } from './shared-view.jsx';
 import { useConfirm } from './confirmation.jsx';
 import { Modal as CTDSModal } from './components/ctds/Modal/Modal';
-import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationBlockerLabel, automationCanStart, automationColumn, automationExecutionLabel, automationMergeReadiness, automationPermissions, automationPreviewUrl, automationUncertaintyMode, parsePreviewOrigins, startAutomationTask } from './task-automation-state.mjs';
+import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationArtifactStages, automationBlockerLabel, automationCanRefreshArtifact, automationCanStart, automationColumn, automationExecutionLabel, automationHasCodeArtifact, automationMergeReadiness, automationPermissions, automationPreviewUrl, automationPrUrl, automationReportedChecks, automationSdkConnectionKey, automationSdkConnectionRequest, automationSdkConnections, automationSdkSelectedConnection, automationSettingsDraft, automationSettingsPayload, refreshAutomationArtifact, startAutomationTask } from './task-automation-state.mjs';
 import { retainProjectRequest } from './nora-workspace-state.mjs';
 import { mergeTaskDraftPage, taskDraftSourceUrl } from './task-draft-state.mjs';
 import { ImplementationNotesPanel, RelatedImplementationNotes } from './implementation-notes.jsx';
@@ -15,6 +15,7 @@ function useAutomationResource(path, request, poll = automationActive) {
   const [data, setData] = useState(null), [error, setError] = useState(null), [loading, setLoading] = useState(true);
   const lifecycle = useRef({ active: true, sequence: 0, controller: null });
   const load = useCallback(async () => {
+    if (!path) return null;
     lifecycle.current.controller?.abort();
     const controller = new AbortController(), sequence = ++lifecycle.current.sequence;
     lifecycle.current.controller = controller;
@@ -23,7 +24,7 @@ function useAutomationResource(path, request, poll = automationActive) {
     catch (err) { if (current() && err.name !== 'AbortError') setError(err); }
     finally { if (current()) setLoading(false); }
   }, [path, request]);
-  useEffect(() => { lifecycle.current.active = true; setData(null); setLoading(true); void load(); return () => { lifecycle.current.active = false; lifecycle.current.sequence += 1; lifecycle.current.controller?.abort(); }; }, [load]);
+  useEffect(() => { lifecycle.current.active = true; setData(null); setLoading(Boolean(path)); setError(null); if (path) void load(); return () => { lifecycle.current.active = false; lifecycle.current.sequence += 1; lifecycle.current.controller?.abort(); }; }, [load]);
   const active = Boolean(data && poll(data));
   useEffect(() => { if (!active) return; const timer = setInterval(() => { if (!document.hidden) void load(); }, 5000); return () => clearInterval(timer); }, [active, load]);
   return { data, error, loading, load, lifecycle, setData };
@@ -85,6 +86,10 @@ function ProvisionalStartConfirmation({ task, check, onConfirm, onCancel }) {
       <p className="task-auto-help">Nora가 개발을 진행한 뒤 어떤 내용을 언제, 어떻게 임시로 구현했는지 자동으로 기록합니다. 고객 답변과 피드백은 이 기록에 연결해 보완할 수 있습니다.</p>
     </div>
   </CTDSModal>;
+}
+
+function ArtifactVerification({ artifact, settings }) {
+  return <dl className="task-auto-facts" aria-label="개발 결과와 검증 상태">{automationArtifactStages(artifact, settings).map(stage => <div key={stage.label}><dt>{stage.label}</dt><dd><Badge tone={stage.tone}>{stage.stateLabel}</Badge></dd></div>)}</dl>;
 }
 
 export function TaskAutomationBoard({ projectId, request, role, notify, onDirty, onChanged, onSettings, onQuestions, onSourceRevision, initialTarget }) {
@@ -150,7 +155,7 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
         const sourceDrafts = status === 'todo' ? draftItems : [], count = column.length + sourceDrafts.length;
         return <section className={`task-auto-column${status === 'in_progress' && draggedId ? ' task-auto-drop-target' : ''}`} key={status} aria-label={label} onDragOver={event => { if (status === 'in_progress' && draggedTask.current && !startBusy) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={event => dropTask(event, status)}><header><h3>{label}</h3><Badge tone="quiet">{count}</Badge></header><div className="task-auto-cards">{sourceDrafts.map(item => <ControlButton type="button" variant="outline" layout="card" className="task-auto-card" key={`draft:${item.id}`} disabled={startBusy} onClick={() => setSelectedDraftId(item.id)}><span><Badge tone="amber">Nora 검증 전</Badge><strong>{item.title}</strong><small>{item.source_title} · 출처 기반 초안</small><small>{item.key}{item.depends_on?.length ? ` · 선행 작업 ${item.depends_on.length}개` : ''}</small></span></ControlButton>)}{column.map(task => {
           const startable = automationCanStart(task, permissions, remote.data?.capabilities);
-          return <div className="task-auto-card-group" key={`automation:${task.id}`}><ControlButton type="button" variant="outline" layout="card" className="task-auto-card" disabled={startBusy} draggable={startable && !startBusy} onDragStart={event => { if (!startable || startBusy) { event.preventDefault(); return; } draggedTask.current = task.id; setDraggedId(task.id); event.dataTransfer.setData('application/x-ains-automation-task', task.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => { draggedTask.current = null; setDraggedId(null); }} onClick={() => setSelectedId(task.id)}><span><strong>{task.title}</strong>{task.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}<small>{automationExecutionLabel(task)}</small><small>{status === 'qa' ? '미리보기·코드 확인 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(task.updated_at)} 갱신`}</small></span></ControlButton>{startable ? <Button type="button" variant="ghost" icon={ArrowRight} disabled={startBusy} aria-label={`${task.title} · 진행 중으로 이동하고 AI 개발 시작`} onClick={() => void start(task)}>진행 중으로 이동</Button> : null}</div>;
+          return <div className="task-auto-card-group" key={`automation:${task.id}`}><ControlButton type="button" variant="outline" layout="card" className="task-auto-card" disabled={startBusy} draggable={startable && !startBusy} onDragStart={event => { if (!startable || startBusy) { event.preventDefault(); return; } draggedTask.current = task.id; setDraggedId(task.id); event.dataTransfer.setData('application/x-ains-automation-task', task.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => { draggedTask.current = null; setDraggedId(null); }} onClick={() => setSelectedId(task.id)}><span><strong>{task.title}</strong>{task.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}<small>{automationExecutionLabel(task)}</small><small>{status === 'qa' ? '코드·자동 이력 확인 · 검증 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(task.updated_at)} 갱신`}</small></span></ControlButton>{startable ? <Button type="button" variant="ghost" icon={ArrowRight} disabled={startBusy} aria-label={`${task.title} · 진행 중으로 이동하고 AI 개발 시작`} onClick={() => void start(task)}>진행 중으로 이동</Button> : null}</div>;
         })}</div>{status === 'in_progress' && draggedId ? <p className="task-auto-help">여기에 놓으면 개발 시작을 확인합니다.</p> : !count ? <p className="task-auto-help">작업 없음</p> : null}</section>;
       })}</div>
       {drafts.data?.total ? <div className="inline-actions"><p className="task-auto-help">출처 기반 작업 초안 {draftItems.length} / {drafts.data.total}개 표시</p>{drafts.data.has_more ? <Button type="button" variant="secondary" busy={drafts.loading} onClick={() => drafts.load(true)}>작업 초안 더 불러오기</Button> : null}</div> : null}
@@ -186,7 +191,7 @@ function AutomationTaskDetail({ id, projectId, route, request, permissions, shar
   const remote = useAutomationResource(`${route}/tasks/${encodeURIComponent(id)}`, request, data => ['queued', 'running', 'merging'].includes(data.task?.execution_status));
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [note, setNote] = useState(''), [previewAck, setPreviewAck] = useState(false), [diffAck, setDiffAck] = useState(false);
   const [reviewedHead, setReviewedHead] = useState(null), [reconciling, setReconciling] = useState(false), confirm = useConfirm();
-  const task = remote.data?.task, artifact = task?.artifact, preview = automationPreviewUrl(artifact?.preview_url, settings?.preview_origins);
+  const task = remote.data?.task, artifact = task?.artifact, preview = automationPreviewUrl(artifact?.preview_url, settings?.preview_origins), refreshPending = useRef(false);
   const dirty = Boolean(note || previewAck || diffAck || busy);
   useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false); }, [dirty, onDirty]);
   useEffect(() => { setReviewedHead(artifact?.head_sha || null); setPreviewAck(false); setDiffAck(false); setNote(''); }, [artifact?.head_sha, artifact?.diff, artifact?.preview_url, artifact?.target_branch, artifact?.base_sha]);
@@ -195,25 +200,43 @@ function AutomationTaskDetail({ id, projectId, route, request, permissions, shar
   async function close() { if (!busy && (!dirty || await confirm('작성 중인 작업 검토 내용을 버리고 닫을까요?'))) onClose(); }
   async function openRelatedNote(noteId) { if (!busy && (!dirty || await confirm('작성 중인 작업 검토 내용을 버리고 기록을 열까요?'))) onOpenNote(noteId); }
   async function beginDevelopment() { if (!busy && automationCanStart(task, permissions, capabilities) && (!dirty || await confirm('작성 중인 작업 검토 내용을 버리고 개발을 시작할까요?'))) onStart(task); }
+  async function refreshArtifact() {
+    if (busy || refreshPending.current || sharedView || !automationCanRefreshArtifact(task, permissions)) return;
+    refreshPending.current = true; setBusy(true); setError(null);
+    try {
+      const result = await refreshAutomationArtifact({ request, taskPath: `${route}/tasks/${encodeURIComponent(id)}`, task, permissions });
+      if (!remote.lifecycle.current.active) return;
+      if (result.task) remote.setData(result);
+      setPreviewAck(false); setDiffAck(false);
+      await remote.load(); await onChanged('개발 결과의 PR·CI·웹 미리보기 상태를 갱신했습니다.');
+    } catch (err) { if (remote.lifecycle.current.active) { setError(err); await remote.load(); } }
+    finally { refreshPending.current = false; if (remote.lifecycle.current.active) setBusy(false); }
+  }
   async function mutate(suffix, body, method) {
     if (busy || sharedView) return; setBusy(true); setError(null);
     try { const result = await request(`${route}/tasks/${encodeURIComponent(id)}${suffix}`, { method, body }); if (!remote.lifecycle.current.active) return; if (result.task) remote.setData(result); setNote(''); setPreviewAck(false); setDiffAck(false); if (suffix === '/reconcile-merge') setReconciling(true); await remote.load(); await onChanged(suffix === '/reconcile-merge' ? '기존 병합 요청의 결과 확인을 요청했습니다.' : suffix ? '검토한 변경의 병합을 요청했습니다. 병합 결과를 확인하고 있습니다.' : '작업을 진행 중으로 옮기고 AI 개발을 요청했습니다.'); }
     catch (err) { if (remote.lifecycle.current.active) { setError(err); await remote.load(); } }
     finally { if (remote.lifecycle.current.active) setBusy(false); }
   }
-  const merge = automationMergeReadiness(task, capabilities, settings);
+  const merge = automationMergeReadiness(task, capabilities, settings), reportedChecks = automationReportedChecks(artifact, sharedView);
   return <Modal title={task?.title || 'AI 개발 작업'} eyebrow="정책 분석에서 생성한 작업" busy={busy} onClose={close} wide><div className="modal-body task-auto-detail"><ErrorNotice error={remote.error} onRetry={remote.load} /><ErrorNotice error={error || startError} />{!task ? remote.loading ? <Spinner /> : null : <>
     <div className="inline-actions"><Badge tone={AUTOMATION_COLUMNS.find(([status]) => status === task.status)?.[2]}>{AUTOMATION_COLUMNS.find(([status]) => status === task.status)?.[1] || '확인 필요'}</Badge>{task.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}<span>{automationExecutionLabel(task)}</span></div>
     <p>{task.description}</p><section><h3>완료 기준</h3><ul>{task.acceptance_criteria?.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul></section>
     {task.evidence?.length ? <Disclosure><summary>정책 원문 근거 · {task.evidence.length}개</summary>{task.evidence.map((evidence, index) => <blockquote key={index}><small>{evidence.segment_id}</small><p>{evidence.quote}</p></blockquote>)}</Disclosure> : null}
     {task.error_code ? <Notice tone="warning" title="작업 준비 상태를 확인해 주세요">{automationBlockerLabel(task.error_code)}</Notice> : null}
     {task.status === 'todo' && permissions.canWrite ? <><Button type="button" icon={ArrowRight} busy={busy} disabled={!automationCanStart(task, permissions, capabilities)} onClick={beginDevelopment}>진행 중으로 이동 · AI 개발 시작</Button>{capabilities?.development !== true ? <CapabilityNotice capabilities={capabilities} /> : null}</> : null}
-    {task.status === 'in_progress' && ['queued', 'running'].includes(task.execution_status) ? <Notice title="AI 개발 결과를 기다리고 있습니다">결과가 준비되면 검수 대기로 이동합니다. 검토 전에는 완료로 표시하지 않습니다.</Notice> : null}
-    {artifact?.pr_url ? <section><h3>개발 결과 검토</h3><dl className="task-auto-facts"><div><dt>병합 대상 브랜치</dt><dd>{artifact.target_branch || '확인 필요'}</dd></div><div><dt>변경 커밋</dt><dd><code>{artifact.head_sha || '확인 필요'}</code></dd></div><div><dt>기준 커밋</dt><dd><code>{artifact.base_sha || '확인 필요'}</code></dd></div></dl>
-      {!sharedView && preview ? <Button type="button" asChild variant="secondary"><a href={preview} target="_blank" rel="noopener noreferrer">웹 미리보기 열기<ExternalLink size={15} /></a></Button> : !sharedView ? <p>허용된 주소의 웹 미리보기가 아직 없습니다.</p> : null}
-      {!sharedView ? <Disclosure><summary>실제 코드 변경 내역</summary>{artifact.diff ? <pre className="task-auto-diff">{artifact.diff}</pre> : <p>코드 변경 내역이 아직 없습니다.</p>}</Disclosure> : <p className="task-auto-help">공유 화면에서는 코드 변경 내역과 외부 미리보기를 표시하지 않습니다.</p>}
-      <h3>검증 결과</h3>{artifact.checks?.length ? <ul>{artifact.checks.map((check, index) => <li key={index}>{check.name} · {{ passed: '통과', failed: '실패', pending: '확인 중' }[check.status] || '확인 필요'}</li>)}</ul> : <p>검증 결과가 없습니다.</p>}
+    {task.status === 'in_progress' && ['queued', 'running'].includes(task.execution_status) ? <Notice title="AI 개발 결과를 기다리고 있습니다">코드 변경안과 임시 구현 이력이 준비되면 먼저 검토할 수 있습니다. CI·웹 미리보기와 병합 여부는 별도로 확인합니다.</Notice> : null}
+    {automationHasCodeArtifact(artifact) ? <section className="ains-section-stack"><h3>개발 결과 검토</h3><ArtifactVerification artifact={artifact} settings={settings} />
+      {!sharedView && automationPrUrl(artifact) ? <Button type="button" asChild variant="secondary"><a href={automationPrUrl(artifact)} target="_blank" rel="noopener noreferrer">PR #{artifact.pr_number} 열기<ExternalLink size={15} /></a></Button> : null}
+      {artifact.evidence_status === 'unverified' ? <Notice tone="warning" title="코드 변경 근거를 확인해야 합니다">AI가 전달한 변경안입니다. 실제 파일·커밋과 일치하는지 확인되기 전에는 검증된 개발 결과로 처리하거나 병합할 수 없습니다.</Notice> : null}
+      <dl className="task-auto-facts"><div><dt>병합 대상 브랜치</dt><dd>{artifact.target_branch || '확인 필요'}</dd></div><div><dt>변경 커밋</dt><dd><code>{artifact.head_sha || '아직 확인되지 않음'}</code></dd></div><div><dt>기준 커밋</dt><dd><code>{artifact.base_sha || '확인 필요'}</code></dd></div></dl>
+      {!sharedView ? <Disclosure open><summary>{artifact.evidence_status === 'unverified' ? 'AI가 전달한 코드 변경안' : '코드 변경 내역'}</summary>{artifact.diff ? <pre className="task-auto-diff">{artifact.diff}</pre> : <p>코드 변경 내역이 아직 없습니다.</p>}</Disclosure> : <p className="task-auto-help">공유 화면에서는 코드 변경 내역과 외부 미리보기를 표시하지 않습니다.</p>}
+      <section><h4>CI·웹 미리보기</h4>{artifact.checks?.length ? <ul className="ains-prose-list">{artifact.checks.map((check, index) => <li key={index}>{check.name} · {{ passed: '통과', failed: '실패', pending: '확인 중', unavailable: '미연결' }[check.status] || '확인 필요'}</li>)}</ul> : <p>검증 결과가 아직 없습니다.</p>}
+        {!sharedView && preview ? <Button type="button" asChild variant="secondary"><a href={preview} target="_blank" rel="noopener noreferrer">웹 미리보기 열기<ExternalLink size={15} /></a></Button> : !sharedView ? <p className="task-auto-help">웹 미리보기가 준비되면 여기에서 열 수 있습니다. 코드 변경안과 자동 기록은 먼저 확인할 수 있습니다.</p> : null}
+      </section>
+      {automationCanRefreshArtifact(task, permissions) ? <div><Button type="button" variant="secondary" icon={RefreshCw} busy={busy} onClick={refreshArtifact}>PR·CI·미리보기 상태 갱신</Button><p className="task-auto-help">기존 개발 결과의 상태를 다시 조회합니다. AI 개발을 다시 실행하지 않습니다.</p></div> : null}
     </section> : null}
+    {reportedChecks.length ? <Disclosure><summary>AI가 보고한 실행 내역 · 독립 검증 전 · {reportedChecks.length}건</summary><p className="task-auto-help">AI가 보고한 명령과 출력입니다. 저장소의 CI 검증 결과와 별도로 보관하며, 병합 승인 조건에 포함하지 않습니다.</p><div className="ains-section-stack">{reportedChecks.map((check, index) => <article key={index}><p className="task-auto-help">실행 보고 {index + 1} · 보고한 종료 코드: {check.exitCodeLabel}</p><pre className="task-auto-diff"><code>{check.command}</code></pre>{check.output ? <pre className="task-auto-diff">{check.output}</pre> : <p className="task-auto-help">보고된 출력이 없습니다.</p>}</article>)}</div></Disclosure> : null}
     {artifact?.implementation_report ? <section><h3>구현 범위와 남은 작업</h3><Notice tone={artifact.implementation_report.completion === 'complete' ? 'neutral' : 'warning'} title={{ complete: '개발 결과 보고: 완료', partial: '개발 결과 보고: 부분 구현', blocked: '개발 결과 보고: 차단됨' }[artifact.implementation_report.completion] || '개발 결과 보고 확인 필요'}>개발 결과의 보고 상태입니다. 코드·미리보기·남은 공백을 사람이 확인한 뒤 병합을 결정합니다.</Notice>{artifact.implementation_report.remaining_criteria?.length ? <ul>{artifact.implementation_report.remaining_criteria.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul> : null}</section> : null}
     <RelatedImplementationNotes key={task.updated_at} projectId={projectId} request={request} taskId={id} onOpen={openRelatedNote} />
     {task.status === 'qa' ? <p className="task-auto-help">검수 대기는 모든 요구사항의 구현 완료를 뜻하지 않습니다. 위 임시 구현·작업 공백과 실제 코드 변경을 함께 검토하세요.</p> : null}
@@ -246,30 +269,59 @@ export function PolicyRiskAnalysis({ projectId, revisionId, sourceReady, request
   </section>;
 }
 
+function SdkExecutionSettings({ route, request, draft, setDraft, owner, disabled, onBusy }) {
+  const remote = useAutomationResource(owner ? `${route}/sdk-connections` : null, request, () => false);
+  const [requesting, setRequesting] = useState(false), [requestError, setRequestError] = useState(null), [requestNotice, setRequestNotice] = useState(null), pending = useRef(false);
+  const connections = automationSdkConnections(remote.data, draft.sdk_provider), selected = automationSdkSelectedConnection(connections, draft);
+  const selectedKey = selected ? automationSdkConnectionKey(selected) : '', unavailableKey = draft.sdk_working_folder ? 'saved-disconnected' : '';
+  useEffect(() => { onBusy?.(requesting); return () => onBusy?.(false); }, [requesting, onBusy]);
+  async function connect() {
+    if (!owner || disabled || pending.current) return;
+    let body; try { body = automationSdkConnectionRequest(draft); } catch (err) { setRequestError(err); return; }
+    pending.current = true; setRequesting(true); setRequestError(null); setRequestNotice(null);
+    try {
+      await request(`${route}/sdk-connections`, { method: 'POST', body });
+      if (!remote.lifecycle.current.active) return;
+      setRequestNotice('SDK 연결을 요청했습니다. Nora 데스크톱에서 실행 도구와 작업 폴더를 확인하고 승인한 뒤 연결 목록을 새로고침하세요.');
+      await remote.load();
+    } catch (err) {
+      if (remote.lifecycle.current.active) { setRequestError(err); setRequestNotice('연결 요청 결과를 확인하지 못했습니다. 다시 요청하기 전에 Nora 데스크톱과 연결 목록에서 접수 여부를 확인하세요.'); await remote.load(); }
+    } finally { pending.current = false; if (remote.lifecycle.current.active) setRequesting(false); }
+  }
+  return <section className="ains-section-stack" aria-label="Nora SDK 실행 연결">
+    <FormField label="개발 실행 도구"><Select value={draft.sdk_provider} disabled={disabled || requesting} onChange={event => { setRequestNotice(null); setDraft(current => ({ ...current, sdk_provider: event.target.value, sdk_connection_id: '', sdk_working_folder: '' })); }}><option value="">선택</option><option value="codex">Codex</option><option value="claude-code">Claude Code</option></Select></FormField>
+    <FormField label="Nora에 연결된 실행 환경"><Select value={selectedKey || unavailableKey} disabled={disabled || requesting || remote.loading} onChange={event => { const connection = connections.find(item => automationSdkConnectionKey(item) === event.target.value); if (connection) setDraft(current => ({ ...current, sdk_connection_id: connection.id || '', sdk_working_folder: connection.workingFolder })); }}><option value="">연결 선택</option>{unavailableKey && !selected ? <option value={unavailableKey} disabled>현재 작업 폴더 · 연결 확인 필요</option> : null}{connections.map(connection => <option key={automationSdkConnectionKey(connection)} value={automationSdkConnectionKey(connection)}>{connection.provider} · {connection.workingFolder}{connection.busy ? ' · 실행 중' : ''}</option>)}</Select></FormField>
+    <FormField label="저장소 작업 폴더" hint="Nora 데스크톱에서 이 프로젝트의 저장소를 읽고 작업할 절대 경로입니다. 연결된 폴더를 선택하거나 새 연결을 요청하세요."><Input value={draft.sdk_working_folder} disabled={disabled || requesting} maxLength={2000} onChange={event => { setRequestNotice(null); setDraft(current => ({ ...current, sdk_connection_id: '', sdk_working_folder: event.target.value })); }} placeholder="/Users/사용자/프로젝트" /></FormField>
+    {owner ? <><ErrorNotice error={remote.error || requestError} onRetry={remote.load} />{requestNotice ? <Notice title="Nora 데스크톱에서 연결 확인">{requestNotice}</Notice> : null}{remote.loading ? <Spinner label="Nora SDK 실행 연결을 확인하고 있습니다" /> : remote.data ? selected ? <Notice title={selected.busy ? 'SDK 실행 환경 사용 중' : 'SDK 실행 환경 연결됨'}>{selected.busy ? '다른 실행이 끝난 뒤 개발을 시작할 수 있습니다.' : '개발 시작 전에 프로젝트 저장소·브랜치·작업 폴더를 다시 확인합니다.'}</Notice> : <Notice tone="warning" title="Nora SDK 실행 환경을 연결해 주세요">아래에서 연결을 요청한 뒤 Nora 데스크톱에서 승인하세요. 실제 연결이 확인되어야 AI 개발을 시작할 수 있습니다.</Notice> : null}<div className="inline-actions"><Button type="button" variant="secondary" busy={requesting} disabled={disabled || Boolean(selected)} onClick={connect}>Nora SDK 연결 요청</Button><Button type="button" variant="secondary" icon={RefreshCw} busy={remote.loading} disabled={disabled || requesting} onClick={remote.load}>SDK 연결 새로고침</Button></div></> : <p className="task-auto-help">프로젝트 관리자만 SDK 실행 연결을 변경할 수 있습니다.</p>}
+  </section>;
+}
+
 export function TaskAutomationSettings({ project, request, notify, onDirty, disabled }) {
   const route = `${projectPath(project.id)}/task-automation`, remote = useAutomationResource(route, request, () => false);
   const flowRemote = useAutomationResource(`${projectPath(project.id)}/nora-workspace/flows`, request, () => false), flows = flowRemote.data?.flows?.filter(flow => flow.published === true);
-  const [draft, setDraft] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [sdkBusy, setSdkBusy] = useState(false);
   const sharedView = useSharedView(), owner = !sharedView && project.role === 'owner', settings = remote.data?.settings;
-  useEffect(() => { if (settings) setDraft({ enabled: settings.enabled, uncertainty_mode: automationUncertaintyMode(settings.uncertainty_mode), risk_flow_slug: settings.risk_flow_slug === 'ains-policy-risk-v1' ? '' : settings.risk_flow_slug || '', development_flow_slug: settings.development_flow_slug || '', preview_origins: (settings.preview_origins || []).join('\n') }); }, [settings]);
-  const initial = settings ? { enabled: settings.enabled, uncertainty_mode: automationUncertaintyMode(settings.uncertainty_mode), risk_flow_slug: settings.risk_flow_slug === 'ains-policy-risk-v1' ? '' : settings.risk_flow_slug || '', development_flow_slug: settings.development_flow_slug || '', preview_origins: (settings.preview_origins || []).join('\n') } : null;
+  useEffect(() => { if (settings) setDraft(automationSettingsDraft(settings)); }, [settings]);
+  const initial = settings ? automationSettingsDraft(settings) : null;
   const dirty = Boolean(draft && initial && Object.keys(initial).some(key => draft[key] !== initial[key]));
-  useEffect(() => { onDirty?.(dirty || busy); return () => onDirty?.(false); }, [dirty, busy, onDirty]);
+  useEffect(() => { onDirty?.(dirty || busy || sdkBusy); return () => onDirty?.(false); }, [dirty, busy, sdkBusy, onDirty]);
   async function save(event) {
-    event.preventDefault(); if (!owner || disabled || busy) return;
-    let origins; try { origins = parsePreviewOrigins(draft.preview_origins); } catch (err) { setError(err); return; }
+    event.preventDefault(); if (!owner || disabled || busy || sdkBusy) return;
+    let body; try { body = automationSettingsPayload(draft, settings.version); } catch (err) { setError(err); return; }
     setBusy(true); setError(null);
-    try { await request(`${route}/settings`, { method: 'PUT', body: { expected_version: settings.version, enabled: draft.enabled, uncertainty_mode: draft.uncertainty_mode, risk_flow_slug: draft.risk_flow_slug, development_flow_slug: draft.development_flow_slug || null, preview_origins: origins } }); if (remote.lifecycle.current.active) { await remote.load(); notify?.('정책 분석·AI 개발 연결을 저장했습니다.'); } }
+    try { await request(`${route}/settings`, { method: 'PUT', body }); if (remote.lifecycle.current.active) { await remote.load(); notify?.('정책 분석·AI 개발 연결을 저장했습니다.'); } }
     catch (err) { if (remote.lifecycle.current.active) setError(err); }
     finally { if (remote.lifecycle.current.active) setBusy(false); }
   }
-  const field = key => ({ value: draft[key], disabled: !owner || disabled || busy, onChange: event => setDraft(current => ({ ...current, [key]: event.target.value })) });
+  const field = key => ({ value: draft[key], disabled: !owner || disabled || busy || sdkBusy, onChange: event => setDraft(current => ({ ...current, [key]: event.target.value })) });
   return <section className="repository-check" aria-label="정책 분석·AI 개발 연결"><div className="settings-context-heading"><Sparkles size={19} /><h3>정책 분석·AI 개발</h3></div><ErrorNotice error={remote.error} onRetry={remote.load} />{!draft ? remote.loading ? <Spinner /> : null : <>
-    <CapabilityNotice capabilities={remote.data.capabilities} /><form onSubmit={save}><label className="checkbox-label"><Input type="checkbox" checked={draft.enabled} disabled={!owner || disabled || busy} onChange={event => setDraft(current => ({ ...current, enabled: event.target.checked }))} /><span>정책 분석·AI 개발 활성화</span></label>
+    <CapabilityNotice capabilities={remote.data.capabilities} /><form className="ains-section-stack" onSubmit={save}><label className="checkbox-label"><Input type="checkbox" checked={draft.enabled} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, enabled: event.target.checked }))} /><span>정책 분석·AI 개발 활성화</span></label>
       <Notice title="임시 구현은 작업을 시작할 때 확인합니다">고객 질문이나 확인할 내용이 남은 작업을 진행 중으로 옮기면 확인창을 표시합니다. 확인하면 AI가 개발을 시작하고, 임시로 구현한 내용과 남은 작업 공백을 자동으로 기록합니다.</Notice>
+      <FormField label="AI 개발 실행 방식"><Select value={draft.execution_mode} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, execution_mode: event.target.value, sdk_provider: event.target.value === 'nora_sdk' ? current.sdk_provider || 'codex' : current.sdk_provider }))}><option value="connector_api">GitHub 커넥터를 통한 개발</option><option value="nora_sdk">Nora SDK · Codex / Claude Code</option></Select></FormField>
+      {draft.execution_mode === 'nora_sdk' ? <SdkExecutionSettings route={route} request={request} draft={draft} setDraft={setDraft} owner={owner} disabled={!owner || disabled || busy} onBusy={setSdkBusy} /> : null}
       <ErrorNotice error={flowRemote.error} onRetry={flowRemote.load} />{[['risk_flow_slug', '정책 리스크 분석 흐름', '기본 Nora 리스크 분석 흐름 · 자동 준비'], ['development_flow_slug', 'AI 개발 흐름', '연결 필요']].map(([key, label, empty]) => <FormField label={label} key={key}><Select {...field(key)}><option value="">{empty}</option>{draft[key] && !flows?.some(flow => flow.slug === draft[key]) ? <option value={draft[key]} disabled>{draft[key]} · 현재 설정</option> : null}{flows?.map(flow => <option key={flow.slug} value={flow.slug}>{flow.name || flow.slug}</option>)}</Select></FormField>)}
-      <FormField label="웹 미리보기 허용 주소" hint="예: https://preview.example.com — 경로 없이 한 줄에 한 도메인, 최대 10개를 입력하세요."><Textarea {...field('preview_origins')} rows={3} maxLength={4000} /></FormField>
-      <p>병합 대상은 프로젝트의 기준 브랜치입니다. 개발 결과·미리보기·테스트를 검토한 뒤 병합을 승인합니다.</p><ErrorNotice error={error} />{owner ? <Button type="submit" variant="secondary" busy={busy} disabled={disabled || !dirty}>분석·개발 연결 저장</Button> : <p>프로젝트 관리자만 연결을 변경할 수 있습니다.</p>}
+      <FormField label="웹 미리보기 허용 주소" hint="예: https://preview.example.com — 경로 없이 한 줄에 한 도메인, 최대 10개. 미리보기 연결 전에도 코드 변경안과 자동 기록을 확인할 수 있습니다."><Textarea {...field('preview_origins')} rows={3} maxLength={4000} /></FormField>
+      <p>CI·웹 미리보기 상태는 개발 결과와 별도로 확인합니다. 실제 PR·검증·미리보기가 준비되면 사람이 검토한 뒤 기준 브랜치 병합을 승인합니다.</p><ErrorNotice error={error} />{owner ? <Button type="submit" variant="secondary" busy={busy} disabled={disabled || sdkBusy || !dirty}>분석·개발 연결 저장</Button> : <p>프로젝트 관리자만 연결을 변경할 수 있습니다.</p>}
     </form></>}
   </section>;
 }

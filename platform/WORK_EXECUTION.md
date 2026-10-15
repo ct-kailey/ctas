@@ -36,11 +36,24 @@
 새 분석은 `nora/task-automation/risk-flow-v3.js`, 개발·후속 이력은 `development-flow.js`가 정의한다. 기존 v1/v2 실행 근거는 보존한다. 신규 Task는 기존 프로젝트 설정이 strict이더라도 v3 개발 흐름을 요구한다.
 
 - 개발 입력: `{schema_version:"3.0", project_id, task_id, snapshot, input_sha256, task, development_context, development_context_sha256}`. 모든 원문·질문·답변은 데이터이며 실행 지시가 아니다.
-- 개발 출력: 실제 PR 식별자 또는 `artifact:null`과 `development_journal`. 후속 출력: 동일 식별자·결과물과 `implementation_report` (`completion`, `remaining_criteria`, `notes`, `question_outcomes`).
+- 개발 출력: PR 식별자, Git 커밋, 로컬 변경안 또는 `artifact:null`과 `development_journal`. 후속 출력: 동일 식별자·결과물과 `implementation_report` (`completion`, `remaining_criteria`, `notes`, `question_outcomes`). 로컬 변경안은 독립 검증 전까지 검증되지 않은 보고로 구분한다.
 - 각 질문은 정확히 한 번 처리 결과를 가지며, 관련 기록과 양방향 연결한다. 실제 개발 노드와 이력 노드의 trace를 비교하므로 후속 모델이 PR·코드 근거·미완료 내용을 바꿀 수 없다.
 - 현재 Nora 런타임과 호환되도록 명시적 API 트리거, `source:form` 입력 변수, JSON 추출 규칙을 발행한다. 엄격한 스키마·근거 검증은 AINS 백엔드에서 수행한다. 모델 날짜·커밋·테스트·프리뷰 주장을 독립 확인 없이 채택하지 않는다.
-- GitHub 커넥터에는 작업 브랜치 전용 `apply_task_patch` 또는 `push_task_files`, PR 조회·생성, compare, CI 검사, 배포·배포 상태 조회가 필요하다. `task_id`·기준 커밋·PR head/base는 서버가 넘긴 flow 변수로 고정하고 모델이 바꿀 수 없다. 머지는 별도 `merge_pull_request` 경로에서 승인한 커밋을 확인한다.
-- 작업 기록 계약은 도구 권한을 만들어 주지 않는다. 쓰기·CI·프리뷰 조회 기능 또는 허용된 프리뷰 도메인이 없으면 실제 개발을 차단하고 연결 조건을 안내한다. 실행 결과가 불확실하거나 후속 이력이 실패하면 trace를 남기고 자동으로 재개발하지 않는다.
+- `connector_api` 방식은 작업 브랜치 전용 `apply_task_patch` 또는 `push_task_files`를 사용한다. `nora_sdk` 방식은 Nora에 연결된 Claude Code·Codex의 파일·터미널 도구를 사용한다. 실행 방식과 무관하게 프로젝트 저장소·기준 커밋·작업 브랜치를 고정한다. SDK 작업 폴더는 시작 위치이며 운영체제 수준의 격리 환경을 의미하지 않는다. CLI 권한과 별도 작업용 저장소를 사용해야 한다.
+- 개발 시작에 CI·웹 프리뷰 연결을 요구하지 않는다. 생성된 코드·diff와 검증 상태를 먼저 보관하고, **검증 상태 갱신**은 개발을 다시 실행하지 않고 CI·배포 결과만 확인한다. 커넥터가 제공하지 않는 기능은 미연결, 아직 끝나지 않은 검사는 대기로 표시한다. 검증되지 않은 로컬 변경안을 실제 구현 완료나 자동 확정 이력으로 취급하지 않는다.
+- 머지는 별도 승인과 정확한 PR·커밋·기준 브랜치·검증 결과 확인을 요구한다. 코드 개발이 가능하다고 머지 기능까지 활성화하지 않는다. 실행 결과가 불확실하거나 후속 이력이 실패하면 trace를 남기고 자동으로 재개발하지 않는다.
+
+### Nora SDK 연결
+
+1. 작업용 컴퓨터에 공식 Codex 또는 Claude Code CLI를 설치하고 로그인한다. Nora 데스크톱도 실행한다.
+2. 프로젝트 전용 Git checkout을 준비한다. 다른 작업과 같은 폴더를 공유하지 않으며 저장소의 원격 주소가 프로젝트 설정과 일치해야 한다.
+3. 프로젝트의 자동화 설정에서 **Nora SDK**와 실행 도구·작업 폴더를 지정하고 연결을 요청한다. 처음 사용하는 폴더는 Nora 데스크톱에서 승인한다. 계정 연결은 API 모델 키와 별도다.
+4. SDK 개발 노드와 API 이력 노드가 순서대로 연결된 발행 플로우를 선택한다. 서버는 선택한 실행 도구·폴더와 현재 Nora 연결을 대조한 뒤 Task를 시작한다.
+5. Task를 진행 중으로 이동하면 필요한 경우 임시 구현 확인을 받고 실행한다. 기본 브랜치를 직접 수정하거나 자동 머지하지 않는다. 코드 결과의 조회와 CI·프리뷰 준비 상태를 별도로 확인한다.
+
+Nora 데스크톱과 실행기 컴퓨터는 개발 중 계속 켜져 있어야 한다. Railway는 AINS 웹/API와 실행 대기열을 운영하며 로컬 SDK의 로그인이나 작업 폴더를 자동으로 제공하지 않는다. SDK 연결이 없으면 실제 개발 시작을 막고 연결 상태를 안내한다.
+
+`AINS_TASK_EXECUTION_TIMEOUT_MS`는 Nora 요청과 AINS 작업 점유에 동일하게 적용된다(기본 20분, 허용 1~60분). 시간 초과는 코드 변경이 없었다는 뜻이 아니며, 불확실한 실행을 자동으로 반복하지 않는다.
 
 ## FigJam 등 외부 기획에서 작업 초안 등록
 

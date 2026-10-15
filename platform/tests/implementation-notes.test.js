@@ -141,6 +141,16 @@ test('implementation archive preserves exact evidence, roles, CAS, idempotency a
     assert.equal((await service.get(p,users.viewer,linkedId)).note.status,'feedback_received');
     assert.equal(update.note.origin,'nora','human feedback does not change original provenance');
   });
+  await t.test('feedback preserves verified code commits before a PR or preview exists',async()=>{
+    const aid=await analysis(p,policy.id),tid=await task(p,policy.id,aid);
+    const artifact={kind:'git_commit',evidence_status:'verified',head_sha:'b'.repeat(40),base_sha:'a'.repeat(40),target_branch:'main',preview_url:null,pr_number:null,pr_url:null,diff:'not included in the followup snapshot'};
+    await pool.query('UPDATE automation_tasks SET artifact=$2 WHERE id=$1',[tid,artifact]);
+    const row=(await service.create(p,users.owner,{...note(policy.id),automation_task_id:tid})).note;
+    await service.feedback(p,users.member,row.id,{request_id:randomUUID(),expected_version:1,text:'임시 구현된 기간 설정을 보완해 주세요.'});
+    const frozen=await transaction(pool,db=>getFollowupInput(db,{projectId:p,noteId:row.id,actorId:users.member,expectedVersion:2}));
+    assert.deepEqual(frozen.feedback.original_task.artifact,{kind:'git_commit',head_sha:artifact.head_sha,base_sha:artifact.base_sha,target_branch:'main',preview_url:null});
+    assert.equal((await service.get(p,users.viewer,row.id)).note.status,'feedback_received');
+  });
   await t.test('manual draft associations preserve draft context and reject a different source',async()=>{
     const drafts=createTaskDrafts({pool}),batch=await drafts.create(p,users.member,{request_id:randomUUID(),revision_id:policy.id,tasks:[{key:'GAP',title:'설정 표시',description:'설정 표시를 검토한다.',acceptance_criteria:['설정이 표시된다.'],evidence:note().evidence}]});
     const row=(await service.create(p,users.member,{...note(policy.id),task_draft_id:batch.items[0].id})).note;

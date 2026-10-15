@@ -34,6 +34,9 @@ test('task automation HTTP preserves role, project, shared-view and exact-commit
       [role + '@task-automation-http.test', role, 'unused'])).rows[0].id;
   }
   const provider = {
+    async sdkConnections(input){return {connections:[],requests:[]};},
+    async connectSdk(input){assert.equal(input.projectId,p);assert.equal(input.workspaceId,(await pool.query('SELECT workspace_id FROM project_nora_workspaces WHERE project_id=$1',[p])).rows[0].workspace_id);return {id:'request-synthetic',status:'pending'};},
+    async refreshArtifact(input){return {...input.artifact,ci_status:'passed',preview_status:'passed',verification_status:'passed'};},
     async capabilities() { return { risk_analysis: true, development: true, merge: true, blockers: [] }; },
     async analyzeRisk(input) {
       calls.push(['risk', input]);
@@ -124,6 +127,12 @@ test('task automation HTTP preserves role, project, shared-view and exact-commit
     assert.equal(calls.filter(c => c[0] === 'risk').length, 1);
     await request(otherPath + '/tasks/' + task.id, { status: 404, code: 'TASK_NOT_FOUND' });
   });
+  await t.test('SDK connection requests are owner-only, project-bound and reject caller-supplied workspace',async()=>{
+    for(const as of ['reviewer','member','viewer']){await request(path+'/sdk-connections',{as,status:403,code:'FORBIDDEN'});await request(path+'/sdk-connections',{method:'POST',as,body:{provider:'codex',working_folder:'/tmp/http-sdk'},status:403,code:'FORBIDDEN'});}
+    assert.deepEqual((await request(path+'/sdk-connections')).connections,[]);
+    await request(path+'/sdk-connections',{method:'POST',body:{provider:'codex',working_folder:'/tmp/http-sdk',workspace:'t_foreign'},status:400});
+    const response=await request(path+'/sdk-connections',{method:'POST',body:{provider:'codex',working_folder:'/tmp/http-sdk'},status:202});assert.equal(response.request.status,'pending');
+  });
   await t.test('member start queues one development; rejected or direct completion requests dispatch nothing', async () => {
     const target = path + '/tasks/' + task.id, body = { expected_version: task.version, status: 'in_progress' };
     await request(target, { method: 'PATCH', body, as: 'viewer', status: 403, code: 'FORBIDDEN' });
@@ -142,6 +151,11 @@ test('task automation HTTP preserves role, project, shared-view and exact-commit
     assert.ok(task.artifact.diff);
     assert.equal((await request(path)).tasks[0].artifact.diff, undefined);
     assert.equal(calls.filter(c => c[0] === 'develop').length, 1);
+  });
+  await t.test('verification refresh is a member action with CSRF and never dispatches development',async()=>{
+    const target=path+'/tasks/'+task.id+'/refresh-artifact',body={expected_version:task.version};
+    await request(target,{method:'POST',as:'viewer',body,status:403,code:'FORBIDDEN'});await request(target,{method:'POST',body,headers:{...sessions.member,'X-CSRF-Token':'invalid'},status:403,code:'CSRF_REJECTED'});
+    const count=calls.filter(c=>c[0]==='develop').length;task=(await request(target,{method:'POST',as:'member',body})).task;assert.equal(task.artifact.verification_status,'passed');assert.equal(calls.filter(c=>c[0]==='develop').length,count);
   });
   await t.test('shared view strips diff and never inherits writes from an existing owner session', async () => {
     const link = await request('/api/shared-views', { method: 'POST', body: { project_ids: [p], label: '합성 공유 검증', expires_in_hours: 1, source_user_id: users.owner }, status: 201 });

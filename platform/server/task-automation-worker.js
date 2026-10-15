@@ -50,7 +50,7 @@ function createTaskAutomationWorker({pool,provider={},pollMs=3000,timeoutMs=3000
       catch(error){if(row.execution_context&&['TASK_SOURCE_STALE','TASK_FEEDBACK_STALE'].includes(error.code))freshnessCode=error.code;else throw error;}
       // A changed planning context prevents approval; it must not erase code
       // and implementation history that was already produced from the snapshot.
-      const report=artifact.implementation_report,status=freshnessCode||report?.completion==='blocked'||row.execution_context&&(!artifact.preview_url||artifact.checks?.some(c=>c.status!=='passed'))?'blocked':'qa';
+      const report=artifact.implementation_report,status=freshnessCode||(report||artifact.reported_implementation_report)?.completion==='blocked'?'blocked':'qa';
       if(report){
         const executionContexts=Object.fromEntries(report.notes.map(n=>[A.stableId(job.id,row.id,'development-note',n.id),{
           contract_version:'1.0',operation_id:job.id,development_context_sha256:row.execution_context_sha256,
@@ -63,10 +63,10 @@ function createTaskAutomationWorker({pool,provider={},pollMs=3000,timeoutMs=3000
         }]));
         await noteArchive.appendNoraNotes(db,{projectId:row.project_id,actorId:job.created_by,sourceRevisionId:row.input_snapshot.source.revision_id,analysisId:row.analysis_id,traceId:artifact.trace_id,executionContexts,notes:report.notes.map(n=>({...riskV2.noteSnapshot(n),request_id:A.stableId(job.id,row.id,'development-note',n.id),automation_task_id:row.id}))});
       }
-      await db.query("UPDATE automation_tasks SET status=$3,execution_status='ready',artifact=$2,error_code=$5,execution_trace_id=$4,version=version+1,updated_at=now() WHERE id=$1",[row.id,artifact,status,artifact.trace_id,freshnessCode]);await completeJob(db,job);await A.audit(db,row.project_id,job.created_by,status==='qa'?'review_ready':'development_blocked',row.id,{head_sha:artifact.head_sha,pr_number:artifact.pr_number,completion:report?.completion||'complete',...(freshnessCode?{error_code:freshnessCode}:{})});return {id:job.id,status:'succeeded',task_status:status};});
+      await db.query("UPDATE automation_tasks SET status=$3,execution_status='ready',artifact=$2,error_code=$5,execution_trace_id=$4,version=version+1,updated_at=now() WHERE id=$1",[row.id,artifact,status,artifact.trace_id,freshnessCode]);await completeJob(db,job);await A.audit(db,row.project_id,job.created_by,status==='qa'?'review_ready':'development_blocked',row.id,{head_sha:artifact.head_sha,pr_number:artifact.pr_number,completion:(report||artifact.reported_implementation_report)?.completion||'complete',...(artifact.evidence_status?{evidence_status:artifact.evidence_status}:{}),...(freshnessCode?{error_code:freshnessCode}:{})});return {id:job.id,status:'succeeded',task_status:status};});
   }
   async function mergeResult(job,row,result) {
-    return transaction(pool,async db=>{await A.lock(db,row.project_id);await owned(db,job);const current=await A.task(db,row.project_id,row.id,true);if(hash(current.artifact)!==current.review?.artifact_sha256||current.review.head_sha!==result.head_sha)A.fail('TASK_REVIEW_STALE','승인한 변경 내역과 병합 결과가 다릅니다.');await db.query("UPDATE automation_tasks SET status='done',execution_status='ready',merge_result=$2,error_code=NULL,version=version+1,updated_at=now() WHERE id=$1",[row.id,result]);await completeJob(db,job);await A.audit(db,row.project_id,job.created_by,'merged',row.id,result);return {id:job.id,status:'succeeded',task_status:'done'};});
+    return transaction(pool,async db=>{await A.lock(db,row.project_id);await owned(db,job);const current=await A.task(db,row.project_id,row.id,true);if(hash(A.effectiveArtifact(current))!==current.review?.artifact_sha256||current.review.head_sha!==result.head_sha)A.fail('TASK_REVIEW_STALE','승인한 변경 내역과 병합 결과가 다릅니다.');await db.query("UPDATE automation_tasks SET status='done',execution_status='ready',merge_result=$2,error_code=NULL,version=version+1,updated_at=now() WHERE id=$1",[row.id,result]);await completeJob(db,job);await A.audit(db,row.project_id,job.created_by,'merged',row.id,result);return {id:job.id,status:'succeeded',task_status:'done'};});
   }
   async function execute(job,signal) {
     let dispatched=false,returned=false,observedTrace=null;
@@ -75,7 +75,7 @@ function createTaskAutomationWorker({pool,provider={},pollMs=3000,timeoutMs=3000
       const row=job.kind==='risk'?(await pool.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND id=$2',[job.project_id,job.analysis_id])).rows[0]:await A.task(pool,job.project_id,job.task_id);
       if(!row)A.fail('TASK_NOT_FOUND','실행할 작업을 찾을 수 없습니다.');
       if(job.kind==='develop')provisional.assertExecutionContext(row);
-      if(job.kind!=='reconcile_merge')await A.assertFresh(pool,job.project_id,row.input_snapshot,row.input_sha256,{development:job.kind!=='risk'});
+      if(job.kind!=='reconcile_merge')await A.assertFresh(pool,job.project_id,row.input_snapshot,row.input_sha256,{development:job.kind!=='risk',verification:job.kind==='merge',profile:row.execution_context?.execution_profile});
       const ready=(await pool.query('SELECT workspace_id,status FROM project_nora_workspaces WHERE project_id=$1',[job.project_id])).rows[0];
       if(ready?.workspace_id!==row.input_snapshot.nora.workspace_id||ready.status!=='ready')return finishError(job,'awaiting_connection','TASK_CONNECTION_REQUIRED');
       const c=await A.capabilities(provider,job.project_id,pool),config=await A.settings(pool,job.project_id);
@@ -83,6 +83,8 @@ function createTaskAutomationWorker({pool,provider={},pollMs=3000,timeoutMs=3000
       const common={projectId:job.project_id,workspaceId:ready.workspace_id,requestId:job.kind==='risk'?row.id:job.id,snapshot:row.input_snapshot,snapshotHash:row.input_sha256,settings:config,signal};
       if(job.kind==='risk') {dispatched=true;const raw=await provider.analyzeRisk(common);returned=true;observedTrace=raw.trace_id;const result=(row.input_snapshot.schema_version==='3.0'?riskV3:row.input_snapshot.schema_version==='2.0'?riskV2:require('../../nora/task-automation/risk-flow')).validateRiskResult(raw,row.input_snapshot,row.input_sha256);if(!result.trace_id)A.fail('TASK_RISK_TRACE_REQUIRED','Nora 분석 실행 이력이 필요합니다.');return await riskResult(job,row,result);}
       if(job.kind==='develop') {dispatched=true;const raw=await provider.develop({...common,taskId:row.id,developmentContext:row.execution_context,task:{id:row.id,title:row.title,description:row.description,acceptance_criteria:row.acceptance_criteria,evidence:row.evidence}});returned=true;observedTrace=raw.trace_id;return await artifactResult(job,row,A.validateArtifact(raw,row));}
+      row.artifact=A.effectiveArtifact(row);
+      if(job.kind==='merge'&&hash(A.artifactVerificationPolicy(row))!==hash(A.verificationPolicy(config,row.execution_context?.execution_profile?A.executionProfile(config):null)))A.fail('TASK_VERIFICATION_STALE','승인 후 검증 설정이 변경되었습니다.');
       if(!row.review||hash(row.artifact)!==row.review.artifact_sha256||row.review.head_sha!==row.artifact.head_sha)A.fail('TASK_REVIEW_STALE','승인한 변경 내역을 확인할 수 없습니다.');
       const args={...common,taskId:row.id,artifact:row.artifact,expectedHeadSha:row.review.head_sha,targetBranch:row.review.target_branch,operationId:job.payload.operation_id||job.id};
       dispatched=true;const result=job.kind==='merge'?await provider.merge(args):await provider.reconcileMerge(args);returned=true;

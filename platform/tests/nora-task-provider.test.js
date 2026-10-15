@@ -23,6 +23,7 @@ function fixture(options={}){
   if(options.v2||options.v3){snapshot.schema_version=options.v3?'3.0':'2.0';snapshot.automation.uncertainty_mode=options.v3?'per_task':'provisional';snapshot.feedback=null;snapshot.implementation_notes=[];}
   const input={projectId:PROJECT,workspaceId:WORKSPACE,snapshot,snapshotHash:HASH,settings:{...snapshot.automation},taskId:'task_fixture',task:{title:'이메일 로그인'},expectedHeadSha:HEAD,targetBranch:'main'};
   if(options.v3){input.developmentContext={contract_version:'1.0',provisional_authorized:false,confirmed_at:new Date().toISOString(),questions:[]};input.task.acceptance_criteria=['이메일 로그인이 가능하다.'];}
+  if(options.sdk)Object.assign(input.settings,{execution_mode:'nora_sdk',sdk_provider:'codex',sdk_connection_id:'sdk-fixture',sdk_working_folder:'/tmp/ctas-sdk'});
   const artifact={pr_number:1,head_sha:HEAD,base_sha:BASE,preview_url:'https://preview.example/app'};input.artifact=artifact;
   const riskResult={schema_version:'1.0',project_id:PROJECT,request_id:snapshot.request_id,input_sha256:HASH,risks:[],questions:[],tasks:[{title:'이메일 로그인',description:'이메일 로그인 기능 제공',acceptance_criteria:['이메일 로그인이 가능하다.'],evidence:[{segment_id:'seg-1',quote:'이메일 로그인 기능을 제공한다.'}]}]};
   if(options.v2||options.v3){riskResult.schema_version=options.v3?'3.0':'2.0';riskResult.temporary_decisions=[];riskResult.work_gaps=[];}
@@ -30,11 +31,13 @@ function fixture(options={}){
   const pool={query:async(sql,args)=>{assert.ok(sql.includes('project_nora_workspaces'));assert.equal(args[0],PROJECT);return {rows:[row]};}};
   const calls=[],invocations=[],flows=new Map();let raw,request,merged=false;
   function fullFlow(slug){return {id:slug,payload:buildRiskFlow({projectId:PROJECT,spaceId:SPACE,slug}).payload,publishState:{publishedVersionId:'version-1',hasUnpublishedChanges:false}};}
-  const dev=fullFlow('development-flow');if(options.v3)dev.payload=require('../../nora/task-automation/development-flow').buildDevelopmentFlow({projectId:PROJECT,repositoryUrl:'https://github.com/acme/demo',baseBranch:'main',connectorId:'connector_fixture',slug:'development-flow',operations:[]}).payload;Object.assign(dev.payload.meta,{ains_repository_url:'https://github.com/acme/demo.git',ains_default_branch:'main'});options.customDevelopment?.(dev);flows.set('development-flow',dev);
+  const dev=fullFlow('development-flow');if(options.v3)dev.payload=require('../../nora/task-automation/development-flow').buildDevelopmentFlow({projectId:PROJECT,repositoryUrl:'https://github.com/acme/demo',baseBranch:'main',connectorId:'connector_fixture',slug:'development-flow',operations:[]}).payload;Object.assign(dev.payload.meta,{ains_repository_url:'https://github.com/acme/demo.git',ains_default_branch:'main'});if(options.sdk){Object.assign(dev.payload.meta,{ains_execution_mode:'nora_sdk',ains_sdk_provider:'codex',ains_sdk_connection_id:'sdk-fixture',ains_sdk_working_folder:'/tmp/ctas-sdk'});Object.assign(dev.payload.agents[0],{mode:'sdk',sdkProvider:'codex',nativeTools:[]});}options.customDevelopment?.(dev);flows.set('development-flow',dev);
   if(options.customRisk){input.settings.risk_flow_slug='custom-risk';const full=fullFlow('custom-risk');options.customRisk(full);flows.set('custom-risk',full);}
   const provider={callTool:async call=>{
     assert.equal(call.projectId,PROJECT);assert.equal(call.workspaceId,WORKSPACE);calls.push(call);
     const {name,arguments:args}=call;
+    if(name==='get_local_sdk_connections'){const connection={id:'sdk-fixture',provider:'codex',workingFolder:'/tmp/ctas-sdk',connected:true,busy:false};options.sdkConnection?.(connection,calls.filter(c=>c.name===name).length);return {connections:options.noSdk?[]:[connection]};}
+    if(name==='connect_local_sdk')return {id:'request-fixture',provider:args.provider,workingFolder:args.workingFolder,status:'pending'};
     if(name==='list_flows')return [...flows.values()].map(f=>({id:f.id,name:f.id}));
     if(name==='apply_flow'){assert.equal(args.expectedRevision,'0');assert.ok(!flows.has(args.slug));flows.set(args.slug,{id:args.slug,payload:structuredClone(args.payload),publishState:{hasUnpublishedChanges:true}});return {id:args.slug};}
     if(name==='publish_flow'){const f=flows.get(args.slug);f.publishState={publishedVersionId:'version-1',hasUnpublishedChanges:false};options.afterPublish?.(f);return {versionId:'version-1'};}
@@ -48,13 +51,16 @@ function fixture(options={}){
     if(name==='get_trace'){const trace={traceId:TRACE,status:'completed',payload:{tenant_id:WORKSPACE,graph_slug:calls.findLast(c=>c.name==='run_flow').arguments.slug,flow_input:JSON.stringify(request),flow_output:raw.output}};if(options.v3&&trace.payload.graph_slug==='development-flow'){const [dev,history]=flows.get('development-flow').payload.agents,final=JSON.parse(raw.output),journal={...structuredClone(final),development_journal:structuredClone(final.implementation_report)};delete journal.implementation_report;options.journal?.(journal);const at=new Date(Date.now()-1000).toISOString();trace.payload.nodes={[dev.id]:{id:dev.id,kind:'agent',status:'completed',started_at:at,completed_at:at,result:JSON.stringify(journal)},[history.id]:{id:history.id,kind:'agent',status:'completed',parent_node_id:dev.id,started_at:at,result:raw.output,tool_calls:[]}};}options.trace?.(trace);return trace;}
     throw new Error('Unexpected tool '+name);
   }};
-  const operationParams={apply_task_patch:['task_id','expected_base_sha','patch'],get_pull_request:['pull_number'],list_check_runs:['ref'],list_deployments:['sha'],list_deployment_statuses:['deployment_id'],compare:['base','head'],merge_pull_request:['pull_number','sha','expected_base_sha','merge_method']};
+  const operationParams={list_pull_requests:['state','head','base'],list_commits:['branch','per_page'],get_commit:['sha'],apply_task_patch:['task_id','expected_base_sha','patch'],get_pull_request:['pull_number'],list_check_runs:['ref'],list_deployments:['sha'],list_deployment_statuses:['deployment_id'],compare:['base','head'],merge_pull_request:['pull_number','sha','expected_base_sha','merge_method']};
   const operations=new Map(Object.entries(operationParams).map(([id,params])=>[id,{id,params:['repo',...params]}]));
   for(const key of options.omitOperations||[])operations.delete(key);
   const gitSnapshot={row,settings:{base_branch:'main',version:1},repo:{url:'https://github.com/acme/demo.git'},fullName:'acme/demo',operations};
   let snapshotCount=0;const git={snapshot:async p=>{assert.equal(p,PROJECT);options.gitSnapshot?.(gitSnapshot,++snapshotCount);return gitSnapshot;},head:async()=>options.baseChanged?'f'.repeat(40):BASE,unchanged:async()=>{},invoke:async(s,operation,args)=>{
     invocations.push({operation,args});let value;
-    if(operation==='get_pull_request')value={number:1,html_url:'https://github.com/acme/demo/pull/1',head:{sha:HEAD,ref:'ains/task/task_fixture',repo:{full_name:'acme/demo'}},base:{ref:'main',sha:BASE,repo:{full_name:'acme/demo'}},state:merged?'closed':'open',draft:false,merged,merge_commit_sha:merged?MERGE:null};
+    if(operation==='list_pull_requests')value=[{number:1,url:'https://github.com/acme/demo/pull/1'}];
+    else if(operation==='list_commits')value=[{sha:HEAD,url:'https://github.com/acme/demo/commit/'+HEAD}];
+    else if(operation==='get_commit')value={sha:HEAD,url:'https://github.com/acme/demo/commit/'+HEAD,files:[{filename:'src/app.js',patch:'@@ -1 +1 @@\n-old\n+new'}]};
+    else if(operation==='get_pull_request')value={number:1,html_url:'https://github.com/acme/demo/pull/1',head:{sha:HEAD,ref:'ains/task/task_fixture',repo:{full_name:'acme/demo'}},base:{ref:'main',sha:BASE,repo:{full_name:'acme/demo'}},state:merged?'closed':'open',draft:false,merged,merge_commit_sha:merged?MERGE:null};
     else if(operation==='list_check_runs')value={total_count:1,check_runs:[{head_sha:HEAD,status:'completed',conclusion:'success',name:'test'}]};
     else if(operation==='list_deployments')value=[{id:10,sha:HEAD}];
     else if(operation==='list_deployment_statuses')value=[{state:'success',environment_url:artifact.preview_url}];
@@ -178,4 +184,67 @@ test('current Nora flowRun envelope and server-fixed execution variables are han
 });
 test('v3 writing tools must fix task and base scope to declared server variables',async()=>{
  for(const change of [t=>t.params.find(p=>p.name==='task_id').source='llm',t=>t.params.find(p=>p.name==='expected_base_sha').fixedValue='another-sha']){const f=fixture({v3:true,customDevelopment:flow=>{const p=require('../../nora/task-automation/development-flow').buildDevelopmentFlow({projectId:PROJECT,repositoryUrl:'https://github.com/acme/demo',baseBranch:'main',connectorId:'connector_fixture',slug:'development-flow',operations:[{id:'apply_task_patch',params:['repo','task_id','expected_base_sha','patch']}]}).payload;change(p.toolBlocks[0]);flow.payload=p;}});await assert.rejects(f.service.develop(f.input),{code:'NORA_DEVELOPMENT_FLOW_SCOPE_REQUIRED',noSideEffects:true});assert.equal(f.calls.some(c=>c.name==='run_flow'),false);}
+});
+
+
+test('development starts without CI or preview capabilities and retains verified code before unavailable checks',async()=>{
+ const f=fixture({v3:true,omitOperations:['list_check_runs','list_deployments','list_deployment_statuses']});f.input.settings.preview_origins=[];
+ const c=await f.service.capabilities(f.input);assert.equal(c.development,true);assert.equal(c.ci,false);assert.equal(c.preview,false);assert.equal(c.merge,false);
+ const result=await f.service.develop(f.input);assert.equal(result.artifact.evidence_status,'verified');assert.equal(result.artifact.ci_status,'unavailable');assert.equal(result.artifact.preview_status,'unavailable');assert.ok(result.artifact.diff);assert.equal(f.invocations.some(i=>i.operation==='list_check_runs'||i.operation==='list_deployments'),false);
+ const count=f.calls.filter(c=>c.name==='run_flow').length;const refreshed=await f.service.refreshArtifact({...f.input,artifact:result.artifact});assert.equal(refreshed.diff,result.artifact.diff);assert.equal(f.calls.filter(c=>c.name==='run_flow').length,count);
+});
+test('normalized Nora compare binds exact repository refs, full commits and file evidence',()=>{
+ const {comparisonEvidence}=require('../server/nora-task-provider'),s={fullName:'acme/demo'},data={url:`https://github.com/acme/demo/compare/${BASE}...${HEAD}`,status:'ahead',ahead_by:1,behind_by:0,commits:[{sha:HEAD,url:`https://github.com/acme/demo/commit/${HEAD}`}],files:[{filename:'src/app.js',patch:'@@ -1 +1 @@\n-old\n+new'}]};
+ assert.deepEqual(comparisonEvidence(data,s,BASE,HEAD).changed_files,['src/app.js']);
+ for(const modify of [d=>d.url+='?other=1',d=>d.url=d.url.replace('acme','other'),d=>d.behind_by=1,d=>d.ahead_by=2,d=>d.commits[0].sha=BASE,d=>d.files[0].filename='../other',d=>d.files[0].previous_filename='/etc/passwd']){const changed=structuredClone(data);modify(changed);assert.throws(()=>comparisonEvidence(changed,s,BASE,HEAD),{code:'NORA_TASK_DIFF_UNVERIFIED'});}
+});
+test('SDK runs with one project-bound developer and API history while requiring an actual connection',async()=>{
+ const f=fixture({v3:true,sdk:true,omitOperations:['apply_task_patch','list_check_runs','list_deployments','list_deployment_statuses']});assert.equal((await f.service.capabilities(f.input)).development,true);const result=await f.service.develop(f.input);assert.ok(result.artifact.diff);
+ const scope=f.calls.find(c=>c.name==='run_flow').arguments.variables.automation_request.sdk_execution_context;assert.equal(scope.working_folder,'/tmp/ctas-sdk');assert.equal(scope.task_branch,'ains/task/'+f.input.taskId);assert.equal(scope.base_sha,BASE);
+ for(const sdkConnection of [c=>c.connected=false,c=>delete c.connected,c=>c.busy=true,c=>c.provider='claude-code',c=>c.workingFolder='/tmp/other',c=>c.workspace='/tmp/other']){const wrong=fixture({v3:true,sdk:true,sdkConnection});assert.equal((await wrong.service.capabilities(wrong.input)).development,false);await assert.rejects(wrong.service.develop(wrong.input));assert.equal(wrong.calls.some(c=>c.name==='run_flow'),false);}
+ const pending=fixture({v3:true,sdk:true,noSdk:true});assert.equal((await pending.service.capabilities(pending.input)).development,false);
+});
+test('SDK connection folder changes after execution invalidate attribution and retain trace for recovery',async()=>{
+ const f=fixture({v3:true,sdk:true,sdkConnection:(c,n)=>{if(n>=3)c.workingFolder='/tmp/changed';}});await assert.rejects(f.service.develop(f.input),{code:'NORA_SDK_CONNECTION_REQUIRED',noSideEffects:false,trace_id:TRACE});
+});
+test('SDK history cannot acquire native tools and selected runtime must match project settings',async()=>{
+ for(const customDevelopment of [f=>f.payload.agents[1].nativeTools=['Bash'],f=>f.payload.agents[1].mode='sdk',f=>f.payload.meta.ains_sdk_working_folder='/other',f=>f.payload.agents[0].sdkProvider='claude-code']){const f=fixture({v3:true,sdk:true,customDevelopment});await assert.rejects(f.service.develop(f.input));assert.equal(f.calls.some(c=>c.name==='run_flow'),false);}
+});
+
+
+test('SDK local patch is retained as unverified reported work, never fabricated remote evidence',async()=>{
+ const f=fixture({v3:true,sdk:true,output:r=>{r.artifact={kind:'local_patch',base_sha:BASE,patch:'diff --git a/src/app.js b/src/app.js\n--- a/src/app.js\n+++ b/src/app.js\n@@ -1 +1 @@\n-old\n+new',changed_files:['src/app.js']};}});
+ const result=await f.service.develop(f.input);assert.equal(result.artifact.kind,'local_patch');assert.equal(result.artifact.evidence_status,'unverified');assert.equal(result.artifact.pr_number,null);assert.equal(result.artifact.head_sha,null);assert.equal(result.artifact.verification_status,'unavailable');assert.equal(f.invocations.length,0);
+ await assert.rejects(f.service.merge({...f.input,artifact:result.artifact}),{code:'NORA_TASK_MERGE_SCOPE_MISMATCH'});
+});
+test('remote commit without PR is attributable only to the exact task branch and remains merge-blocked',async()=>{
+ const setup={v3:true,sdk:true,omitOperations:['get_pull_request','list_check_runs','list_deployments','list_deployment_statuses'],output:r=>{r.artifact={kind:'git_commit',base_sha:BASE,head_sha:HEAD};}};
+ const f=fixture(setup),result=await f.service.develop(f.input);assert.equal(result.artifact.kind,'git_commit');assert.equal(result.artifact.evidence_status,'verified');assert.equal(result.artifact.pr_number,null);assert.equal(result.artifact.verification_status,'unavailable');assert.equal(f.invocations.find(i=>i.operation==='list_commits').args.branch,'refs/heads/ains/task/'+f.input.taskId);
+ for(const gitResult of [(op,v)=>{if(op==='list_commits')v[0].sha=BASE;},(op,v)=>{if(op==='list_commits')v[0].url=v[0].url.replace('acme','other');}]){const wrong=fixture({...setup,gitResult});await assert.rejects(wrong.service.develop(wrong.input),{code:'NORA_TASK_BRANCH_UNVERIFIED'});}
+});
+test('SDK flow may bind provider/folder while per-run observed connection identity is still pinned',async()=>{
+ const f=fixture({v3:true,sdk:true,customDevelopment:f=>f.payload.meta.ains_sdk_connection_id=null});f.input.settings.sdk_connection_id=null;await f.service.develop(f.input);const request=f.calls.find(c=>c.name==='run_flow').arguments.variables.automation_request;assert.equal(request.sdk_execution_context.connection_id,'sdk-fixture');assert.ok(request.sdk_execution_commands.preflight);assert.ok(request.sdk_execution_commands.postflight);
+ const changed=fixture({v3:true,sdk:true,customDevelopment:f=>f.payload.meta.ains_sdk_connection_id=null,sdkConnection:(c,n)=>{if(n>=3)c.id='sdk-replaced';}});changed.input.settings.sdk_connection_id=null;await assert.rejects(changed.service.develop(changed.input),{code:'NORA_SDK_CONNECTION_CHANGED',noSideEffects:false});
+});
+test('published legacy API v3 schema hashes remain compatible while SDK requires new contract',async()=>{
+ const contract=require('../../nora/task-automation/development-flow'),hash=require('../server/context-contract').hash;
+ const customDevelopment=f=>{f.payload.meta.ains_development_schema_sha256=hash(contract.LEGACY_DEVELOPMENT_RESULT_SCHEMA);f.payload.meta.ains_history_schema_sha256=hash(contract.LEGACY_MODEL_RESULT_SCHEMA);};
+ const f=fixture({v3:true,customDevelopment});assert.ok((await f.service.develop(f.input)).artifact.diff);
+ const sdk=fixture({v3:true,sdk:true,customDevelopment});await assert.rejects(sdk.service.develop(sdk.input));assert.equal(sdk.calls.some(c=>c.name==='run_flow'),false);
+});
+
+
+test('read-only refresh promotes a verified task commit to its exact PR without re-executing the flow',async()=>{
+ const f=fixture({v3:true,sdk:true,output:r=>{r.artifact={kind:'git_commit',base_sha:BASE,head_sha:HEAD};}}),result=await f.service.develop(f.input);assert.equal(result.artifact.pr_number,null);const runs=f.calls.filter(c=>c.name==='run_flow').length;
+ const refreshed=await f.service.refreshArtifact({...f.input,artifact:result.artifact});assert.equal(refreshed.kind,'pull_request');assert.equal(refreshed.pr_number,1);assert.equal(refreshed.head_sha,result.artifact.head_sha);assert.equal(refreshed.diff,result.artifact.diff);assert.equal(f.calls.filter(c=>c.name==='run_flow').length,runs);
+ const listed=f.invocations.find(i=>i.operation==='list_pull_requests');assert.deepEqual(listed.args,{state:'open',head:'acme:ains/task/task_fixture',base:'main'});
+ for(const gitResult of [(op,v)=>{if(op==='list_pull_requests')v.push({number:2});},(op,v)=>{if(op==='get_pull_request')v.head.ref='ains/task/another';}]){const bad=fixture({v3:true,sdk:true,gitResult});await assert.rejects(bad.service.refreshArtifact({...bad.input,artifact:{...result.artifact}}));}
+});
+test('reported SDK command output is retained separately and never becomes passed CI',async()=>{
+ const reported=[{command:'npm test',exit_code:0,output:'AI reported output'}],f=fixture({v3:true,sdk:true,output:r=>{r.artifact={kind:'local_patch',base_sha:BASE,patch:'diff --git a/src/app.js b/src/app.js\n@@ -1 +1 @@\n-old\n+new',changed_files:['src/app.js'],reported_checks:reported};}});const result=await f.service.develop(f.input);assert.deepEqual(result.artifact.reported_checks,reported);assert.equal(result.artifact.ci_status,'unavailable');assert.equal(result.artifact.evidence_status,'unverified');
+});
+test('SDK metadata mismatches are reported by capability discovery before a task can start',async()=>{
+ for(const mismatch of [{ains_sdk_working_folder:'/another-project'},{ains_sdk_provider:'claude-code'},{ains_sdk_connection_id:'another-connection'}]){
+  const f=fixture({v3:true,sdk:true,customDevelopment:f=>Object.assign(f.payload.meta,mismatch)}),c=await f.service.capabilities(f.input);assert.equal(c.development,false);assert.ok(c.blockers.some(b=>b.code==='NORA_SDK_FLOW_SCOPE_REQUIRED'));assert.equal(f.calls.some(c=>c.name==='run_flow'),false);
+ }
 });

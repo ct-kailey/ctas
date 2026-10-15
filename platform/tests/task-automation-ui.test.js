@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const state = () => import('../web/src/task-automation-state.mjs');
-const artifact = () => ({ head_sha: 'a'.repeat(40), preview_url: 'https://preview.example.com/task/one', diff: '+ real change', checks: [{ name: 'Build', status: 'passed' }] });
+const artifact = () => ({ head_sha: 'a'.repeat(40), pr_number: 12, pr_url: 'https://github.com/team/project/pull/12', preview_url: 'https://preview.example.com/task/one', diff: '+ real change', checks: [{ name: 'Build', status: 'passed' }] });
 
 test('automated tasks retain server QA and merge states instead of optimistic completion', async () => {
   const { automationColumn, automationActive, automationExecutionLabel } = await state();
@@ -57,6 +57,13 @@ test('artifact preview links require the exact configured HTTPS origin', async (
   assert.equal(automationPreviewUrl('https://preview.example.com/task/one?mode=review', origins), 'https://preview.example.com/task/one?mode=review');
   for (const value of ['http://preview.example.com/task', 'https://preview.example.com.evil.test/task', 'https://user@preview.example.com/task', 'https://preview.example.com:444/task', '//preview.example.com/task', 'javascript:alert(1)']) assert.equal(automationPreviewUrl(value, origins), null);
   assert.equal(automationPreviewUrl('https://preview.example.com/task', []), null);
+});
+
+test('PR links require a GitHub pull request matching the returned PR number', async () => {
+  const { automationPrUrl } = await state();
+  assert.equal(automationPrUrl({ pr_number: 12, pr_url: 'https://github.com/team/project/pull/12' }), 'https://github.com/team/project/pull/12');
+  for (const pr_url of ['javascript:alert(1)', 'https://github.com.evil.test/team/project/pull/12', 'https://github.com/team/project/pull/13', 'https://github.com/team/project/pull/12?token=private']) assert.equal(automationPrUrl({ pr_number: 12, pr_url }), null);
+  assert.equal(automationPrUrl({ pr_number: null, pr_url: null }), null);
 });
 
 test('approval requires a real review artifact, all passed checks and server merge capability', async () => {
@@ -136,4 +143,101 @@ test('invalid or cross-task start checks fail closed instead of bypassing confir
   const { automationStartCheck } = await state();
   for (const value of [null, { ...startCheck(), task_id: 'other-task' }, { ...startCheck(), task_version: 0 }, { ...startCheck(), requires_confirmation: undefined }, { ...startCheck(), review_token: 'invalid' }]) assert.throws(() => automationStartCheck(value, 'task-1'), /확인 정보/);
   assert.deepEqual(automationStartCheck(startCheck(), 'task-1').work_gaps, []);
+});
+
+test('development evidence remains visible while CI and preview wait independently', async () => {
+  const { automationArtifactStages, automationExecutionLabel } = await state();
+  const result = { ...artifact(), pr_number: 12, pr_url: 'https://github.com/team/project/pull/12', evidence_status: 'verified', verification_status: 'pending', ci_status: 'passed', preview_status: 'pending', preview_url: null };
+  assert.deepEqual(automationArtifactStages(result, {}).map(({ label, status }) => [label, status]), [['코드 변경', 'passed'], ['PR', 'passed'], ['CI', 'passed'], ['웹 미리보기', 'pending']]);
+  assert.match(automationExecutionLabel({ status: 'qa', execution_status: 'ready', artifact: result }), /검증 확인/);
+  assert.deepEqual(automationArtifactStages({ ...result, ci_status: 'failed', preview_status: 'unavailable' }, {}).slice(2).map(stage => stage.status), ['failed', 'unavailable']);
+  assert.deepEqual(automationArtifactStages(null, {}), []);
+});
+
+test('an unverified local patch cannot become mergeable through reported passing checks', async () => {
+  const { automationMergeReadiness, automationArtifactStages, automationExecutionLabel } = await state();
+  const result = { ...artifact(), artifact_type: 'local_patch', evidence_status: 'unverified', pr_number: null, pr_url: null, verification_status: 'passed' };
+  const task = { status: 'qa', execution_status: 'ready', artifact: result };
+  const readiness = automationMergeReadiness(task, { merge: true }, { preview_origins: ['https://preview.example.com'] });
+  assert.equal(readiness.allowed, false);
+  assert.ok(readiness.reasons.some(reason => reason.includes('실제 코드 근거')));
+  assert.ok(readiness.reasons.some(reason => reason.includes('실제 PR')));
+  assert.equal(automationArtifactStages(result, {})[0].status, 'unverified');
+  assert.match(automationExecutionLabel(task), /근거 확인 필요/);
+});
+
+test('refreshing an existing artifact reads verification without starting development or merging', async () => {
+  const { refreshAutomationArtifact, automationCanRefreshArtifact, automationPermissions } = await state(), calls = [];
+  const task = { version: 7, status: 'qa', execution_status: 'ready', artifact: artifact() }, permissions = automationPermissions('member', null);
+  const response = { task: { ...task, version: 8 } };
+  assert.equal(await refreshAutomationArtifact({ task, permissions, taskPath: '/tasks/task-1', request: async (...args) => { calls.push(args); return response; } }), response);
+  assert.deepEqual(calls, [['/tasks/task-1/refresh-artifact', { method: 'POST', body: { expected_version: 7 } }]]);
+  assert.equal(automationCanRefreshArtifact({ ...task, status: 'blocked' }, permissions), true);
+  for (const badTask of [{ ...task, status: 'todo' }, { ...task, execution_status: 'running' }, { ...task, artifact: null }]) assert.equal(automationCanRefreshArtifact(badTask, permissions), false);
+  await assert.rejects(refreshAutomationArtifact({ task, permissions: automationPermissions('owner', { shared: true }), taskPath: '/tasks/task-1', request: async () => assert.fail('Shared view must not refresh') }), /상태/);
+  let tries = 0;
+  await assert.rejects(refreshAutomationArtifact({ task, permissions, taskPath: '/tasks/task-1', request: async () => { tries++; throw new Error('version changed'); } }), /version changed/);
+  assert.equal(tries, 1, 'Stale verification is never retried as development');
+});
+
+test('a blocked report without code remains readable but cannot request artifact refresh', async () => {
+  const { automationHasCodeArtifact, automationCanRefreshArtifact, refreshAutomationArtifact } = await state();
+  const report = { implementation_report: { completion: 'blocked', remaining_criteria: ['정책 답변이 필요합니다.'], notes: [] }, trace_id: 'trc_blocked' };
+  const task = { version: 2, status: 'blocked', execution_status: 'ready', artifact: report }, permissions = { canWrite: true };
+  assert.equal(automationHasCodeArtifact(report), false);
+  assert.equal(automationCanRefreshArtifact(task, permissions), false);
+  await assert.rejects(refreshAutomationArtifact({ task, permissions, taskPath: '/tasks/blocked', request: async () => assert.fail('A report-only result has no code verification to refresh') }), /상태/);
+  assert.deepEqual(task.artifact.implementation_report.remaining_criteria, ['정책 답변이 필요합니다.']);
+  const local = { ...task, artifact: { kind: 'local_patch', evidence_status: 'unverified', diff: '+ local proposal' } };
+  assert.equal(automationHasCodeArtifact(local.artifact), true);
+  assert.equal(automationCanRefreshArtifact(local, permissions), true);
+  assert.equal(automationCanRefreshArtifact({ ...local, review: { actor_id: 'reviewer' } }, permissions), false);
+  assert.equal(automationHasCodeArtifact({ diff: ' \n' }), false);
+});
+
+test('reported SDK commands remain unverified text and never count as passed CI', async () => {
+  const { automationReportedChecks, automationArtifactStages, automationMergeReadiness } = await state();
+  const reported_checks = [{ command: 'npm test', exit_code: 0, output: '32 tests passed\n<script>untrusted output</script>' }, { command: 'npm run build', exit_code: null, output: '' }];
+  const result = { ...artifact(), checks: [{ name: 'CI 검사 결과', status: 'unavailable' }], ci_status: 'unavailable', verification_status: 'unavailable', reported_checks };
+  const view = automationReportedChecks(result);
+  assert.equal(view[0].command, 'npm test');
+  assert.equal(view[0].output, reported_checks[0].output);
+  assert.equal(view[0].exitCodeLabel, '0');
+  assert.equal(view[1].exitCodeLabel, '보고되지 않음');
+  assert.equal(view[1].output, '');
+  assert.deepEqual(automationReportedChecks(result, { shared: true }), []);
+  assert.deepEqual(automationReportedChecks({ reported_checks: null }), []);
+  assert.deepEqual(automationArtifactStages(result, {}), automationArtifactStages({ ...result, reported_checks: [] }, {}));
+  assert.equal(automationMergeReadiness({ status: 'qa', execution_status: 'ready', artifact: result }, { merge: true }, { preview_origins: ['https://preview.example.com'] }).allowed, false);
+});
+
+test('SDK selection accepts an observed provider and folder without inventing a connection ID', async () => {
+  const { automationSdkConnections, automationSdkConnectionKey, automationSdkSelectedConnection, automationSettingsDraft, automationSettingsPayload } = await state();
+  const observed = { id: null, provider: 'codex', workingFolder: '/work/project', connected: true }, disconnected = { ...observed, id: 'old', connected: false };
+  const connections = automationSdkConnections({ connections: [observed, observed, disconnected, { ...observed, connected: undefined }, { ...observed, provider: 'claude-code' }, null] }, 'codex');
+  assert.deepEqual(connections, [observed]);
+  const draft = { ...automationSettingsDraft({ enabled: true }), execution_mode: 'nora_sdk', sdk_provider: 'codex', sdk_working_folder: '/work/project' };
+  assert.equal(automationSdkSelectedConnection(connections, draft), observed);
+  assert.equal(automationSdkSelectedConnection(connections, { ...draft, sdk_working_folder: '/work/other' }), null);
+  assert.equal(automationSdkSelectedConnection(connections, { ...draft, sdk_connection_id: 'old' }), null);
+  const payload = automationSettingsPayload(draft, 3);
+  assert.equal(payload.sdk_connection_id, null);
+  assert.equal(payload.sdk_working_folder, observed.workingFolder);
+  assert.notEqual(payload.sdk_connection_id, automationSdkConnectionKey(observed));
+  assert.deepEqual(automationSdkConnections({}, 'codex'), []);
+});
+
+test('SDK requests require a project folder and preserve existing connector settings', async () => {
+  const { automationSdkConnectionRequest, automationSettingsDraft, automationSettingsPayload } = await state();
+  const existing = automationSettingsDraft({ enabled: true, development_flow_slug: 'published-dev', preview_origins: ['https://preview.example.com'], uncertainty_mode: 'provisional' });
+  const payload = automationSettingsPayload(existing, 4);
+  assert.equal(payload.execution_mode, 'connector_api');
+  assert.equal(payload.development_flow_slug, 'published-dev');
+  assert.equal(payload.uncertainty_mode, 'provisional');
+  assert.equal(payload.sdk_provider, null);
+  assert.deepEqual(payload.preview_origins, ['https://preview.example.com']);
+  assert.deepEqual(automationSdkConnectionRequest({ sdk_provider: 'claude-code', sdk_working_folder: ' /work/project ' }), { provider: 'claude-code', working_folder: '/work/project' });
+  for (const folder of ['', '/', './project', '/work/../other', '/work/./project', '/work//project', '/work/project/', '/work\u0000/project']) assert.throws(() => automationSdkConnectionRequest({ sdk_provider: 'codex', sdk_working_folder: folder }), /절대 경로/);
+  assert.throws(() => automationSdkConnectionRequest({ sdk_provider: 'unknown', sdk_working_folder: '/work/project' }), /개발 실행/);
+  assert.throws(() => automationSettingsPayload({ ...existing, execution_mode: 'nora_sdk' }, 4), /절대 경로/);
 });
