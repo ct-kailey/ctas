@@ -5,6 +5,7 @@ import { useSharedView } from './shared-view.jsx';
 import { useConfirm } from './confirmation.jsx';
 import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationBlockerLabel, automationColumn, automationExecutionLabel, automationMergeReadiness, automationPermissions, automationPreviewUrl, parsePreviewOrigins } from './task-automation-state.mjs';
 import { retainProjectRequest } from './nora-workspace-state.mjs';
+import { mergeTaskDraftPage, taskDraftSourceUrl } from './task-draft-state.mjs';
 import './task-automation.css';
 
 function useAutomationResource(path, request, poll = automationActive) {
@@ -23,6 +24,29 @@ function useAutomationResource(path, request, poll = automationActive) {
   const active = Boolean(data && poll(data));
   useEffect(() => { if (!active) return; const timer = setInterval(() => { if (!document.hidden) void load(); }, 5000); return () => clearInterval(timer); }, [active, load]);
   return { data, error, loading, load, lifecycle, setData };
+}
+
+function useTaskDrafts(path, request) {
+  const [data, setData] = useState(null), [error, setError] = useState(null), [loading, setLoading] = useState(true);
+  const lifecycle = useRef({ active: true, sequence: 0, controller: null, page: null, more: false });
+  const load = useCallback(async (more = false) => {
+    lifecycle.current.controller?.abort();
+    const controller = new AbortController(), sequence = ++lifecycle.current.sequence;
+    lifecycle.current.controller = controller; lifecycle.current.more = more;
+    const previous = more ? lifecycle.current.page : null;
+    const current = () => lifecycle.current.active && sequence === lifecycle.current.sequence && !controller.signal.aborted;
+    setLoading(true);
+    try {
+      const page = await request(`${path}?limit=100&offset=${previous?.next_offset || 0}`, { signal: controller.signal });
+      if (current()) { const value = mergeTaskDraftPage(previous, page); lifecycle.current.page = value; setData(value); setError(null); }
+    } catch (err) { if (current() && err.name !== 'AbortError') setError(err); }
+    finally { if (current()) setLoading(false); }
+  }, [path, request]);
+  useEffect(() => {
+    lifecycle.current.active = true; lifecycle.current.page = null; setData(null); setError(null); void load();
+    return () => { lifecycle.current.active = false; lifecycle.current.sequence += 1; lifecycle.current.controller?.abort(); };
+  }, [load]);
+  return { data, error, loading, load, retry: () => load(lifecycle.current.more) };
 }
 
 function CapabilityNotice({ capabilities, onSettings }) {
@@ -47,27 +71,51 @@ function RiskAnalysis({ analysis, taskCount, onQuestions }) {
   </article>;
 }
 
-export function TaskAutomationBoard({ projectId, request, role, notify, onDirty, onChanged, onSettings, onQuestions }) {
+export function TaskAutomationBoard({ projectId, request, role, notify, onDirty, onChanged, onSettings, onQuestions, onSourceRevision }) {
   const sharedView = useSharedView(), route = `${projectPath(projectId)}/task-automation`;
-  const remote = useAutomationResource(route, request), [selectedId, setSelectedId] = useState(null);
+  const remote = useAutomationResource(route, request), drafts = useTaskDrafts(`${projectPath(projectId)}/task-drafts`, request);
+  const [selectedId, setSelectedId] = useState(null), [selectedDraftId, setSelectedDraftId] = useState(null);
   const permissions = automationPermissions(role, sharedView), tasks = remote.data?.tasks || [], analyses = remote.data?.analyses || [];
+  const draftItems = drafts.data?.items || [];
   async function changed(message) { notify?.(message); await remote.load(); await onChanged?.({ quiet: true }); }
   return <section className="task-automation" aria-label="Nora 정책 분석·개발 작업">
-    <header className="task-auto-heading"><div><h2>정책 분석·AI 개발 작업</h2><p>정책의 차단 위험은 고객 질문으로 확인하고, 준비된 작업을 진행 중으로 옮기면 AI 개발을 요청합니다.</p></div><Button type="button" variant="secondary" icon={RefreshCw} onClick={remote.load}>새로고침</Button></header>
-    <ErrorNotice error={remote.error} onRetry={remote.load} />
-    {!remote.data ? remote.loading ? <Spinner label="정책 분석과 개발 작업을 불러오고 있습니다" /> : null : <>
-      {!sharedView ? <CapabilityNotice capabilities={remote.data.capabilities} onSettings={onSettings} /> : null}
-      <IntakeNotice items={remote.data.intake} />
+    <header className="task-auto-heading"><div><h2>정책 분석·AI 개발 작업</h2><p>출처 기반 초안과 Nora가 분석한 작업을 함께 확인하세요. Nora 검증을 마친 작업만 AI 개발을 시작할 수 있습니다.</p></div><Button type="button" variant="secondary" icon={RefreshCw} onClick={() => { void remote.load(); void drafts.load(); }}>새로고침</Button></header>
+    {remote.error ? <div aria-label="정책 분석·개발 작업 조회 오류"><p className="task-auto-help">정책 분석·개발 작업을 불러오지 못했습니다.</p><ErrorNotice error={remote.error} onRetry={remote.load} /></div> : null}
+    {drafts.error ? <div aria-label="출처 기반 작업 초안 조회 오류"><p className="task-auto-help">출처 기반 작업 초안을 불러오지 못했습니다.{drafts.data ? ' 이미 표시한 작업은 유지했습니다.' : ''}</p><ErrorNotice error={drafts.error} onRetry={drafts.retry} /></div> : null}
+    {!remote.data && remote.loading ? <Spinner label="정책 분석과 개발 작업을 불러오고 있습니다" /> : null}
+    {!drafts.data && drafts.loading ? <Spinner label="출처 기반 작업 초안을 불러오고 있습니다" /> : null}
+    {remote.data && !sharedView ? <CapabilityNotice capabilities={remote.data.capabilities} onSettings={onSettings} /> : null}
+    <IntakeNotice items={remote.data?.intake} />
+    {remote.data || drafts.data ? <>
       {/* No CTDS Kanban primitive exists; columns compose existing CTDS card buttons and badges. */}
       <div className="task-auto-board" role="region" aria-label="AI 개발 작업 칸반" tabIndex={0}>{AUTOMATION_COLUMNS.map(([status, label]) => {
         const column = tasks.filter(task => automationColumn(task) === status);
-        return <section className="task-auto-column" key={status} aria-label={label}><header><h3>{label}</h3><Badge tone="quiet">{column.length}</Badge></header><div className="task-auto-cards">{column.map(task => <ControlButton type="button" variant="outline" className="task-auto-card" key={task.id} onClick={() => setSelectedId(task.id)}><span><strong>{task.title}</strong><small>{automationExecutionLabel(task)}</small><small>{status === 'qa' ? '미리보기·코드 확인 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(task.updated_at)} 갱신`}</small></span></ControlButton>)}</div>{!column.length ? <p className="task-auto-help">작업 없음</p> : null}</section>;
+        const sourceDrafts = status === 'todo' ? draftItems : [], count = column.length + sourceDrafts.length;
+        return <section className="task-auto-column" key={status} aria-label={label}><header><h3>{label}</h3><Badge tone="quiet">{count}</Badge></header><div className="task-auto-cards">{sourceDrafts.map(item => <ControlButton type="button" variant="outline" className="task-auto-card" key={`draft:${item.id}`} onClick={() => setSelectedDraftId(item.id)}><span><Badge tone="amber">Nora 검증 전</Badge><strong>{item.title}</strong><small>{item.source_title} · 출처 기반 초안</small><small>{item.key}{item.depends_on?.length ? ` · 선행 작업 ${item.depends_on.length}개` : ''}</small></span></ControlButton>)}{column.map(task => <ControlButton type="button" variant="outline" className="task-auto-card" key={`automation:${task.id}`} onClick={() => setSelectedId(task.id)}><span><strong>{task.title}</strong><small>{automationExecutionLabel(task)}</small><small>{status === 'qa' ? '미리보기·코드 확인 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(task.updated_at)} 갱신`}</small></span></ControlButton>)}</div>{!count ? <p className="task-auto-help">작업 없음</p> : null}</section>;
       })}</div>
-      {!tasks.length ? <p className="task-auto-help">자료·기록에 정책 문서를 등록하세요. 추출 후 Nora 리스크 분석을 진행하며, 차단 위험이 없는 결과에서 작업을 등록합니다.</p> : null}
-      <Disclosure><summary>정책 분석·고객 질문 이력 · {analyses.length}건</summary><div className="task-auto-analysis-list">{analyses.length ? analyses.map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={tasks.filter(task => task.analysis_id === analysis.id).length} onQuestions={onQuestions} />) : <p className="task-auto-help">아직 정책 분석 이력이 없습니다.</p>}</div></Disclosure>
-    </>}
+      {drafts.data?.total ? <div className="inline-actions"><p className="task-auto-help">출처 기반 작업 초안 {draftItems.length} / {drafts.data.total}개 표시</p>{drafts.data.has_more ? <Button type="button" variant="secondary" busy={drafts.loading} onClick={() => drafts.load(true)}>작업 초안 더 불러오기</Button> : null}</div> : null}
+      {drafts.data && !drafts.data.has_more && draftItems.length < drafts.data.total ? <Notice title="조회 중 작업 목록이 바뀌었습니다">전체 작업을 확인하려면 목록을 다시 불러와 주세요.<Button type="button" variant="secondary" busy={drafts.loading} onClick={() => drafts.load()}>작업 초안 목록 새로고침</Button></Notice> : null}
+      {!tasks.length && !draftItems.length ? <p className="task-auto-help">자료·기록에 정책 문서를 등록하세요. 추출 후 Nora 리스크 분석을 진행하며, 차단 위험이 없는 결과에서 작업을 등록합니다.</p> : null}
+    </> : null}
+    {remote.data ? <Disclosure><summary>정책 분석·고객 질문 이력 · {analyses.length}건</summary><div className="task-auto-analysis-list">{analyses.length ? analyses.map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={tasks.filter(task => task.analysis_id === analysis.id).length} onQuestions={onQuestions} />) : <p className="task-auto-help">아직 정책 분석 이력이 없습니다.</p>}</div></Disclosure> : null}
     {selectedId ? <AutomationTaskDetail key={selectedId} id={selectedId} route={route} request={request} permissions={permissions} sharedView={sharedView} settings={remote.data?.settings} capabilities={remote.data?.capabilities} onClose={() => setSelectedId(null)} onDirty={onDirty} onChanged={changed} /> : null}
+    {selectedDraftId ? <SourceTaskDraftDetail key={selectedDraftId} id={selectedDraftId} route={`${projectPath(projectId)}/task-drafts`} request={request} onClose={() => setSelectedDraftId(null)} onDependency={setSelectedDraftId} onSourceRevision={onSourceRevision} onSettings={!sharedView && remote.data?.capabilities?.risk_analysis !== true ? onSettings : undefined} /> : null}
   </section>;
+}
+
+function SourceTaskDraftDetail({ id, route, request, onClose, onDependency, onSourceRevision, onSettings }) {
+  const remote = useAutomationResource(`${route}/${encodeURIComponent(id)}`, request, () => false), item = remote.data?.item;
+  const sourceUrl = taskDraftSourceUrl(item?.source_url);
+  return <Modal title={item?.title || '검토 전 작업 초안'} eyebrow="검토 전 작업 초안" onClose={onClose} wide><div className="modal-body task-auto-detail"><ErrorNotice error={remote.error} onRetry={remote.load} />{!item ? remote.loading ? <Spinner label="작업 초안의 근거와 완료 기준을 불러오고 있습니다" /> : null : <>
+    <div className="inline-actions"><Badge tone="quiet">할 일</Badge><Badge tone="amber">Nora 검증 전</Badge><span>{item.key} · 우선순위 {{ high: '높음', normal: '보통', low: '낮음' }[item.priority] || '보통'}</span></div>
+    <Notice tone="warning" title="다음 단계: 원문 검토와 Nora 리스크 분석"><p>정책 원문을 바탕으로 등록한 초안입니다. 원문을 검토하고 Nora 리스크 분석을 요청한 뒤, 분석 결과에서 실행할 작업을 확인하세요. 이 초안에서 AI 개발이나 병합을 직접 실행하지는 않습니다.</p><div className="inline-actions">{onSourceRevision ? <Button type="button" variant="secondary" onClick={() => onSourceRevision(item.source_revision_id)}>정책 원문·Nora 리스크 분석 열기</Button> : null}{onSettings ? <Button type="button" variant="secondary" onClick={onSettings}>Nora 연결 설정</Button> : null}</div></Notice>
+    <p>{item.description}</p>
+    <section><h3>완료 기준</h3><ul>{item.acceptance_criteria?.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul></section>
+    <section><h3>출처</h3><dl className="task-auto-facts"><div><dt>문서</dt><dd>{onSourceRevision ? <Button type="button" variant="ghost" onClick={() => onSourceRevision(item.source_revision_id)}>{item.source_title}</Button> : item.source_title}</dd></div><div><dt>등록한 원문 버전</dt><dd><code>{item.source_revision_id}</code></dd></div><div><dt>등록 시각</dt><dd>{dateTime(item.created_at)}</dd></div></dl>{sourceUrl ? <Button type="button" asChild variant="secondary"><a href={sourceUrl} target="_blank" rel="noopener noreferrer">외부 출처 열기<ExternalLink size={15} /></a></Button> : null}</section>
+    {item.evidence?.length ? <Disclosure open><summary>원문 근거 · {item.evidence.length}개</summary>{item.evidence.map((evidence, index) => <blockquote key={index}><small>{evidence.locator?.label || evidence.segment_id}</small><p>{evidence.quote}</p></blockquote>)}</Disclosure> : null}
+    <section><h3>선행 작업</h3>{item.dependencies?.length ? <ul>{item.dependencies.map(dependency => <li key={dependency.id}><Button type="button" variant="ghost" onClick={() => onDependency(dependency.id)}>{dependency.key} · {dependency.title}</Button></li>)}</ul> : <p className="task-auto-help">등록된 선행 작업이 없습니다.</p>}</section>
+    {item.question_notes?.length ? <section><h3>확인할 질문·메모</h3><ul>{item.question_notes.map((note, index) => <li key={index}>{note}</li>)}</ul></section> : null}
+  </>}</div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose}>닫기</Button></footer></Modal>;
 }
 
 function AutomationTaskDetail({ id, route, request, permissions, sharedView, settings, capabilities, onClose, onDirty, onChanged }) {

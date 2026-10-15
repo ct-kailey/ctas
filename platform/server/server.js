@@ -36,6 +36,7 @@ const {mountExecutionQueueBridge,mountExecutionQueueRoutes}=require('./execution
 const {kakaoWatcherScript}=require('./kakao-watcher-download');
 const {mountProjectNoraRoutes}=require('./project-nora-routes');
 const {mountTaskAutomationRoutes}=require('./task-automation-routes');
+const {mountTaskDraftRoutes}=require('./task-draft-routes');
 
 function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {}, nora = {} }) {
   const sharedViews = createSharedViews(pool, { appOrigin, production });
@@ -112,6 +113,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   const write=roles('owner','reviewer','member'), review=roles('owner','reviewer');
   mountProjectNoraRoutes(project,{pool,owner:roles('owner'),...nora});
   mountTaskAutomationRoutes(project,{pool,write,review,owner:roles('owner'),provider:nora.tasks});
+  mountTaskDraftRoutes(project,{pool,write});
   mountDashboardRoutes(project,{pool});
   mountProjectMemberRoutes(project,{pool});
   mountCommercialRoutes(project,{pool,write,review});

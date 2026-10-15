@@ -13,7 +13,7 @@ const overdue = (item, date) => item.status !== 'done' && item.due_on && item.du
 const initialForm = item => ({ status: item.status, assignee_id: item.assignee_id || '', due_on: item.due_on || '', blocker: item.blocker || '', note: '', qa_evidence: '' });
 function StateBadge({ status }) { return <Badge tone={STATES[status]?.[1]}>{STATES[status]?.[0] || status}</Badge>; }
 
-export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId, onDirty, onOpenSettings, onOpenQuestions }) {
+export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId, onDirty, onOpenSettings, onOpenQuestions, onOpenSourceRevision }) {
   const sharedView = useSharedView();
   const route = projectPath(projectId), canReview = !sharedView && REVIEWERS.includes(role);
   const [data, setData] = useState(null), [plans, setPlans] = useState([]), [error, setError] = useState(null), [busy, setBusy] = useState(false);
@@ -51,7 +51,7 @@ export function WorkItems({ projectId, request, role, userId, notify, onChanged,
     return matches && `${item.source_task.title} ${item.source_task.description} ${item.assignee_name || ''} ${item.plan_title}`.toLowerCase().includes(query.toLowerCase().trim());
   });
   return <section className="work-board" aria-label="기능별 작업 관리">
-    <TaskAutomationBoard projectId={projectId} request={request} role={role} notify={notify} onDirty={onDirty} onChanged={onChanged} onSettings={onOpenSettings} onQuestions={onOpenQuestions} />
+    <TaskAutomationBoard projectId={projectId} request={request} role={role} notify={notify} onDirty={onDirty} onChanged={onChanged} onSettings={onOpenSettings} onQuestions={onOpenQuestions} onSourceRevision={onOpenSourceRevision} />
     <div className="work-board-intro"><div><h2>작업 목록</h2><p>{sharedView ? '작업별 담당자·기한·진행 상태와 이력을 확인하세요.' : '작업을 선택해 담당자·기한·상태를 변경하세요.'}</p></div><div className="inline-actions">{onOpenGovernance ? <Button variant="secondary" onClick={onOpenGovernance}>작업 전 점검·범위 승인</Button> : null}<Button variant="secondary" icon={RefreshCw} busy={busy} onClick={load}>새로고침</Button>{canReview ? <Button icon={Plus} onClick={() => setImporting(true)} disabled={!data}>승인 계획 가져오기</Button> : null}</div></div>
     <ErrorNotice error={error} onRetry={load} />
     <ErrorNotice error={detailError?.error} onRetry={detailError ? () => open({ id: detailError.id }) : undefined} />

@@ -10,6 +10,8 @@ const ID = '[^/]+';
 // Explicit allowlist: adding a new GET never accidentally publishes it. Several
 // existing GETs invoke models, save digests, expose credentials, or download files.
 const READ_PATHS = [
+  /^\/task-drafts\/?$/,
+  new RegExp(`^/task-drafts/${ID}/?$`),
   /^\/task-automation\/?$/,
   new RegExp(`^/task-automation/tasks/${ID}/?$`),
   /^\/(?:overview|dashboard|attention|settings|members|domains|documents|feed|work-items|implementation-plans|implementation-requests|channel-sources|channel-inbox|context|commercial|questions|question-reminders|work-governance|github-deliveries|transcriptions)\/?$/,

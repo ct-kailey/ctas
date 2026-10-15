@@ -71,16 +71,24 @@ function createImplementationLedger(pool,{requireGovernance=true}={}){return {
   async saveSettings(p,u,body={}){
     object(body,['expected_version','goal','repository_url','base_branch','project_kind','name']);
     if(!Number.isSafeInteger(body.expected_version)||body.expected_version<1)fail('SETTINGS_VERSION_REQUIRED','현재 설정 버전이 필요합니다.');
-    const goal=text(body.goal,'프로젝트 목표',5000,true),url=repository(body.repository_url),base=branch(body.base_branch);
-    if((url===null)!==(base===null))fail('INVALID_REPOSITORY','저장소와 기준 브랜치를 함께 설정하세요.');
     return transaction(pool,async client=>{
       await member(client,p,u,['owner']);const current=await settings(client,p,true);
       if(current.version!==body.expected_version)fail('SETTINGS_VERSION_CONFLICT','설정이 변경되었습니다. 새로고침 후 다시 저장하세요.',409);
-      const kind=projectKind(body.project_kind??current.project_kind),name=body.name===undefined?current.name:text(body.name,'프로젝트 이름',200);
-      if(current.goal===goal&&current.repository_url===url&&current.base_branch===base&&current.project_kind===kind&&current.name===name)return current;
+      // PATCH only replaces supplied fields. A name/info edit must not clear a
+      // configured repository or require the caller to resend its current value.
+      const supplied=key=>Object.hasOwn(body,key);
+      const goal=supplied('goal')?text(body.goal,'프로젝트 목표',5000,true):current.goal;
+      const url=supplied('repository_url')?repository(body.repository_url):current.repository_url;
+      const base=supplied('base_branch')?branch(body.base_branch):current.base_branch;
+      if((url===null)!==(base===null))fail('INVALID_REPOSITORY','저장소와 기준 브랜치를 함께 설정하세요.');
+      const kind=supplied('project_kind')?projectKind(body.project_kind):current.project_kind;
+      const name=supplied('name')?text(body.name,'프로젝트 이름',200):current.name;
+      const next={name,project_kind:kind,goal,repository_url:url,base_branch:base};
+      const changedFields=Object.keys(next).filter(key=>current[key]!==next[key]);
+      if(!changedFields.length)return current;
       if(current.name!==name)await client.query('UPDATE projects SET name=$1 WHERE id=$2',[name,p]);
       await client.query('UPDATE project_settings SET goal=$1,repository_url=$2,base_branch=$3,project_kind=$4,version=version+1,repository_check=NULL,updated_at=now() WHERE project_id=$5',[goal,url,base,kind,p]);
-      await audit(client,p,u,'implementation.settings_updated',p,{previous_version:current.version,version:current.version+1,name,project_kind:kind,goal,repository_url:url,base_branch:base});return settings(client,p);
+      await audit(client,p,u,'implementation.settings_updated',p,{previous_version:current.version,version:current.version+1,...next,changed_fields:changedFields,previous:Object.fromEntries(changedFields.map(key=>[key,current[key]]))});return settings(client,p);
     });
   },
   async recordRepositoryCheck(p,u,version,body={}, {assertAccess}={}){
