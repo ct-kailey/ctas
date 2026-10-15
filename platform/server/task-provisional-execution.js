@@ -5,11 +5,11 @@ const questions=require('./question-ledger');
 const catalog=require('./context-sources');
 const {parseCreate}=require('./question-contract');
 function stableId(...parts){const h=createHash('sha256').update(parts.join(':')).digest('hex');return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-a${h.slice(17,20)}-${h.slice(20,32)}`;}
-function questionInputs(result){
+function questionInputs(result,language='ko'){
   // A risk-only analysis still produces a reviewable question. Do not infer
   // that an AI's proposed temporary approach answered the customer's question.
   const explicit=result.questions||[],covered=new Set(explicit.map(q=>q.deferred_by).filter(Boolean));
-  const risks=(result.risks||[]).filter(r=>r.blocking&&(!explicit.length||r.deferred_by&&!covered.has(r.deferred_by))).map(r=>({...r,question:'다음 위험에 대한 판단을 확인해 주세요: '+r.description,issue_kind:'risk'}));
+  const risks=(result.risks||[]).filter(r=>r.blocking&&(!explicit.length||r.deferred_by&&!covered.has(r.deferred_by))).map(r=>({...r,question:(language==='en'?'Please confirm how to address this risk: ':'다음 위험에 대한 판단을 확인해 주세요: ')+r.description,issue_kind:'risk'}));
   return [...explicit,...risks];
 }
 function taskQuestionIds(analysisId,result,index){
@@ -17,15 +17,15 @@ function taskQuestionIds(analysisId,result,index){
   return questionInputs(result).flatMap((q,i)=>linked.has((q.issue_kind||'question')+':'+q.id)?[stableId(analysisId,'question',String(i))]:[]);
 }
 async function draftAnalysisQuestions(db,row,result){
-  const inputs=questionInputs(result),ids=[];
+  const language=row.input_snapshot?.project?.customer_question_language||null,inputs=questionInputs(result,language||'ko'),ids=[];
   if(!inputs.length)return ids;
   const source=await catalog.source(db,row.project_id,'revision',row.revision_id);
   for(let i=0;i<inputs.length;i++){
     const q=inputs[i],qid=stableId(row.id,'question',String(i));
-    const input=parseCreate({request_id:qid,title:('정책 확인: '+q.question).slice(0,300),question:q.question.slice(0,10000),recipient:'확인 담당자 지정 필요',channel:'발송 전 검토',assigned_to:row.created_by,blocking:true,source_refs:[{type:'revision',id:row.revision_id,sha256:source.sha256}],work_item_ids:[]});
+    const input=parseCreate({request_id:qid,...(language?{language}:{}),title:((language==='en'?'Policy clarification: ':'정책 확인: ')+q.question).slice(0,300),question:q.question.slice(0,10000),recipient:language==='en'?'Recipient required':'확인 담당자 지정 필요',channel:language==='en'?'Review before sending':'발송 전 검토',assigned_to:row.created_by,blocking:true,source_refs:[{type:'revision',id:row.revision_id,sha256:source.sha256}],work_item_ids:[]});
     const refs=await questions.validateSources(db,row.project_id,input.source_refs);
-    const created=(await db.query(`INSERT INTO project_questions(id,project_id,title,question,recipient,channel,assigned_to,created_by,blocking,status,source_refs,request_sha256)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$7,true,'draft',$8,$9) ON CONFLICT(id) DO NOTHING RETURNING *`,[qid,row.project_id,input.title,input.question,input.recipient,input.channel,row.created_by,JSON.stringify(refs),hash(input)])).rows[0];
+    const created=(await db.query(`INSERT INTO project_questions(id,project_id,title,question,recipient,channel,assigned_to,created_by,blocking,status,source_refs,request_sha256,language)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$7,true,'draft',$8,$9,$10) ON CONFLICT(id) DO NOTHING RETURNING *`,[qid,row.project_id,input.title,input.question,input.recipient,input.channel,row.created_by,JSON.stringify(refs),hash(input),language])).rows[0];
     if(created)await questions.event(db,row.project_id,row.created_by,created,'created',{...input,source_refs:refs,automation_analysis_id:row.id,evidence:q.evidence});
     ids.push(qid);
   }
@@ -37,7 +37,7 @@ async function startCheck(db,p,row){
   const proposals=[...(result.temporary_decisions||[]),...(result.work_gaps||[])].filter(n=>n.task_indexes.includes(index));
   const proposedNotes=proposals.length?proposals:(row.input_snapshot.implementation_notes||[]);
   const legacyIds=index<0?[]:taskQuestionIds(row.analysis_id,result,index),ids=[...new Set([...(row.question_ids||[]),...legacyIds])].sort();
-  const found=ids.length?(await db.query(`SELECT id,version,title,question,status,answer,resolution,asked_at,recipient,channel FROM project_questions WHERE project_id=$1 AND id=ANY($2::uuid[]) ORDER BY id`,[p,ids])).rows:[];
+  const found=ids.length?(await db.query(`SELECT id,version,title,question,status,answer,resolution,asked_at,recipient,channel,language FROM project_questions WHERE project_id=$1 AND id=ANY($2::uuid[]) ORDER BY id`,[p,ids])).rows:[];
   const lookup=new Map(found.map(q=>[q.id,q])),inputQuestions=questionInputs(result);
   const frozenQuestions=ids.map(qid=>{
     const stored=lookup.get(qid);if(stored)return {...stored,asked_at:stored.asked_at?new Date(stored.asked_at).toISOString():null};

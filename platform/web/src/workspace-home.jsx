@@ -3,6 +3,7 @@ import { ArrowRight, Bell, CheckCheck, FilePlus2, Files, RefreshCw } from 'lucid
 import { Badge, Button, Empty, ErrorNotice, Spinner, ControlButton, Notice } from './ui.jsx';
 import { Tabs } from './ui.jsx';
 import { ProjectJourney } from './project-journey.jsx';
+import { attentionInstruction } from './server-ui-copy.mjs';
 import './workspace-home.css';
 
 const GRADES = {
@@ -43,7 +44,7 @@ function AttentionRow({ item, onNavigate, documentLoading }) {
     <div className="workspace-attention-grade"><Badge tone={grade.tone}>{grade.label}</Badge></div>
     <div className="workspace-attention-main">
       <h3>{item.title}</h3>
-      <p>{item.description}</p>
+      <p>{attentionInstruction(item)}</p>
       <div className="workspace-home-meta">
         <span>{RULE_LABELS[item.rule] || '원본 업무 상태 기준'}</span>
         <span aria-hidden="true">·</span>

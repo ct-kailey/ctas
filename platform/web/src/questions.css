@@ -5,6 +5,14 @@
 .q-heading, .q-toolbar, .q-actions, .q-detail-status, .q-delivery header { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap }
 .q-heading, .q-toolbar { justify-content: space-between; margin-bottom: var(--space-6) }
 .q-heading h2 { margin: var(--space-2) 0 }
+.q-language-settings { padding: var(--space-4); margin-bottom: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-md) }
+.q-language-controls { display: flex; align-items: end; flex-wrap: wrap; gap: var(--space-3) }
+.q-language-controls>.field { flex: 1 1 var(--ains-questions-measure-220); max-width: var(--ains-questions-measure-300); min-width: 0; margin-bottom: 0 }
+.q-language-settings>.q-help, .q-translation>.q-help { margin: 0 }
+.q-translation { margin: var(--space-5) 0; padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-md) }
+.q-translation-draft { min-width: 0 }
+.q-translation-draft h3, .q-translation-draft p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
+.q-translation-draft h3 { font-size: var(--text-base); line-height: var(--lh-base) }
 .q-heading p, .q-help, .q-settings:where(:not([data-ctds]):not([data-ctds-control]))>p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-reminders { display: flex; gap: var(--space-4); background: var(--warning-subtle); border: var(--hairline) solid var(--warning-border-color); border-radius: var(--radius-lg); padding: var(--space-5); margin: var(--space-5) 0 }
 .q-reminders>div { min-width: 0; flex: 1 }

@@ -80,6 +80,7 @@ async function main() {
   const noraTasks=createNoraTaskProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:taskTimeoutMs}),git:noraGit});
   const taskAutomationWorker=createTaskAutomationWorker({pool,provider:noraTasks,timeoutMs:taskTimeoutMs,onError:()=>console.error(JSON.stringify({event:'task_automation_worker_error'}))});
   const noraGuide=createNoraDomainGuideProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:300000})});
+  const questionTranslations=require('./nora-question-translation-provider').createNoraQuestionTranslationProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:240000})});
   const domainGuideWorker=createDomainGuideWorker({pool,provider:noraGuide,onError:()=>console.error(JSON.stringify({event:'domain_guide_worker_error'}))});
   const noraWorker=createProjectNoraWorker({pool,provider:noraProvider,onError:()=>console.error(JSON.stringify({event:'nora_workspace_worker_error'}))});
   const providerSettings=createProviderSettings(pool),resolveConfig=p=>providerSettings.getConfig(p);
@@ -89,7 +90,7 @@ async function main() {
   let workToken=process.env.NORA_WORK_REVIEW_TOKEN,workWebhookSecret=process.env.NORA_WORK_WEBHOOK_SECRET;
   if(!production){const file=path.resolve(__dirname,'../../nora/.secrets/work-review-secret.json');if(fs.existsSync(file)&&(fs.statSync(file).mode&0o077)===0){const local=JSON.parse(fs.readFileSync(file,'utf8'));workToken ||= local.token;workWebhookSecret ||= local.webhookSecret;}}
   const workAI={enabled:Boolean(workToken&&workWebhookSecret?.length>=32),webhookSecret:workWebhookSecret};
-  const app=createApp({pool,appOrigin,production,google:google||{},contextAI,workAI,nora:{oauth:noraOAuth,provider:noraProvider,git:noraGit,tasks:noraTasks,guide:noraGuide,channelSources:noraChannelSources},repositoryAccess:{noraGit}});
+  const app=createApp({pool,appOrigin,production,google:google||{},contextAI,workAI,questions:{translationProvider:questionTranslations},nora:{oauth:noraOAuth,provider:noraProvider,git:noraGit,tasks:noraTasks,guide:noraGuide,channelSources:noraChannelSources},repositoryAccess:{noraGit}});
   const workAIWorker=createWorkAIWorker({pool,token:workToken,enabled:workAI.enabled,onError:()=>console.error(JSON.stringify({event:'work_ai_error'}))});
   const contextWorker=createContextAIWorker({pool,token:contextToken,enabled:contextAI.enabled,onError:()=>console.error(JSON.stringify({event:'context_worker_error'}))});
   const worker=createWorker({pool,pipelineToken,flowToken,python:process.env.PYTHON_BIN||'python3',onError:()=>console.error(JSON.stringify({event:'worker_error'}))});

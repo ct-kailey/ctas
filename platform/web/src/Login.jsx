@@ -3,6 +3,7 @@ import { ArrowRight, LoaderCircle, ShieldCheck } from 'lucide-react';
 import { api } from './api.js';
 import { Button, ErrorNotice, FormField, Input, ControlButton } from './ui.jsx';
 import googleLogo from './assets/google-g.png';
+import { LoginLanguage } from './language-settings.jsx';
 
 const AUTH_ERRORS = {
   state_invalid: '로그인 요청이 만료되었거나 확인되지 않았습니다. 이 화면에서 다시 시작해 주세요.',
@@ -24,6 +25,7 @@ export function Login({ onLogin, onGoogleStart }) {
   const [providers, setProviders] = useState({ loading: true, google: false, failed: false, signupDomains: [] });
   const [providerAttempt, setProviderAttempt] = useState(0);
   const errorRegion = useRef(null);
+  const loginForm = useRef(null);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -73,13 +75,14 @@ export function Login({ onLogin, onGoogleStart }) {
       <footer><span>AINS × Nora</span><span>일의 맥락을 연결합니다.</span></footer><div className="login-line line-one" /><div className="login-line line-two" />
     </section>
     <section className="login-form-panel"><div className="login-form-wrap">
+      <LoginLanguage busy={busy || redirecting} hasInput={() => Boolean(loginForm.current?.elements.email?.value || loginForm.current?.elements.password?.value)} />
       <h2>작업실에 들어가기</h2><p className="muted">{providers.google && providers.signupDomains.length ? '회사 Google 계정으로 가입하거나 로그인하세요.' : '등록된 계정으로 업무를 이어가세요.'}</p>
       <div ref={errorRegion} tabIndex={-1} className="login-error-region"><ErrorNotice error={error} /></div>
       {providers.loading ? <div className="login-provider-state" role="status"><LoaderCircle size={15} className="spin" />로그인 방식을 확인하고 있습니다.</div> : providers.google ? <div className="login-google">
         <ControlButton variant="outline" type="button" className="google-continue" disabled={busy || redirecting} onClick={continueWithGoogle} aria-busy={redirecting}><img src={googleLogo} width="20" height="20.4" alt="" aria-hidden="true" /><span>{redirecting ? 'Google로 이동 중…' : providers.signupDomains.length ? 'Google로 가입·로그인' : 'Google로 계속하기'}</span>{redirecting ? <LoaderCircle size={16} className="spin google-progress" aria-hidden="true" /> : null}</ControlButton>
         <div className="login-divider"><span>또는 이메일로 로그인</span></div>
       </div> : providers.failed ? <div className="login-provider-state provider-unavailable" role="status"><span>Google 로그인 정보를 확인하지 못했습니다.</span><ControlButton type="button" className="text-button" disabled={busy || redirecting} onClick={() => setProviderAttempt((attempt) => attempt + 1)}>다시 확인</ControlButton></div> : null}
-      <form onSubmit={submit} aria-busy={busy || redirecting}>
+      <form ref={loginForm} onSubmit={submit} aria-busy={busy || redirecting}>
         <FormField label="이메일"><Input name="email" type="email" autoComplete="username" required autoFocus={!error} disabled={busy || redirecting} placeholder="name@company.com" /></FormField>
         <FormField label="비밀번호"><Input name="password" type="password" autoComplete="current-password" required disabled={busy || redirecting} /></FormField>
         <Button busy={busy} disabled={redirecting} type="submit" icon={ArrowRight}>이메일로 로그인</Button>

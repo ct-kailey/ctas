@@ -18,6 +18,7 @@ import { SourceReviewWorkspace } from './source-review.jsx';
 import { ReviewDetail } from './review.jsx';
 import { Login } from './Login.jsx';
 import { AppearanceSettings } from './appearance.jsx';
+import { changeUiLanguage, getLocale } from './ui-language-state.mjs';
 import { ChannelInbox } from './channels.jsx';
 import { ImplementationWorkspace, ProjectSettings } from './implementation.jsx';
 import { applySavedProjectSettings } from './project-settings-state.mjs';
@@ -238,6 +239,7 @@ export default function App() {
   useEffect(() => {
     if (!session?.user || !projectsReady || (tab !== 'customers' && (!projectId || unavailableProject))) return;
     const query = new URLSearchParams({ ...(tab !== 'customers' && projectId ? {project: projectId} : {}), tab });
+    query.set('ui_lang', getLocale());
     if (activeStep) query.set('step', activeStep.id);
     window.history.replaceState(null, '', `${window.location.pathname}?${query}`);
   }, [session?.user, projectsReady, projectId, unavailableProject, tab, activeStep?.id]);
@@ -294,7 +296,13 @@ export default function App() {
     {modal?.type === 'upload' && project && canWrite ? <UploadModal key={modal.initialRevision?.id || modal.doc?.id || 'new'} project={project} doc={modal.doc} documents={documents} domains={domains} initialRevision={modal.initialRevision} request={request} onClose={() => setModal(null)} onDone={async (saved) => { setModal(null); setTab('source-review'); setPreferredStep('context'); setNavigationTarget({revisionId:saved.revision_id}); notify('자료를 등록했습니다. 원문 추출 후 Nora 분석을 진행합니다.'); await refresh({quiet:true}); }} /> : null}
     {modal?.type === 'revision' && project ? <RevisionModal project={project} doc={modal.doc} revisionId={modal.revision.id} request={request} canWrite={canWrite} canReview={canReview} onClose={() => setModal(null)} onChanged={changed} onEdit={(revision) => setModal({ type: 'upload', doc: modal.doc, initialRevision: revision })} onImplementation={() => { setModal(null); navigate('implementation'); }} onReview={(id) => { setModal(null); openReview(id); refresh(); }} /> : null}
     {modal?.type === 'retry' && project && canWrite ? <RetryModal project={project} job={modal.job} request={request} onClose={() => setModal(null)} onDone={() => changed('작업을 다시 대기열에 넣었습니다.')} /> : null}
-    {appearanceOpen ? <AppearanceSettings onClose={() => { setAppearanceOpen(false); if (window.location.pathname === '/ctds') window.history.replaceState(null, '', '/'); }} /> : null}
+    {appearanceOpen ? <AppearanceSettings onLanguageChange={language => {
+      setAppearanceOpen(false);
+      guardNavigation(() => {
+        rememberWorkspaceReturn(workspaceStorage(window), { projectId, tab, workflowStep: activeStep?.id });
+        changeUiLanguage(language, window);
+      });
+    }} onClose={() => { setAppearanceOpen(false); if (window.location.pathname === '/ctds') window.history.replaceState(null, '', `/?ui_lang=${getLocale()}`); }} /> : null}
     {toast ? <Toast message={toast} onClose={closeToast} /> : null}
     {guideOpen ? <Modal title="AINS 사용 안내" onClose={() => setGuideOpen(false)}><div className="unified-help"><p>자료 등록 → 내용 검토·확정 → 작업 배정 → 실행·결과 검토</p><ul><li><strong>자료·기록:</strong> 파일을 올리거나 문서·회의록을 직접 작성합니다.</li><li><strong>요구사항·결정:</strong> 원문과 Nora 분석을 비교하고 반영할 내용을 확정합니다.</li><li><strong>작업·고객 질문:</strong> 담당자·기한·진행 상태와 고객 답변을 관리합니다.</li><li><strong>AI 개발:</strong> AI 작업을 실행하고 코드·테스트 결과를 검토합니다.</li><li><strong>도메인 가이드:</strong> 프로젝트의 용어·업무 흐름·확정 정책을 학습합니다.</li><li><strong>재사용 자료:</strong> 검토한 해결 사례를 현재 프로젝트에 활용합니다.</li></ul><p>AI 분석은 초안입니다. 검토 후 확정한 내용이 프로젝트 기준에 반영됩니다.</p></div></Modal> : null}
   </SharedViewContext.Provider>;

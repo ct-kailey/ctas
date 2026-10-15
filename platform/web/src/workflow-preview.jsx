@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ArrowRight, ArrowUpRight, BookOpen, Check, ChevronRight, ClipboardCheck, Database, FileText, FlaskConical, GitBranch, LayoutDashboard, ListTodo, Menu, Monitor, Play, RotateCcw, Settings2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Badge, Button, Modal, ControlButton } from './ui.jsx';
 import { AppearanceSettings } from './appearance.jsx';
+import { changeUiLanguage } from './ui-language-state.mjs';
+import { useConfirm } from './confirmation.jsx';
 import { ProjectPreview, IntakePreview, ContextPreview, PreflightPreview } from './preview-context.jsx';
 import { TasksPreview, ExecutionPreview, ValidationPreview, KnowledgePreview } from './preview-work.jsx';
 import { SecurityPreview, RoadmapPreview } from './preview-support.jsx';
@@ -36,6 +38,7 @@ function Overview({ projectName, onNavigate, completed }) {
 }
 
 export default function WorkflowPreview() {
+  const confirm = useConfirm();
   const [stage, setStage] = useState(readStage), [visited, setVisited] = useState(() => [readStage()]);
   const [projectName, setProjectName] = useState('가온 고객포털'), [completed, setCompleted] = useState([]);
   const [auditEvents, setAuditEvents] = useState([]), [message, setMessage] = useState(''), [resetOpen, setResetOpen] = useState(false), [themeOpen, setThemeOpen] = useState(false), [mobileOpen, setMobileOpen] = useState(false), [resetKey, setResetKey] = useState(0);
@@ -53,6 +56,6 @@ export default function WorkflowPreview() {
       {selected ? <><header className="wp-stage-heading"><div className="wp-row"><span className="wp-kicker">{position >= 0 ? `Step ${String(position + 1).padStart(2, '0')} / 08` : selected.layer}</span><span className="wp-tag">{selected.layer}</span>{selected.owner ? <span className="wp-meta">{selected.owner}</span> : null}</div><h1>{selected.title}</h1><p>{selected.description}</p></header>{position >= 0 ? <div className="wp-handoff"><div><span>이전 단계에서</span><strong>{selected.input}</strong></div><ArrowRight size={18} /><div><span>이 단계가 끝나면</span><strong>{selected.output}</strong></div></div> : null}</> : <Overview projectName={projectName} onNavigate={navigate} completed={completed} />}
       <div key={resetKey}>{ALL.filter(item => visited.includes(item.id)).map(item => { const Component = item.component; return <div key={item.id} hidden={stage !== item.id}><Component active={stage === item.id} onNext={() => complete(item.id)} onNavigate={navigate} onEvent={event} projectName={projectName} setProjectName={setProjectName} auditEvents={auditEvents} preflightResolved={completed.includes('preflight')} /></div>; })}</div>
       {position >= 0 ? <div className="wp-stage-footer"><Button type="button" variant="secondary" onClick={() => navigate(STAGES[position - 1]?.id || 'overview')}>{position > 0 ? '이전 단계 보기' : '전체 흐름 보기'}</Button><p>앞 단계를 완료하지 않아도 각 화면을 자유롭게 살펴볼 수 있습니다.</p><Button type="button" variant="secondary" onClick={() => navigate(STAGES[position + 1]?.id || 'overview')}>{position < STAGES.length - 1 ? '다음 화면 둘러보기' : '전체 흐름으로'}</Button></div> : null}<footer className="wp-footer"><span>AINS · Context → Workflow → Knowledge</span><span>기획 및 구현 일정 개정본 기반 · 화면 검토용</span></footer></main><div className={`wp-feedback ${message ? 'wp-feedback-visible' : ''}`} role="status" aria-live="polite">{message ? <><Check size={16} /><span>{message}</span><ControlButton className="icon-button" type="button" aria-label="프리뷰 알림 닫기" onClick={() => setMessage('')}><X size={16} /></ControlButton></> : null}</div></div>
-    {resetOpen ? <Modal title="프리뷰를 초기화할까요?" onClose={() => setResetOpen(false)}><div className="modal-body"><p>입력한 예시 내용과 체험 진행 상태를 처음으로 되돌립니다. 실제 프로젝트 데이터에는 영향을 주지 않습니다.</p></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={() => setResetOpen(false)}>계속 체험하기</Button><Button type="button" onClick={reset}>프리뷰 초기화</Button></footer></Modal> : null}{themeOpen ? <AppearanceSettings onClose={() => setThemeOpen(false)} /> : null}
+    {resetOpen ? <Modal title="프리뷰를 초기화할까요?" onClose={() => setResetOpen(false)}><div className="modal-body"><p>입력한 예시 내용과 체험 진행 상태를 처음으로 되돌립니다. 실제 프로젝트 데이터에는 영향을 주지 않습니다.</p></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={() => setResetOpen(false)}>계속 체험하기</Button><Button type="button" onClick={reset}>프리뷰 초기화</Button></footer></Modal> : null}{themeOpen ? <AppearanceSettings onLanguageChange={async language => { setThemeOpen(false); if (await confirm("언어를 변경하면 예시 체험이 초기화됩니다.")) changeUiLanguage(language, window); }} onClose={() => setThemeOpen(false)} /> : null}
   </div>;
 }
