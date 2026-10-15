@@ -37,7 +37,7 @@ const ANALYSIS_SELECT=`SELECT a.*,j.execution,EXISTS(SELECT 1 FROM automation_ta
  (SELECT jsonb_build_object('id',id,'status',status,'error_code',error_code,'trace_id',trace_id,'created_at',created_at,'updated_at',updated_at) execution
   FROM task_automation_jobs WHERE project_id=a.project_id AND analysis_id=a.id AND kind='risk' ORDER BY created_at DESC,id DESC LIMIT 1) j ON true`;
 function analysisCanRetry(r){return ['failed','uncertain'].includes(r.status)&&r.execution?.status===r.status&&r.result===null&&!r.question_ids?.length&&!r.has_tasks;}
-function publicAnalysis(r) { return { id:r.id,project_id:r.project_id,revision_id:r.revision_id,status:r.status,risks:r.result?.risks||[],question_ids:r.question_ids,error_code:r.error_code,created_at:r.created_at,updated_at:r.updated_at,trace_id:r.result?.trace_id||r.execution?.trace_id||null,execution:r.execution||null,can_retry:analysisCanRetry(r),uncertainty_mode:r.input_snapshot?.automation?.uncertainty_mode||'strict',temporary_decisions:r.result?.temporary_decisions||[],work_gaps:r.result?.work_gaps||[],feedback:r.input_snapshot?.feedback?{note_id:r.input_snapshot.feedback.note_id,note_version:r.input_snapshot.feedback.note_version,feedback_id:r.input_snapshot.feedback.feedback_id}:null }; }
+function publicAnalysis(r) { return { id:r.id,project_id:r.project_id,revision_id:r.revision_id,customer_question_language:r.input_snapshot?.project?.customer_question_language||null,status:r.status,risks:r.result?.risks||[],question_ids:r.question_ids,error_code:r.error_code,created_at:r.created_at,updated_at:r.updated_at,trace_id:r.result?.trace_id||r.execution?.trace_id||null,execution:r.execution||null,can_retry:analysisCanRetry(r),uncertainty_mode:r.input_snapshot?.automation?.uncertainty_mode||'strict',temporary_decisions:r.result?.temporary_decisions||[],work_gaps:r.result?.work_gaps||[],feedback:r.input_snapshot?.feedback?{note_id:r.input_snapshot.feedback.note_id,note_version:r.input_snapshot.feedback.note_version,feedback_id:r.input_snapshot.feedback.feedback_id}:null }; }
 async function analysis(db,p,aid){const row=(await db.query(ANALYSIS_SELECT+' WHERE a.project_id=$1 AND a.id=$2',[p,aid])).rows[0];if(!row)fail('TASK_ANALYSIS_NOT_FOUND','이 프로젝트의 정책 분석을 찾을 수 없습니다.',404);return row;}
 async function capabilities(provider,p,db=provider.pool) {
   const config=await settings(db,p), n=(await db.query('SELECT workspace_id,status,connector_id FROM project_nora_workspaces WHERE project_id=$1',[p])).rows[0];
@@ -56,7 +56,7 @@ async function capabilities(provider,p,db=provider.pool) {
   if(!repositoryReady)add('TASK_REPOSITORY_REQUIRED','Nora GitHub 연결로 기준 브랜치를 확인한 뒤 정책을 다시 분석하세요.');
   return {risk_analysis:Boolean(offered?.risk_analysis&&provider.analyzeRisk),development:Boolean(offered?.development&&provider.develop&&config.development_flow_slug&&n.connector_id&&repositoryReady),merge:Boolean(offered?.merge&&provider.merge&&n.connector_id&&repositoryReady),...Object.fromEntries(['diff','pr','ci','preview'].map(k=>[k,Boolean(offered?.[k])])),blockers};
 }
-async function snapshot(db,p,rid,requestId,{feedback=null,implementationNotes=[],schemaVersion='3.0'}={}) {
+async function snapshot(db,p,rid,requestId,{feedback=null,implementationNotes=[],schemaVersion='3.0',questionLanguage}={}) {
   const row=(await db.query(`SELECT r.*,d.title,d.document_category FROM revisions r JOIN documents d ON d.id=r.document_id AND d.project_id=r.project_id WHERE r.project_id=$1 AND r.id=$2`,[p,id(rid)])).rows[0];
   if(!row)fail('TASK_SOURCE_NOT_FOUND','이 프로젝트의 문서를 선택하세요.',404);
   if(row.document_category!=='policy')fail('TASK_POLICY_REQUIRED','정책 문서만 자동 위험 분석 대상으로 선택할 수 있습니다.');
@@ -70,12 +70,16 @@ async function snapshot(db,p,rid,requestId,{feedback=null,implementationNotes=[]
   if(records.length>200)fail('TASK_CONTEXT_TOO_LARGE','분석 범위를 나누어 주세요.',413);
   const value={schema_version:'1.0',project_id:p,request_id:requestId,source:{revision_id:row.id,document_id:row.document_id,title:row.title,category:row.document_category,sha256:row.sha256,segments:row.document_json.segments},context:{version:contextVersion,records},project:{name:project.name,goal:project.goal,settings_version:Number(project.version)},repository:{url:project.repository_url,base_branch:project.base_branch,head_sha:project.repository_check?.status==='ready'&&project.repository_check?.credential_source==='nora'?project.repository_check.head_sha:null},nora:{workspace_id:n.workspace_id},automation:{settings_version:config.version,risk_flow_slug:config.risk_flow_slug,development_flow_slug:config.development_flow_slug,preview_origins:config.preview_origins}};
   if(schemaVersion==='3.0'||schemaVersion==='2.0'||config.uncertainty_mode==='provisional'||feedback){value.schema_version=schemaVersion==='3.0'?'3.0':'2.0';value.automation.uncertainty_mode=schemaVersion==='3.0'?'per_task':config.uncertainty_mode||'strict';value.feedback=feedback;value.implementation_notes=implementationNotes;}
+  if(value.schema_version==='3.0')value.project.customer_question_language=questionLanguage||await require('./question-language').defaultLanguage(db,p);
   if(Buffer.byteLength(JSON.stringify(value))>500000)fail('TASK_CONTEXT_TOO_LARGE','정책과 관련 기록의 분석 범위를 줄여 주세요.',413);
   return value;
 }
 async function assertFresh(db,p,value,expectedHash,{development=false,verification=false,profile=null}={}) {
   if(value.project_id!==p||hash(value)!==expectedHash)fail('TASK_SNAPSHOT_MISMATCH','작업의 고정된 근거를 확인할 수 없습니다.');
-  const current=await snapshot(db,p,value.source.revision_id,value.request_id,{feedback:value.feedback||null,implementationNotes:value.implementation_notes||[],schemaVersion:value.schema_version||'1.0'});
+  const current=await snapshot(db,p,value.source.revision_id,value.request_id,{feedback:value.feedback||null,implementationNotes:value.implementation_notes||[],schemaVersion:value.schema_version||'1.0',questionLanguage:value.project.customer_question_language});
+  // Language is part of the run snapshot, not an evolving source-policy constraint.
+  // Keep legacy snapshots byte-compatible and never change a queued run's language.
+  if(!Object.hasOwn(value.project,'customer_question_language'))delete current.project.customer_question_language;
   if(value.feedback){
     const f=value.feedback,history=(await db.query(`SELECT n.version,n.status,h.detail,(SELECT jsonb_build_object('id',f.id,'version',f.version,'text',f.detail->>'text') FROM project_implementation_note_history f WHERE f.project_id=n.project_id AND f.note_id=n.id AND f.kind='feedback' ORDER BY f.version DESC LIMIT 1) latest_feedback FROM project_implementation_notes n JOIN project_implementation_note_history h ON h.project_id=n.project_id AND h.note_id=n.id AND h.version=$3 AND h.kind='followup_created' WHERE n.project_id=$1 AND n.id=$2 FOR SHARE OF n`,[p,f.note_id,f.note_version+1])).rows[0];
     if(!history||history.latest_feedback?.id!==f.feedback_id||history.latest_feedback.version!==f.note_version||hash(history.latest_feedback.text)!==f.feedback_sha256||history.detail.analysis_id!==value.request_id||history.detail.feedback_id!==f.feedback_id||history.detail.feedback_sha256!==f.feedback_sha256)fail('TASK_FEEDBACK_STALE','새 피드백이 기록되었습니다. 최신 피드백으로 다시 분석하세요.');
@@ -150,7 +154,7 @@ function createTaskAutomation({pool,provider={}}) {
       return transaction(pool,async db=>{await membership(db,p,u,['owner']);await lock(db,p);const s=await settings(db,p);if(s.version!==value.expected_version)fail('TASK_VERSION_CONFLICT','자동화 설정이 변경되었습니다.');if((await db.query("SELECT 1 FROM automation_tasks WHERE project_id=$1 AND review IS NOT NULL AND execution_status IN('merging','uncertain') LIMIT 1",[p])).rowCount)fail('TASK_APPROVAL_IN_PROGRESS','승인한 병합 결과를 확인한 뒤 자동화 설정을 변경하세요.');const mode=value.execution_mode??s.execution_mode??'connector_api',sdk={sdk_provider:value.sdk_provider===undefined?s.sdk_provider:value.sdk_provider,sdk_connection_id:value.sdk_connection_id===undefined?s.sdk_connection_id:value.sdk_connection_id,sdk_working_folder:value.sdk_working_folder===undefined?s.sdk_working_folder:value.sdk_working_folder};if(!['connector_api','nora_sdk'].includes(mode))fail('TASK_SETTINGS_INVALID','개발 실행 방식을 확인하세요.',400);if(mode==='nora_sdk')require('./nora-task-provider').sdkSettings(sdk);const r=(await db.query('UPDATE task_automation_settings SET enabled=$2,risk_flow_slug=$3,development_flow_slug=$4,preview_origins=$5,uncertainty_mode=$7,execution_mode=$8,sdk_provider=$9,sdk_connection_id=$10,sdk_working_folder=$11,version=version+1,updated_by=$6,updated_at=now() WHERE project_id=$1 RETURNING *',[p,value.enabled,risk,dev,JSON.stringify(origins),u,value.uncertainty_mode||s.uncertainty_mode||'strict',mode,sdk.sdk_provider||null,sdk.sdk_connection_id||null,sdk.sdk_working_folder||null])).rows[0];await audit(db,p,u,'settings_updated',p,{version:r.version});return r;});
     },
     async analyze(p,u,value) {
-      object(value,['revision_id','request_id']);id(value.revision_id);id(value.request_id);const fingerprint=hash(value);
+      object(value,['revision_id','request_id','customer_question_language']);id(value.revision_id);id(value.request_id);const questionLanguage=require('./question-language').language(value.customer_question_language,{optional:true});const fingerprint=hash(value);
       return transaction(pool,async db=>{
         await membership(db,p,u,WRITERS);
         await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-task-request:' || $1,0))",[value.request_id]);
@@ -161,7 +165,7 @@ function createTaskAutomation({pool,provider={}}) {
           if(old.project_id!==p||old.created_by!==u||old.request_sha256!==fingerprint)fail('TASK_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.');
           return publicAnalysis(await analysis(db,p,old.analysis_id));
         }
-        return queueAnalysis(db,p,u,value,await snapshot(db,p,value.revision_id,value.request_id),fingerprint);
+        return queueAnalysis(db,p,u,value,await snapshot(db,p,value.revision_id,value.request_id,{questionLanguage}),fingerprint);
       });
     },
     async retryAnalysis(p,u,aid,value){

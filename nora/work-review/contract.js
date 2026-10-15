@@ -21,6 +21,7 @@ function validateCandidate(candidate,request,expectedProjectId){
  for(const key of ['schema_version','request_id','project_id','context_version','target_type','target_id','input_sha256'])if(candidate[key]!==request[key])fail('WORK_AI_IDENTITY_MISMATCH','Analysis identity changed');
  // Validate the fields that AINS will persist before a human approves the native gate.
  // The published JSON schema is intentionally only the transport shape.
+ if(request.input_snapshot.customer_question_language==='ko'&&candidate.findings.some(item=>item.question?.trim()&&!/[가-힣]/.test(item.question)))fail('WORK_AI_QUESTION_LANGUAGE_MISMATCH','Return customer questions in Korean as requested; preserve source quotes separately');
  if(!candidate.summary.trim())fail('WORK_AI_APPLY_FORMAT_INVALID','Analysis summary must not be blank');
  for(const item of candidate.findings)if(!item.source_ids.length)fail('WORK_AI_FINDING_EVIDENCE_REQUIRED','Every finding must cite supplied evidence');
  for(const item of candidate.resources){

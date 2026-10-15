@@ -31,6 +31,7 @@ COPY nora/commercial-drafting/manifest.json nora/commercial-drafting/request.sch
 COPY nora/context/manifest.json nora/context/client.js nora/context/contract.js nora/context/request.schema.json nora/context/result.schema.json ./nora/context/
 COPY nora/work-review/manifest.json nora/work-review/client.js nora/work-review/contract.js nora/work-review/request.schema.json nora/work-review/result.schema.json ./nora/work-review/
 COPY nora/task-automation ./nora/task-automation/
+COPY nora/question-translation ./nora/question-translation/
 COPY nora/domain-guide ./nora/domain-guide/
 COPY nora/adapter/extract_document.py ./nora/adapter/
 RUN node -e "require('./platform/server/start.js')"

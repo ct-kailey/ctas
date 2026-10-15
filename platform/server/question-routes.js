@@ -1,8 +1,13 @@
 'use strict';
 const {createQuestionService}=require('./question-ledger');
 const {createQuestionOutbound}=require('./question-outbound');
-function mountQuestionRoutes(router,{pool,write,review,encryptionKey,fetchImpl}){
- const service=createQuestionService(pool),outbound=createQuestionOutbound(pool,{encryptionKey,fetchImpl});
+function mountQuestionRoutes(router,{pool,write,review,encryptionKey,fetchImpl,translationProvider}){
+ const language=require('./question-language').createQuestionLanguageService(pool),translations=require('./question-translations').createQuestionTranslations({pool,provider:translationProvider});
+ router.get('/question-language-settings',async(req,res)=>res.json(await language.get(req.params.p,req.user.id)));
+ router.put('/question-language-settings',review,async(req,res)=>res.json(await language.save(req.params.p,req.user.id,req.body)));
+ router.get('/questions/:id/translations',async(req,res)=>res.json(await translations.list(req.params.p,req.user.id,req.params.id)));
+ router.post('/questions/:id/translations',write,async(req,res)=>res.status(201).json({translation:await translations.create(req.params.p,req.user.id,req.params.id,req.body)}));
+ const service=createQuestionService(pool),outbound=createQuestionOutbound(pool,{encryptionKey,fetchImpl,translationProvider});
  router.get('/questions',async(req,res)=>res.json(await service.list(req.params.p,req.user.id,req.query)));
  router.post('/questions',write,async(req,res)=>res.status(201).json({question:await service.create(req.params.p,req.user.id,req.body)}));
  router.get('/questions/:id',async(req,res)=>res.json({question:await service.get(req.params.p,req.user.id,req.params.id)}));

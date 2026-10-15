@@ -14,6 +14,7 @@ import './task-automation.css';
 import { TaskAreasPanel } from './task-areas.jsx';
 import { TaskAutomationKanban } from './task-automation-kanban.jsx';
 import { draftPolicyResultKey, draftPolicyResults, draftPolicySourceState, policyAnalysisRetryPayload } from './draft-policy-preparation-state.mjs';
+import { QUESTION_LANGUAGES } from './question-language-state.mjs';
 
 function useAutomationResource(path, request, poll = automationActive) {
   const [data, setData] = useState(null), [error, setError] = useState(null), [loading, setLoading] = useState(true);
@@ -76,7 +77,7 @@ function RiskAnalysis({ analysis, taskCount, onQuestions }) {
     {analysis.temporary_decisions?.length || analysis.work_gaps?.length ? <p className="task-auto-help">확인할 구현 내용 {analysis.temporary_decisions?.length || 0}개 · 예상 작업 공백 {analysis.work_gaps?.length || 0}개. 실제 임시 구현 이력은 AI 개발 후 자동으로 기록합니다.</p> : null}
     {analysis.feedback?.note_id ? <p className="task-auto-help">사람의 피드백에 따른 보완 분석입니다. 기존 작업 상태는 보존됩니다.</p> : null}
     {risks.length ? <List aria-label="확인할 위험">{risks.map((risk, index) => <ListItem key={risk.id || index} trailing={risk.blocking || risk.severity === 'blocking' ? <Badge tone="amber">고객 확인 필요</Badge> : null}><ListItem.Title>{risk.title || risk.question || '확인할 위험'}</ListItem.Title>{risk.description || risk.reason || risk.message ? <ListItem.Description>{risk.description || risk.reason || risk.message}</ListItem.Description> : null}</ListItem>)}</List> : analysis.status === 'completed' ? <p className="task-auto-help">차단 위험 없이 분석을 마쳤습니다. 연결된 작업 {taskCount}개를 확인하세요.</p> : null}
-    {analysis.question_ids?.length ? <><p className="task-auto-help">고객에게 확인할 질문 초안 {analysis.question_ids.length}개가 등록되었습니다. 내용을 검토해 전달하세요.</p>{onQuestions ? <Button type="button" variant="secondary" onClick={onQuestions}>고객 질문 확인</Button> : null}</> : null}
+    {analysis.question_ids?.length ? <><p className="task-auto-help">고객에게 확인할 질문 초안 {analysis.question_ids.length}개가 등록되었습니다. 내용을 검토해 전달하세요.</p>{analysis.customer_question_language && QUESTION_LANGUAGES[analysis.customer_question_language] ? <Badge tone="quiet">{QUESTION_LANGUAGES[analysis.customer_question_language]}</Badge> : null}{onQuestions ? <Button type="button" variant="secondary" onClick={onQuestions}>고객 질문 확인</Button> : null}</> : null}
     {analysis.error_code ? <Disclosure><summary>분석 준비·오류 정보</summary><p>{automationBlockerLabel(analysis.error_code)}</p></Disclosure> : null}
   </ListItem>;
 }
@@ -274,6 +275,7 @@ export function DraftPolicyPreparation({ draft, projectId, request, canWrite, on
 
 export function PolicyRiskAnalysis({ projectId, revisionId, sourceReady, request, canWrite, onDirty, onWorkItems, onQuestions, onTask, onUpdated, onBusy }) {
   const sharedView = useSharedView(), route = `${projectPath(projectId)}/task-automation`;
+  const [questionLanguage, setQuestionLanguage] = useState('');
   const remote = useAutomationResource(route, request), [busy, setBusy] = useState(false), [retryBusy, setRetryBusy] = useState(false), [error, setError] = useState(null), pending = useRef(null);
   const { analyses, tasks, active } = draftPolicyResults(remote.data, revisionId), callbacks = useRef({ onUpdated, onDirty, onBusy });
   callbacks.current = { onUpdated, onDirty, onBusy };
@@ -287,7 +289,7 @@ export function PolicyRiskAnalysis({ projectId, revisionId, sourceReady, request
   useEffect(() => { callbacks.current.onDirty?.(busy || retryBusy || Boolean(pending.current)); return () => callbacks.current.onDirty?.(false); }, [busy, retryBusy, error]);
   async function analyze() {
     if (busy || retryBusy || sharedView || !canWrite || !sourceReady || active || !remote.data?.capabilities?.risk_analysis) return;
-    setBusy(true); setError(null); pending.current ||= { revision_id: revisionId, request_id: crypto.randomUUID() };
+    setBusy(true); setError(null); pending.current ||= { revision_id: revisionId, request_id: crypto.randomUUID(), ...(questionLanguage ? { customer_question_language: questionLanguage } : {}) };
     try {
       await request(`${route}/analyze`, { method: 'POST', body: pending.current });
       if (remote.lifecycle.current.active) { pending.current = null; await remote.load(); callbacks.current.onUpdated?.(); }
@@ -299,6 +301,7 @@ export function PolicyRiskAnalysis({ projectId, revisionId, sourceReady, request
       {!remote.data.capabilities?.risk_analysis ? <CapabilityNotice capabilities={remote.data.capabilities} /> : null}
       <IntakeNotice items={remote.data.intake?.filter(item => item.revision_id === revisionId)} />
       {!sourceReady ? <p className="task-auto-help">문서 추출과 원문에서 확인이 필요한 구간을 먼저 검토해 주세요.</p> : null}
+      {canWrite && !sharedView ? <FormField label="이번 분석의 고객 질문 언어" hint="프로젝트 기본 언어는 고객 질문 메뉴에서 변경할 수 있습니다."><Select value={questionLanguage} disabled={busy || retryBusy || active || Boolean(pending.current)} onChange={event => setQuestionLanguage(event.target.value)}><option value="">프로젝트 기본 언어</option><option value="ko">한국어</option><option value="en">English</option></Select></FormField> : null}
       <div className="task-policy-actions">{canWrite && !sharedView && !['failed', 'uncertain'].includes(analyses[0]?.status) ? <Button type="button" variant="secondary" icon={Sparkles} busy={busy} disabled={active || retryBusy || !sourceReady || !remote.data.capabilities?.risk_analysis} onClick={analyze}>{active ? 'Nora 리스크 분석 진행 중' : pending.current ? '같은 리스크 분석 요청 확인' : 'Nora 리스크 분석'}</Button> : null}<Button type="button" variant="ghost" icon={RefreshCw} disabled={busy || retryBusy} onClick={remote.load}>분석 상태 새로고침</Button>{onWorkItems ? <Button type="button" variant="secondary" onClick={onWorkItems}>분석·개발 작업 보기</Button> : null}</div>
       <List aria-label="최근 정책 분석">{analyses.slice(0, 1).map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={tasks.filter(task => task.analysis_id === analysis.id).length} onQuestions={onQuestions} />)}</List>
       {analyses[0] && ['failed', 'uncertain'].includes(analyses[0].status) ? <PolicyAnalysisRetry key={`${analyses[0].id}:${analyses[0].execution?.id || ''}`} analysis={analyses[0]} route={route} request={request} canWrite={canWrite && !sharedView} disabled={busy || !sourceReady || !remote.data.capabilities?.risk_analysis} onBusy={setRetryBusy} onFreshAnalysis={analyze} onChanged={async () => { await remote.load(); callbacks.current.onUpdated?.(); }} /> : null}

@@ -872,10 +872,13 @@ button svg, a svg { flex-shrink: 0; }
 /* Goal → baseline → reviewed plan → bounded execution request. */
 .main-nav { min-height: 0; overflow-y: auto; }
 .settings-grid, .implementation-create-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(var(--ains-panel-sm), .7fr); gap: var(--space-6); align-items: start; }
+.settings-grid { grid-template-columns: minmax(0, 1.3fr) minmax(0, .7fr); }
+/* Allow translated text and form controls to fit the allocated grid tracks. */
+.settings-grid > *, .settings-context > *, .settings-context form, .settings-context fieldset, .settings-form fieldset { min-width: 0; }
 .settings-form, .implementation-create { background: var(--bg); border: var(--hairline) solid var(--line); border-radius: var(--radius-xs); padding: var(--space-6); }
 .settings-form fieldset { border: 0; padding: 0; margin: 0; }
 .settings-form .notice { margin-top: var(--space-5); }
-.settings-context { display: grid; gap: var(--space-4); }
+.settings-context { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); min-width: 0; overflow-wrap: anywhere; }
 .repository-check, .implementation-start-note { background: var(--bg-muted); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-6); }
 .settings-context-heading { display: flex; align-items: center; gap: var(--space-2); color: var(--fg-muted); margin-bottom: var(--space-4); }
 .settings-context h3 { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }

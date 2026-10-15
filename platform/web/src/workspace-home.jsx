@@ -3,6 +3,7 @@ import { ArrowRight, Bell, CheckCheck, FilePlus2, Files, RefreshCw } from 'lucid
 import { Badge, Button, Empty, ErrorNotice, Spinner, ControlButton, Notice } from './ui.jsx';
 import { Tabs } from './ui.jsx';
 import { ProjectJourney } from './project-journey.jsx';
+import { attentionInstruction } from './server-ui-copy.mjs';
 import './workspace-home.css';
 import { List, ListItem } from './ctds-lists';
 
@@ -40,7 +41,7 @@ function orderedItems(attention) {
 }
 function AttentionRow({ item, onNavigate, documentLoading }) {
   const grade = GRADES[item.grade] || GRADES.info;
-  return <ListItem className="workspace-attention-item"><ListItem.Title><Badge tone={grade.tone}>{grade.label}</Badge>{item.title}</ListItem.Title><ListItem.Description>{item.description}</ListItem.Description><ListItem.Meta><span>{RULE_LABELS[item.rule] || '원본 업무 상태 기준'}</span><time dateTime={item.created_at}>{displayDate(item.created_at)}</time><Button type="button" variant="secondary" rightIcon={<ArrowRight size={15} />} disabled={Boolean(documentLoading && item.target?.revisionId)} onClick={() => onNavigate(item.tab, item.target)}>{TAB_LABELS[item.tab] || '업무 확인'}</Button></ListItem.Meta></ListItem>;
+  return <ListItem className="workspace-attention-item"><ListItem.Title><Badge tone={grade.tone}>{grade.label}</Badge>{item.title}</ListItem.Title><ListItem.Description>{attentionInstruction(item)}</ListItem.Description><ListItem.Meta><span>{RULE_LABELS[item.rule] || '원본 업무 상태 기준'}</span><time dateTime={item.created_at}>{displayDate(item.created_at)}</time><Button type="button" variant="secondary" rightIcon={<ArrowRight size={15} />} disabled={Boolean(documentLoading && item.target?.revisionId)} onClick={() => onNavigate(item.tab, item.target)}>{TAB_LABELS[item.tab] || '업무 확인'}</Button></ListItem.Meta></ListItem>;
 }
 function AttentionList({ items, onNavigate, documentLoading = false, emptyTitle = '지금 확인할 알림이 없습니다', emptyDescription = '검토할 기록이나 응답 대기가 생기면 이곳에서 확인할 수 있습니다.' }) {
   return items.length ? <List className="workspace-home-panel workspace-home-flush">{items.map(item => <AttentionRow key={item.id} item={item} onNavigate={onNavigate} documentLoading={documentLoading} />)}</List>

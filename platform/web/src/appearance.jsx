@@ -5,6 +5,8 @@ import { IconAxisProvider } from './components/ctds/Icon';
 import { Button, Badge, FormField, Modal, Input, Select } from './ui.jsx';
 import { THEME_STORAGE_KEY, normalizeTheme, readTheme, persistTheme, applyThemeToDocument } from './theme-state.mjs';
 import { applyThemeContrast } from './theme-contrast.mjs';
+import { getLocale, applyUiLanguage } from './ui-language-state.mjs';
+import { LanguageChoice } from './language-settings.jsx';
 import './appearance.css';
 
 const AppearanceContext = createContext(null);
@@ -13,12 +15,14 @@ export const DEFAULT_THEME = normalizeTheme(config, config);
 function browserTheme() { try { return readTheme(window.localStorage, DEFAULT_THEME); } catch { return DEFAULT_THEME; } }
 // Run before React mounts so existing preferences do not flash the default theme.
 applyThemeToDocument(browserTheme(), document.documentElement);
+applyUiLanguage(document.documentElement);
 applyThemeContrast(document.documentElement);
 
 export function AppearanceProvider({ children }) {
   const [theme, setTheme] = useState(browserTheme);
   useLayoutEffect(() => {
     applyThemeToDocument(theme, document.documentElement);
+    applyUiLanguage(document.documentElement);
     applyThemeContrast(document.documentElement);
   }, [theme]);
   useEffect(() => {
@@ -35,18 +39,21 @@ export function AppearanceProvider({ children }) {
   }
   return <AppearanceContext.Provider value={{ theme, apply }}><IconAxisProvider value={ICON_AXIS}>{children}</IconAxisProvider></AppearanceContext.Provider>;
 }
-export function AppearanceSettings({ onClose }) {
+export function AppearanceSettings({ onClose, onLanguageChange }) {
   const { theme, apply } = useContext(AppearanceContext);
   const [draft, setDraft] = useState(theme), [message, setMessage] = useState('');
+  const [language, setLanguage] = useState(getLocale);
   function change(key, value) { setDraft((old) => ({ ...old, [key]: value })); setMessage(''); }
   function save(event) {
     event.preventDefault();
     const saved = apply(draft);
+    if (language !== getLocale()) { onLanguageChange(language); return; }
     setMessage(saved ? '화면에 적용했습니다. 이 브라우저에서 다음 접속에도 유지됩니다.' : '화면에 적용했습니다. 브라우저 저장이 차단되어 다음 접속에는 기본 설정을 사용합니다.');
   }
   return <Modal title="화면 설정" eyebrow="CTDS" wide onClose={onClose}>
     <form onSubmit={save}>
       <div className="modal-body appearance-settings">
+        <div className="appearance-language"><strong>사이트 표시 언어</strong><LanguageChoice value={language} onChange={setLanguage} /><p className="appearance-description">적용하면 화면을 다시 불러옵니다. 고객 질문의 작성 언어는 고객 질문 메뉴에서 별도로 설정합니다.</p></div>
         <p className="appearance-description">업무 화면의 색상과 밀도를 조절합니다. 설정은 이 브라우저에만 저장됩니다.</p>
         <div className="appearance-fields">
           <FormField label="화면 모드"><Select value={draft.mode} onChange={(e) => change('mode', e.target.value)}><option value="light">밝게</option><option value="dark">어둡게</option></Select></FormField>

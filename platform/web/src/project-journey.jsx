@@ -11,6 +11,7 @@ import { useSharedView } from './shared-view.jsx';
 import { retainProjectRequest } from './nora-workspace-state.mjs';
 import { EMPTY_JOURNEY_FILTERS, JOURNEY_EVENT_TYPES, JOURNEY_MILESTONES, JOURNEY_SOURCE_LABELS, JOURNEY_STAGES, groupJourneyEvents, journeyCanRecord, journeyDateTime, journeyEventKey, journeyEventQuery, journeyMilestonePayload, journeyProgress, journeySourceRefs, journeyTimeLabel, mergeJourneyPage } from './project-journey-state.mjs';
 import './project-journey.css';
+import { journeyEventTitle, journeyEventDescription, journeySourceTitle, journeySourceDescription, journeyFieldLabel } from './server-ui-copy.mjs';
 
 const noop = () => {};
 const number = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('ko-KR') : '—';
@@ -87,20 +88,20 @@ function JourneySources({ refs, onOpenSource }) {
   return <List className="project-journey-source-list">{sources.map(ref => <ListItem key={`${ref.type}:${ref.id}`}><ListItem.Title>{onOpenSource ? <Button type="button" variant="secondary" rightIcon={<ArrowRight size={14} />} onClick={() => onOpenSource(ref)}>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</Button> : <strong>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</strong>}</ListItem.Title><ListItem.Meta>{JOURNEY_SOURCE_LABELS[ref.type]}</ListItem.Meta></ListItem>)}</List>;
 }
 
-function JourneyFields({ fields }) {
+function JourneyFields({ fields, sourceType }) {
   if (!Array.isArray(fields) || !fields.length) return null;
-  return <dl className="project-journey-facts">{fields.map((field, index) => <div key={index}><dt>{fieldText(field.label)}</dt><dd>{fieldText(field.value)}</dd></div>)}</dl>;
+  return <dl className="project-journey-facts">{fields.map((field, index) => <div key={index}><dt>{fieldText(journeyFieldLabel(field.label, sourceType))}</dt><dd>{fieldText(field.value)}</dd></div>)}</dl>;
 }
 
 function JourneyEventDetail({ route, event, request, onClose, onOpenSource, onRecord }) {
   const remote = useJourneyRead(`${route}/events/${encodeURIComponent(event.type)}/${encodeURIComponent(event.id)}`, request);
   const item = remote.data?.event || event, detail = remote.data?.detail;
   const refs = journeySourceRefs([...(item.source_refs || []), ...(detail?.source_refs || [])]);
-  return <Modal title={item.title || '프로젝트 기록'} eyebrow="프로젝트 타임라인" onClose={onClose}>
+  return <Modal title={journeyEventTitle(item) || '프로젝트 기록'} eyebrow="프로젝트 타임라인" onClose={onClose}>
     <div className="modal-body project-journey-detail"><div className="project-journey-inline"><Badge tone="quiet">{JOURNEY_STAGES[item.stage] || '프로젝트'}</Badge><Badge tone="quiet">{JOURNEY_EVENT_TYPES[item.type] || '기록'}</Badge></div>
       <dl className="project-journey-facts"><div><dt>{journeyTimeLabel(item)} · KST</dt><dd>{journeyDateTime(item.occurred_at)}</dd></div><div><dt>시스템 등록 시각 · KST</dt><dd>{journeyDateTime(item.recorded_at)}</dd></div>{item.actor?.name ? <div><dt>기록한 사람</dt><dd>{item.actor.name}</dd></div> : null}</dl>
       <ErrorNotice error={remote.error} onRetry={remote.load} />{remote.loading && !detail ? <Spinner label="기록 상세를 확인하고 있습니다" /> : null}
-      {detail?.description || item.description ? <p className="project-journey-description">{detail?.description || item.description}</p> : null}<JourneyFields fields={detail?.fields} />
+      {detail?.description || item.description ? <p className="project-journey-description">{journeyEventDescription(item, detail?.description || item.description)}</p> : null}<JourneyFields fields={detail?.fields} />
       <section className="project-journey-related"><h3>관련 문서·작업</h3><JourneySources refs={refs} onOpenSource={onOpenSource ? ref => { onClose(); onOpenSource(ref); } : null} /></section>
     </div><footer className="modal-actions">{onRecord ? <Button type="button" variant="secondary" onClick={() => onRecord(journeySourceRefs(refs, true))}>연결된 주요 일정 기록</Button> : null}<Button type="button" variant="secondary" onClick={onClose}>닫기</Button></footer>
   </Modal>;
@@ -114,8 +115,8 @@ export function JourneySourceDetail({ projectId, request, sourceRef, onClose, on
 function JourneySourceDetailContent({ projectId, request, sourceRef, onClose, onOpenSource }) {
   const valid = journeySourceRefs([sourceRef])[0], path = valid ? `${projectPath(projectId)}/journey/sources/${encodeURIComponent(valid.type)}/${encodeURIComponent(valid.id)}` : null;
   const remote = useJourneyRead(path, request), data = remote.data;
-  return <Modal title={data?.source?.title || JOURNEY_SOURCE_LABELS[valid?.type] || '관련 기록'} onClose={onClose}>
-    <div className="modal-body project-journey-detail">{!valid ? <ErrorNotice error={new Error('관련 기록의 참조를 확인할 수 없습니다.')} /> : <><ErrorNotice error={remote.error} onRetry={remote.load} />{remote.loading && !data ? <Spinner label="관련 기록 상세를 불러오고 있습니다" /> : null}{data ? <>{data.description ? <p className="project-journey-description">{data.description}</p> : null}<JourneyFields fields={data.fields} /><section className="project-journey-related"><h3>관련 문서·작업</h3><JourneySources refs={(data.source_refs || []).filter(ref => ref.type !== valid.type || ref.id !== valid.id)} onOpenSource={onOpenSource ? ref => { onClose(); onOpenSource(ref); } : null} /></section></> : null}</>}</div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose}>닫기</Button></footer>
+  return <Modal title={journeySourceTitle(data?.source) || JOURNEY_SOURCE_LABELS[valid?.type] || '관련 기록'} onClose={onClose}>
+    <div className="modal-body project-journey-detail">{!valid ? <ErrorNotice error={new Error('관련 기록의 참조를 확인할 수 없습니다.')} /> : <><ErrorNotice error={remote.error} onRetry={remote.load} />{remote.loading && !data ? <Spinner label="관련 기록 상세를 불러오고 있습니다" /> : null}{data ? <>{data.description ? <p className="project-journey-description">{journeySourceDescription(data.source, data.description)}</p> : null}<JourneyFields fields={data.fields} sourceType={data.source?.type} /><section className="project-journey-related"><h3>관련 문서·작업</h3><JourneySources refs={(data.source_refs || []).filter(ref => ref.type !== valid.type || ref.id !== valid.id)} onOpenSource={onOpenSource ? ref => { onClose(); onOpenSource(ref); } : null} /></section></> : null}</>}</div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose}>닫기</Button></footer>
   </Modal>;
 }
 
@@ -171,11 +172,11 @@ function ProjectJourneyContent({ project, request, canWrite = false, onDirty = n
       <Disclosure><summary>기간·유형 필터{filterActive ? ' · 적용 중' : ''}</summary><JourneyFilters filters={filters} stages={summary.data?.stages} onChange={setFilters} /></Disclosure>
       {timeline.loading && !timeline.data ? <Spinner label="프로젝트 이력을 불러오고 있습니다" /> : timeline.data ? <>
         {/* EventListItem uses local calendar fields; keep its date block aligned with the KST day group. */}
-        {groups.length ? <List className="project-journey-events" aria-label="날짜별 프로젝트 이력">{groups.flatMap(group => group.events.map(event => <EventListItem key={journeyEventKey(event)} role="listitem" variant="line" size="sm" data-ctds="event-list-item" date={new Date(`${group.day}T12:00:00`)} title={<ControlButton type="button" variant="ghost" onClick={() => setSelected(event)}>{event.title || JOURNEY_EVENT_TYPES[event.type]}</ControlButton>} meta={[
+        {groups.length ? <List className="project-journey-events" aria-label="날짜별 프로젝트 이력">{groups.flatMap(group => group.events.map(event => <EventListItem key={journeyEventKey(event)} role="listitem" variant="line" size="sm" data-ctds="event-list-item" date={new Date(`${group.day}T12:00:00`)} title={<ControlButton type="button" variant="ghost" onClick={() => setSelected(event)}>{journeyEventTitle(event) || JOURNEY_EVENT_TYPES[event.type]}</ControlButton>} meta={[
           { label: JOURNEY_STAGES[event.stage] || '프로젝트' },
           { label: JOURNEY_EVENT_TYPES[event.type] },
           { label: `${journeyTimeLabel(event)} ${journeyDateTime(event.occurred_at)} KST` },
-          ...(event.description ? [{ label: <span className="project-journey-excerpt">{event.description}</span> }] : []),
+          ...(event.description ? [{ label: <span className="project-journey-excerpt">{journeyEventDescription(event)}</span> }] : []),
         ]} />))}</List> : <Empty compact icon={CheckCheck} title={filterActive ? '이 조건의 기록이 없습니다' : '아직 타임라인 기록이 없습니다'}>{filterActive ? '기간·단계를 넓혀 다른 기록을 확인해 주세요.' : '문서·작업·주요 일정 기록이 시간순으로 표시됩니다.'}</Empty>}
         <div className="project-journey-pagination"><p className="project-journey-help">{number(timeline.data.events.length)} / {number(timeline.data.total)}건 표시 · {journeyDateTime(timeline.data.snapshot_at)} KST 조회 기준</p>{!timeline.data.has_more && timeline.data.events.length < timeline.data.total ? <p className="project-journey-help">조회 중 기록이 변경되었습니다. 누락된 이력을 확인하려면 새로고침해 주세요.</p> : null}{timeline.data.has_more ? <Button type="button" variant="secondary" busy={timeline.loading} onClick={() => timeline.load(true)}>다음 이력 더 불러오기</Button> : null}</div>
       </> : null}

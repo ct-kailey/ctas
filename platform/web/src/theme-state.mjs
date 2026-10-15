@@ -31,7 +31,7 @@ export function persistTheme(storage, value) {
 }
 export function applyThemeToDocument(theme, root) {
   const attrs = { mode: theme.mode, palette: theme.palette, shape: theme.shape, density: theme.density,
-    motion: theme.motion, 'icon-family': theme.iconFamily, lang: theme.lang, 'focus-ring': 'on', voice: theme.voice };
+    motion: theme.motion, 'icon-family': theme.iconFamily, 'focus-ring': 'on', voice: theme.voice };
   for (const [key, value] of Object.entries(attrs)) root.setAttribute(`data-${key}`, value);
   root.style.setProperty('--hue', String(theme.hue));
   root.style.colorScheme = theme.mode;

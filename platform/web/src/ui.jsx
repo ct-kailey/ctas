@@ -11,6 +11,7 @@ import { Input, Textarea, Select, Disclosure } from './ui-controls';
 import { Hint } from './components/ctds/Hint/Hint';
 import { List, ListItem } from './ctds-lists';
 import './ui-layout.css';
+import { presentApiError } from './ui-api-errors.mjs';
 export { Input, Textarea, Select, Disclosure, ControlButton, Tabs } from './ui-controls';
 
 export const STATUS = {
@@ -37,9 +38,11 @@ export const Notice = React.forwardRef(function Notice({ children, className = '
 });
 export function ErrorNotice({ error, onRetry }) {
   if (!error) return null;
-  return <CTDSCallout data-ctds="callout" tone="destructive" role="alert" title={String(error.message || error).replaceAll('기준선', '확정본').replaceAll('리비전', '버전')}
+  const display = presentApiError(error);
+  return <CTDSCallout data-ctds="callout" tone="destructive" role="alert" title={display.message.replaceAll('기준선', '확정본').replaceAll('리비전', '버전')}
     actions={onRetry ? <CTDSButton data-ctds="button" type="button" size="sm" variant="ghost" onClick={onRetry}>다시 불러오기</CTDSButton> : null}>
     {error.code ? <Disclosure><summary>오류 코드 보기</summary><small>{error.code}</small></Disclosure> : null}
+    {display.original ? <Disclosure><summary>서버 원문 안내</summary><p lang="ko">{display.original}</p></Disclosure> : null}
   </CTDSCallout>;
 }
 export function Empty({ icon: Icon, title, children, action, compact = false }) {
