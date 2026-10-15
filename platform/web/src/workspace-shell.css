@@ -16,7 +16,7 @@
 .unified-shell .unified-topbar { border-bottom: var(--hairline) solid var(--border); }
 .unified-topbar .unified-topbar-leading { flex: 0 1 auto; }
 .unified-breadcrumb { min-width: 0; }
-.unified-breadcrumb > ol { min-width: 0; }
+.unified-breadcrumb > ol { min-width: 0; flex-wrap: nowrap; }
 .unified-breadcrumb > ol > li { min-width: 0; }
 .unified-breadcrumb button { max-width: var(--ains-panel-sm); }
 .unified-mobile-menu { display: none; }

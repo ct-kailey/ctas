@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Building2, Bell, BookOpen, ChevronRight, FolderKanban, Home, LogOut, Menu, Plus, Settings2, Share2, FileText, Files, ClipboardCheck, CheckSquare, Code2, Library, Users } from 'lucide-react';
 import { Sidebar } from './components/ctds/Sidebar/Sidebar';
 import { Topbar } from './components/ctds/Topbar/Topbar';
@@ -17,6 +17,13 @@ function Brand() {
 }
 export function WorkspaceShell({ user, project, projects, tab, activeStep, alertCount, onNavigate, onProjectSelect, onNewProject, onUpload, canWrite, onLogout, onAppearance, onGuide, sharedView, onShare, children }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [compactTopbar, setCompactTopbar] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 560px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 560px)');
+    const update = () => setCompactTopbar(query.matches);
+    update(); query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const globalView = tab === 'customers';
   const viewTabs = (activeStep?.navigationTabs || activeStep?.tabs || []).filter(id => !sharedView || SHARED_VIEW_TABS.has(id));
   const run = action => { setMenuOpen(false); action(); };
@@ -53,7 +60,7 @@ export function WorkspaceShell({ user, project, projects, tab, activeStep, alert
         <Topbar.Leading className="unified-topbar-leading"><IconButton className="unified-mobile-menu" size="sm" icon={<Menu size={20}/>} aria-label="탐색 메뉴 열기" onClick={() => setMenuOpen(true)} data-ctds="icon-button" />
           <Breadcrumb className="unified-breadcrumb" aria-label="현재 위치" data-ctds="breadcrumb">
             <Breadcrumb.Link href="/?tab=home" aria-label="AINS 홈" leftIcon={<Home size={16}/>} onClick={event => { event.preventDefault(); onNavigate('home'); }} />
-            {!globalView && project ? <Breadcrumb.Menu aria-label="프로젝트 전환" title={project.name} items={projects.map(item => ({label: projectOptionLabel(item), active: item.id === project.id, onSelect: () => onProjectSelect(item.id, tab, activeStep?.id)}))}>{project.name}</Breadcrumb.Menu> : null}
+            {!globalView && project ? compactTopbar ? <Breadcrumb.Ellipsis aria-label="프로젝트 전환" items={projects.map(item => ({label: projectOptionLabel(item), active: item.id === project.id, onSelect: () => onProjectSelect(item.id, tab, activeStep?.id)}))} /> : <Breadcrumb.Menu aria-label="프로젝트 전환" title={project.name} items={projects.map(item => ({label: projectOptionLabel(item), active: item.id === project.id, onSelect: () => onProjectSelect(item.id, tab, activeStep?.id)}))}>{project.name}</Breadcrumb.Menu> : null}
             <Breadcrumb.Menu active aria-label="업무 메뉴 전환" title={activeStep?.label || WORKSPACE_VIEWS[tab]?.label || '홈'} items={pageChoices}>{activeStep?.label || WORKSPACE_VIEWS[tab]?.label || '홈'}</Breadcrumb.Menu>
           </Breadcrumb>
         </Topbar.Leading><Topbar.Center />
