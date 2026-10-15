@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { ArrowRight, CalendarDays, CheckCheck, FileText, Flag, FolderKanban, MessageSquare, Plus, RefreshCw, Search } from 'lucide-react';
-import { Badge, Button, ControlButton, Empty, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, projectPath } from './ui.jsx';
+import { Badge, Button, ControlButton, Disclosure, Empty, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, projectPath } from './ui.jsx';
 import { MetricCard } from './components/ctds/MetricCard/MetricCard';
 import { TableCellMeter } from './components/ctds/TableCell/TableCellMeter';
 import { ListItem, ListItemLeadingIcon } from './components/ctds/ListItem/ListItem';
@@ -59,12 +59,12 @@ function JourneyProgress({ data, onNavigate }) {
   return <section className="project-journey-progress" aria-label="프로젝트 전체 작업 진행률">
     <div className="project-journey-metrics">
       <MetricCard label="전체 작업 완료율" value={progress.percent === null ? '미등록' : `${Math.round(progress.percent * 10) / 10}%`} variant="line" data-ctds="metric-card" />
-      {[['진행 중', 'in_progress'], ['검토 대기', 'qa'], ['대기', 'todo'], ['확인 필요', 'blocked']].map(([label, key]) => <MetricCard key={key} label={label} value={`${number(progress[key])}건`} variant="line" data-ctds="metric-card" />)}
+      {[['진행 중', 'in_progress'], ['검토 대기', 'qa'], ['확인 필요', 'blocked']].map(([label, key]) => <MetricCard key={key} label={label} value={`${number(progress[key])}건`} variant="line" data-ctds="metric-card" />)}
     </div>
     <div className="project-journey-progress-caption">
       <div className="project-journey-inline">{progress.percent !== null ? <TableCellMeter value={progress.percent} labelPosition="none" aria-label={`전체 작업 ${progress.total}건 중 ${progress.done}건 완료`} data-ctds="table-cell-meter" /> : null}<strong>완료 {number(progress.done)} / 전체 {number(progress.total)}건</strong>{onNavigate ? <Button type="button" variant="ghost" rightIcon={<ArrowRight size={14} />} onClick={() => onNavigate('work-items')}>작업 보드</Button> : null}</div>
-      <p className="project-journey-help">{progress.percent === null ? '실행 작업이 아직 등록되지 않았습니다.' : '등록된 실행 작업의 전체 완료율입니다.'} 계약·전달·종료 상태는 별도로 확인합니다.</p>
-      <div className="project-journey-inline project-journey-help"><span>검토 전 작업 초안 {number(progress.unvalidated_drafts)}건 · 완료율 제외</span><span>보완할 작업 공백 {number(progress.open_work_gaps)}건</span><span>검토할 임시 구현 {number(progress.open_temporary_decisions)}건</span>{progress.completed_partial_tasks > 0 ? <span>완료 작업 중 일부 구현 {number(progress.completed_partial_tasks)}건</span> : null}</div>
+      <p className="project-journey-help">{progress.percent === null ? '작업을 등록하면 진행률이 표시됩니다.' : '실행 작업 기준 · 검토 전 초안은 제외'}</p>
+      {progress.unvalidated_drafts > 0 || progress.open_temporary_decisions > 0 ? <p className="project-journey-help">{progress.unvalidated_drafts > 0 ? `검토 전 초안 ${number(progress.unvalidated_drafts)}건` : ''}{progress.unvalidated_drafts > 0 && progress.open_temporary_decisions > 0 ? ' · ' : ''}{progress.open_temporary_decisions > 0 ? `검토할 임시 구현 ${number(progress.open_temporary_decisions)}건` : ''}</p> : null}
       {progress.open_work_gaps > 0 || progress.completed_partial_tasks > 0 ? <Notice tone="warning">{progress.open_work_gaps > 0 ? '보완할 작업 공백이 있습니다. ' : ''}{progress.completed_partial_tasks > 0 ? '일부 범위만 구현한 완료 작업이 있습니다. ' : ''}작업 상세에서 전달 범위를 확인해 주세요.</Notice> : null}
     </div>
   </section>;
@@ -164,16 +164,16 @@ function ProjectJourneyContent({ project, request, canWrite = false, onDirty = n
   function record(refs = []) { setSelected(null); setMilestoneSeed(refs.slice(0, 20)); }
   const filterActive = Object.values(filters).some(Boolean);
   return <section className="project-journey" aria-labelledby={headingId}>
-    <header className="project-journey-header"><div><h2 id={headingId}>전체 작업 경과</h2><p className="project-journey-help">기획부터 종료까지, 문서와 작업을 시간순으로 확인합니다.</p></div><div className="project-journey-inline"><Button type="button" variant="ghost" icon={RefreshCw} busy={loading} onClick={refresh}>새로고침</Button>{canRecord ? <Button type="button" variant="secondary" icon={Plus} onClick={() => record()}>주요 일정 기록</Button> : null}</div></header>
+    <header className="project-journey-header"><div><h2 id={headingId}>프로젝트 진행</h2></div><div className="project-journey-inline"><Button type="button" variant="ghost" icon={RefreshCw} busy={loading} onClick={refresh}>새로고침</Button>{canRecord ? <Button type="button" variant="secondary" icon={Plus} onClick={() => record()}>주요 일정 기록</Button> : null}</div></header>
     <ErrorNotice error={summary.error} onRetry={summary.load} />{summary.loading && !summary.data ? <Spinner label="프로젝트 전체 진행률을 확인하고 있습니다" /> : summary.data ? <><JourneyProgress data={summary.data.progress} onNavigate={onNavigate} />{summary.error ? <p className="project-journey-help" role="status">이전 조회의 진행률을 표시하고 있습니다.</p> : null}</> : null}
-    <div className="project-journey-timeline"><div className="project-journey-header"><h3>전체 타임라인</h3>{summary.data?.summary?.first_occurred_at ? <span className="project-journey-help">{journeyDateTime(summary.data.summary.first_occurred_at, true)}부터 · 전체 {number(summary.data.summary.event_count)}건</span> : null}</div>
-      <JourneyFilters filters={filters} stages={summary.data?.stages} onChange={setFilters} /><ErrorNotice error={timeline.error} onRetry={timeline.retry} />
+    <ErrorNotice error={timeline.error} onRetry={timeline.retry} /><Disclosure className="project-journey-timeline"><summary>전체 이력{summary.data?.summary ? ` · ${number(summary.data.summary.event_count)}건` : ''}</summary>
+      <Disclosure><summary>기간·유형 필터{filterActive ? ' · 적용 중' : ''}</summary><JourneyFilters filters={filters} stages={summary.data?.stages} onChange={setFilters} /></Disclosure>
       {timeline.loading && !timeline.data ? <Spinner label="프로젝트 이력을 불러오고 있습니다" /> : timeline.data ? <>
         {/* CTDS has no timeline primitive; the date rail groups interactive ListItem rows. */}
         {groups.length ? <ol className="project-journey-days">{groups.map(group => <li className="project-journey-day" key={group.day}><div className="project-journey-day-label"><CalendarDays size={16} aria-hidden="true" /><time dateTime={group.day}>{journeyDateTime(group.events[0].occurred_at, true)}</time></div><ol className="project-journey-events">{group.events.map(event => { const Icon = eventIcon(event.type); return <li key={journeyEventKey(event)}><ListItem asChild layout="stacked" className="project-journey-event" leading={<ListItemLeadingIcon tone={event.type === 'milestone' ? 'primary' : 'neutral'}><Icon size={15} /></ListItemLeadingIcon>} from={event.title || JOURNEY_EVENT_TYPES[event.type]} body={<span className="project-journey-event-meta">{JOURNEY_STAGES[event.stage] || '프로젝트'} · {JOURNEY_EVENT_TYPES[event.type]} · {journeyTimeLabel(event)} {journeyDateTime(event.occurred_at)}{event.description ? <span className="project-journey-excerpt">{event.description}</span> : null}</span>} trailing={<ArrowRight size={15} aria-hidden="true" />} onClick={() => setSelected(event)} data-ctds="list-item"><ControlButton type="button" /></ListItem></li>; })}</ol></li>)}</ol> : <Empty compact icon={CheckCheck} title={filterActive ? '이 조건의 기록이 없습니다' : '아직 타임라인 기록이 없습니다'}>{filterActive ? '기간·단계를 넓혀 다른 기록을 확인해 주세요.' : '문서·작업·주요 일정 기록이 시간순으로 표시됩니다.'}</Empty>}
         <div className="project-journey-pagination"><p className="project-journey-help">{number(timeline.data.events.length)} / {number(timeline.data.total)}건 표시 · {journeyDateTime(timeline.data.snapshot_at)} KST 조회 기준</p>{!timeline.data.has_more && timeline.data.events.length < timeline.data.total ? <p className="project-journey-help">조회 중 기록이 변경되었습니다. 누락된 이력을 확인하려면 새로고침해 주세요.</p> : null}{timeline.data.has_more ? <Button type="button" variant="secondary" busy={timeline.loading} onClick={() => timeline.load(true)}>다음 이력 더 불러오기</Button> : null}</div>
-      </> : null}<p className="project-journey-help">새로 등록한 과거 이력은 새로고침하면 반영됩니다.</p>
-    </div>
+      </> : null}
+    </Disclosure>
     {selected ? <JourneyEventDetail key={journeyEventKey(selected)} route={route} event={selected} request={request} onClose={() => setSelected(null)} onOpenSource={onOpenSource} onRecord={canRecord ? record : null} /> : null}
     {milestoneSeed !== null ? <JourneyMilestoneForm projectId={project.id} route={route} request={request} seed={milestoneSeed} canRecord={canRecord} onDirty={onDirty} onClose={() => setMilestoneSeed(null)} onCreated={() => { setMilestoneSeed(null); notify('주요 일정을 기록했습니다.'); void refresh(); }} /> : null}
   </section>;

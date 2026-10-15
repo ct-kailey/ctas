@@ -41,8 +41,8 @@ function PreparationNotice({ draftCount, preparedCount, hasWork, blockers, share
     {onWorkItems ? <Button type="button" icon={ArrowRight} onClick={() => onWorkItems()}>{draftCount ? '작업 초안 확인' : preparedCount ? '시작할 작업 확인' : '작업 보드 열기'}</Button> : null}
     {!sharedView && blockers.length && onSettings ? <Button type="button" variant="secondary" icon={Settings2} onClick={onSettings}>Nora 연결 확인</Button> : null}
   </>}>
-    <div className="ai-dev-preparation-text">{draftCount ? <p>작업 보드에서 원문을 확인하고 Nora 리스크 분석으로 개발할 Task를 준비하세요.</p> : !hasWork && !preparedCount ? <p>정책 문서를 분석해 Task를 만들거나, 승인된 개발 계획에서 실행을 요청할 수 있습니다.</p> : preparedCount ? <p>작업 내용을 확인한 뒤 작업 보드에서 AI 개발을 시작할 수 있습니다.</p> : null}
-      {blockers.map((blocker, index) => <p key={`${blocker.code}:${index}`}>{blocker.message}</p>)}
+    <div className="ai-dev-preparation-text">{draftCount ? <p>작업 보드에서 초안을 검토하고 개발할 작업을 준비하세요.</p> : !hasWork && !preparedCount ? <p>작업 보드에서 개발할 작업을 선택하세요.</p> : preparedCount ? <p>작업 내용을 확인한 뒤 작업 보드에서 AI 개발을 시작할 수 있습니다.</p> : null}
+      {blockers.length ? <p>{blockers[0].message}</p> : null}{blockers.length > 1 ? <Disclosure><summary>추가 연결 확인 · {blockers.length - 1}개</summary><ul className="ains-prose-list">{blockers.slice(1).map((blocker, index) => <li key={`${blocker.code}:${index}`}>{blocker.message}</li>)}</ul></Disclosure> : null}
     </div>
   </Notice>;
 }
@@ -68,6 +68,8 @@ function AutomatedDevelopmentDetail({ projectId, taskId, request, settings, capa
   const taskRemote = useDevelopmentResource(path, request, data => developmentTaskRefreshing(data.task));
   const task = taskRemote.data?.task, active = developmentTaskRefreshing(task);
   const activity = useDevelopmentResource(`${path}/activity`, request, () => active), notes = useDevelopmentResource(developmentNotesPath(projectRoute, taskId), request, () => active);
+  const [activityOpen, setActivityOpen] = useState(false);
+  useEffect(() => { if (active || activity.error) setActivityOpen(true); }, [active, activity.error]);
   const evidenceVersion = task ? `${task.version}:${task.updated_at}:${task.status}:${task.execution_status}` : null, previous = useRef(null);
   useEffect(() => { if (evidenceVersion && previous.current !== evidenceVersion) { previous.current = evidenceVersion; void activity.load(); void notes.load(); } }, [evidenceVersion, activity.load, notes.load]);
   const state = developmentState(task), action = developmentNextAction(task, { capabilities, canWrite, canReview, sharedView });
@@ -83,8 +85,8 @@ function AutomatedDevelopmentDetail({ projectId, taskId, request, settings, capa
       {task.requires_provisional_confirmation && task.execution_status === 'idle' ? <p className="ai-dev-help">고객에게 확인할 내용이 남아 있습니다. 개발 시작 시 임시 구현 진행 여부를 확인합니다.</p> : null}
       {task.artifact ? <DevelopmentChangeViewer artifact={task.artifact} previewOrigins={settings?.preview_origins || []} sharedView={sharedView} previewFramePath={`${path}/preview-frame`} /> : <p className="ai-dev-help">아직 저장된 개발 결과가 없습니다.</p>}
       {report ? <section className="ains-section-stack"><header className="ai-dev-section-heading"><h3>AI 구현 보고</h3><Badge tone={report.completion === 'complete' ? 'green' : 'amber'}>{{ complete: '구현 완료 보고', partial: '부분 구현', blocked: '보완 필요' }[report.completion] || '검토 필요'}</Badge></header><p className="ai-dev-help">AI가 보고한 구현 범위입니다. 실제 변경 내용과 완료 기준을 함께 검토하세요.</p>{report.remaining_criteria?.length ? <ul className="ains-prose-list">{report.remaining_criteria.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul> : null}</section> : null}
-      <DevelopmentActivity remote={activity} />
-      <DevelopmentNotes remote={notes} onWorkItems={onWorkItems} taskId={taskId} />
+      <Disclosure open={activityOpen} onOpenChange={setActivityOpen}><summary>실행 기록</summary><DevelopmentActivity remote={activity} /></Disclosure>
+      {notes.loading || notes.error || notes.data?.notes?.length ? <DevelopmentNotes remote={notes} onWorkItems={onWorkItems} taskId={taskId} /> : null}
       {sharedView ? <p className="ai-dev-help">공유 화면에서는 작업 이력을 조회할 수 있습니다. 코드와 외부 미리보기는 표시하지 않습니다.</p> : null}
     </>}
   </article>;
@@ -106,7 +108,7 @@ function DevelopmentWorkspaceContent({ project, request, canWrite, canReview, on
   function select(id) { setSelectedId(id); if (window.matchMedia('(max-width: 900px)').matches) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ block: 'start', behavior: 'instant' })); }
   function refresh() { void overview.load(); void legacy.load(); void drafts.load(); }
   return <section className="ai-development ains-section-stack" aria-label="AI 개발 작업실">
-    <header className="ai-dev-page-heading"><div><h2>AI 개발</h2><p>진행 중인 작업과 변경 결과를 확인합니다.</p></div><div className="ai-dev-actions">{onOpenPlans ? <Button type="button" variant="secondary" icon={FileText} onClick={onOpenPlans}>개발 계획 보기</Button> : null}<Button type="button" variant="ghost" icon={RefreshCw} onClick={refresh}>새로고침</Button></div></header>
+    <header className="ai-dev-page-heading"><div className="ai-dev-actions">{onOpenPlans ? <Button type="button" variant="secondary" icon={FileText} onClick={onOpenPlans}>개발 계획 보기</Button> : null}<Button type="button" variant="ghost" icon={RefreshCw} onClick={refresh}>새로고침</Button></div></header>
     <ErrorNotice error={overview.error || legacy.error || drafts.error} onRetry={refresh} />
     {overview.data || drafts.data ? <PreparationNotice draftCount={draftCount} preparedCount={groups.prepared.filter(item => item.kind === 'task').length} hasWork={Boolean(groups.all.length)} blockers={blockers} sharedView={sharedView} onWorkItems={onWorkItems} onSettings={onSettings} /> : null}
     {!overview.data && overview.loading ? <Spinner label="AI 개발 작업을 불러오고 있습니다" /> : null}
@@ -116,7 +118,7 @@ function DevelopmentWorkspaceContent({ project, request, canWrite, canReview, on
       {groups.prepared.length ? <Disclosure open={!groups.active.length && !groups.history.length}><summary>시작 전 작업 · {groups.prepared.length}개</summary><DevelopmentTaskList title="시작할 작업" items={groups.prepared} selectedId={selected?.id} onSelect={select} onLegacy={onOpenLegacyExecution} emptyMessage="" /></Disclosure> : null}
       {overview.data?.tasks?.length >= 200 || legacy.data?.requests?.length >= 100 ? <p className="ai-dev-help">정책 기반 작업은 최근 200개, 계획 기반 실행은 최근 100개를 표시합니다.</p> : null}
     </aside><div className="ai-dev-detail-container" ref={detailRef}>
-      {selected ? <AutomatedDevelopmentDetail key={`${project.id}:${selected.id}`} projectId={project.id} taskId={selected.id} request={request} settings={overview.data?.settings} capabilities={overview.data?.capabilities} canWrite={canWrite && !sharedView} canReview={canReview && !sharedView} sharedView={sharedView} onWorkItems={onWorkItems} onSettings={onSettings} /> : <Empty icon={Code2} title={groups.all.length ? '확인할 작업을 선택하세요' : draftCount ? '초안을 개발 작업으로 준비하세요' : '개발 결과가 여기에 모입니다'}>{groups.all.length ? '목록에서 작업을 열면 실제 실행 기록과 결과를 확인할 수 있습니다.' : draftCount ? '작업 초안 확인에서 정책을 검토하고 분석하면 개발할 Task가 생성됩니다.' : '개발을 시작하면 실행 활동, 코드 변경, 미리보기를 작업별로 확인할 수 있습니다.'}</Empty>}
+      {selected ? <AutomatedDevelopmentDetail key={`${project.id}:${selected.id}`} projectId={project.id} taskId={selected.id} request={request} settings={overview.data?.settings} capabilities={overview.data?.capabilities} canWrite={canWrite && !sharedView} canReview={canReview && !sharedView} sharedView={sharedView} onWorkItems={onWorkItems} onSettings={onSettings} /> : <Empty icon={Code2} title={groups.all.length ? '확인할 작업을 선택하세요' : draftCount ? '초안을 개발 작업으로 준비하세요' : '개발 결과가 여기에 모입니다'}>{groups.all.length ? '목록에서 작업을 열면 실제 실행 기록과 결과를 확인할 수 있습니다.' : draftCount ? '작업 보드에서 초안을 검토하면 개발을 시작할 수 있습니다.' : '개발을 시작하면 실행 활동, 코드 변경, 미리보기를 작업별로 확인할 수 있습니다.'}</Empty>}
     </div></div>
   </section>;
 }

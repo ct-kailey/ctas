@@ -85,7 +85,7 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
     <ErrorNotice error={error} onRetry={() => load()} />
     {!workspace ? !error ? <Spinner label="Nora 연결 상태를 불러오고 있습니다" /> : null : <>
       <Badge tone={view.tone}>{view.label}</Badge>
-      <p>{view.description}</p>
+      {!view.verified ? <p>{view.description}</p> : null}
       {!view.registered ? <>
         {legacy.blocked ? <section aria-label="워크스페이스 등록 전 확인할 작업">
           <Notice tone="warning" title={legacy.total ? `기존 작업 ${legacy.total}건 확인 필요` : '기존 작업 확인 필요'}>
@@ -101,13 +101,12 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
             <p>이전 분석의 처리 결과를 Nora에서 읽어 현재 상태에 반영합니다.</p>
           </> : !owner ? <p>프로젝트 관리자에게 이전 분석 결과 확인을 요청해 주세요.</p> : <p>진행 중인 작업이 끝나거나 각 작업의 검토가 완료된 뒤 상태를 새로고침해 주세요.</p>}
         </section> : null}
-        <Button type="button" variant="secondary" icon={RefreshCw} disabled={busy} onClick={() => load()}>기존 작업 상태 새로고침</Button>
+        {legacy.blocked ? <Button type="button" variant="secondary" icon={RefreshCw} disabled={busy} onClick={() => load()}>기존 작업 새로고침</Button> : null}
       </> : null}
       {view.registered ? <>
-        <p><strong>등록한 워크스페이스 ID</strong><br /><code>{workspace.workspace_id}</code></p>
-        <p>이 워크스페이스에서 사용할 분석·실행 기능은 연결과 별도로 준비해야 합니다.</p>
+        <p><code>{workspace.workspace_id}</code></p>
         <ErrorNotice error={authorizationError} onRetry={() => load()} />
-        {authorization?.connected && !needsAuthorization ? <p>Nora 로그인 연결됨 · 워크스페이스 접근 확인과 분석·실행 준비 상태는 별도로 확인합니다.</p> : owner && authorization ? <>
+        {authorization?.connected && !needsAuthorization ? <p>Nora 로그인 연결됨</p> : owner && authorization ? <>
           <Button type="button" variant="secondary" busy={authorizing} disabled={locked || dirty || !authorization.can_connect} onClick={authorize}>{authorization.connected ? 'Nora 계정 다시 연결' : 'Nora 계정 연결'}</Button>
           {!authorization.can_connect ? <p>서버의 Nora 로그인 연결 설정이 필요합니다.</p> : null}
         </> : !owner && authorization ? <p>프로젝트 관리자가 Nora 계정을 연결할 수 있습니다.</p> : null}
@@ -115,18 +114,18 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
           <Button type="button" variant="secondary" icon={RefreshCw} disabled={locked || dirty} onClick={() => load()}>상태 새로고침</Button>
           {owner && view.action ? <Button type="button" variant="secondary" busy={busy} disabled={disabled || dirty} onClick={() => mutate(`/${view.action}`, { expected_version: workspace.version }, '등록한 Nora 워크스페이스의 연결 상태를 다시 확인합니다.')}>{view.action === 'reconcile' ? '연결 결과 확인' : '연결 다시 확인'}</Button> : null}
         </div>
-        <Disclosure><summary>프로젝트 컨텍스트 동기화</summary>
+        {sync?.error_code ? <p role="alert">자료 동기화 상태를 확인해 주세요. <code>{sync.error_code}</code></p> : null}
+        <Disclosure open={Boolean(sync?.failed || sync?.error_code)}><summary>자료 동기화{sync?.failed ? ` · ${sync.failed}건 확인 필요` : ''}</summary>
           {!workspace.capabilities?.context_sync ? <p>서버의 Nora 컨텍스트 동기화 연결을 기다리고 있습니다.</p> : <>
             <p>대기 {sync?.pending || 0}건 · 처리 중 {sync?.syncing || 0}건 · 완료 {sync?.succeeded || 0}건 · 확인 필요 {sync?.failed || 0}건</p>
             <p>{sync?.last_synced_at ? `최근 동기화 ${dateTime(sync.last_synced_at)}` : '아직 완료된 동기화가 없습니다.'}</p>
           </>}
-          {sync?.error_code ? <p>컨텍스트 동기화 상태를 확인해 주세요. <code>{sync.error_code}</code></p> : null}
           {owner && view.verified && authorization?.connected && workspace.capabilities?.context_sync && (sync?.failed > 0 || sync?.error_code) ? <Button type="button" variant="secondary" busy={busy} disabled={disabled || dirty} onClick={() => mutate('/retry-sync', { expected_version: workspace.version }, '확인이 필요한 컨텍스트 동기화를 다시 요청했습니다.')}>컨텍스트 동기화 다시 요청</Button> : null}
-          <p>분석 결과의 요구사항·결정 반영과 코드·PR 작업은 기존 검토·승인 절차를 따릅니다.</p>
+
         </Disclosure>
-        <Disclosure><summary>Nora Git 연결{selected ? ` · ${selected.name}` : workspace.connector_id ? ' · 선택됨' : ''}</summary>
+        <ErrorNotice error={connectorError} onRetry={() => load()} />
+        <Disclosure open={Boolean(view.verified && (!workspace.connector_id || connectorError))}><summary>GitHub 연결{selected ? ` · ${selected.name}` : workspace.connector_id ? ' · 선택됨' : ''}</summary>
           {!view.verified ? <p>워크스페이스 접근을 확인한 뒤 Git 연결을 선택할 수 있습니다.</p> : !view.canListConnectors ? <p>서버의 Nora Git 연결 기능을 준비해야 연결 목록을 불러올 수 있습니다.</p> : <>
-            <ErrorNotice error={connectorError} onRetry={() => load()} />
             {owner && connectors.length ? <form onSubmit={event => { event.preventDefault(); if (canSaveNoraConnector(workspace, connectors, connectorId, authorization)) void mutate('/connector', { connector_id: connectorId, expected_version: workspace.version }, '이 프로젝트의 Nora Git 연결을 저장했습니다.', 'PUT'); }}>
               <FormField label="이 프로젝트의 Git 연결" hint="등록한 Nora 워크스페이스에서 사용할 GitHub 연결을 선택하세요.">
                 <Select value={connectorId} disabled={locked} required onChange={event => setConnectorId(event.target.value)}>

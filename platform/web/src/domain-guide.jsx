@@ -180,9 +180,9 @@ export function DomainGuide({ project, request, notify, onDirty, onSourceRevisio
   const canGenerate = permissions.canRefresh && !busy && !dirty && !run.active && !run.uncertain && !data?.source?.error && data?.source?.source_count > 0;
   const reviewArgs = { project, data, version, busy: Boolean(busy), acknowledged, comment };
   return <div className="domain-guide">
-    <header className="domain-guide-heading"><div><span className="domain-guide-kicker"><BookOpen size={17} />프로젝트 학습</span><h2>도메인 가이드</h2><p>업무 흐름과 기준, 결정의 근거를 한곳에서 읽고 이해하세요.</p></div><div className="domain-guide-actions">
-      <Button type="button" variant="secondary" icon={RefreshCw} disabled={Boolean(busy)} onClick={() => load()}>상태 새로고침</Button>
-      {permissions.canRefresh && (data?.published || data?.draft) ? <Button type="button" variant="secondary" icon={RefreshCw} disabled={!canGenerate} busy={busy === '/refresh'} onClick={() => mutate('/refresh', {}, '최신 근거로 가이드 초안 갱신을 요청했습니다.')}>최신 근거로 초안 갱신</Button> : null}
+    <header className="domain-guide-heading"><div className="domain-guide-actions">
+      <Button type="button" variant="ghost" icon={RefreshCw} disabled={Boolean(busy)} onClick={() => load()}>새로고침</Button>
+      {permissions.canRefresh && (data?.published || data?.draft) ? <Button type="button" variant="secondary" icon={RefreshCw} disabled={!canGenerate} busy={busy === '/refresh'} onClick={() => mutate('/refresh', {}, '최신 근거로 가이드 초안 갱신을 요청했습니다.')}>초안 업데이트</Button> : null}
     </div></header>
     <ErrorNotice error={error} onRetry={() => load()} />
     {onOpenSettings && guideNeedsConnection(error, data) ? <div className="domain-guide-actions"><Button type="button" variant="secondary" disabled={Boolean(busy)} onClick={onOpenSettings}>Nora 연결 설정</Button></div> : null}
@@ -191,27 +191,27 @@ export function DomainGuide({ project, request, notify, onDirty, onSourceRevisio
       {data.source?.error ? <Notice tone="warning" title="최신 근거를 확인하지 못했습니다.">{data.source.error.message || '연결과 원문 접근 상태를 확인하고 다시 불러와 주세요.'} 기존 가이드는 작성 당시의 근거로 계속 읽을 수 있습니다.</Notice> : null}
       {data.settings?.last_error_code ? <Notice tone="warning" title="자동 초안 갱신을 확인해 주세요.">{data.settings.last_error_message || '자동 갱신을 진행하지 못했습니다. 연결 상태를 확인하고 수동 갱신을 요청해 주세요.'}</Notice> : null}
       {data.source?.changed || stale ? <Notice tone="warning" title="가이드 작성 이후 근거가 변경되었습니다.">기존 검토 완료본은 유지됩니다. 최신 자료로 초안을 갱신하고 변경 내용을 검토해 주세요.</Notice> : null}
-      {data.run && run.active ? <Notice tone="neutral" title={run.label}><p role="status">Nora가 근거를 정리하고 있습니다. 상태는 5초마다 확인하며, 완료되면 초안 검토 버튼이 표시됩니다.</p></Notice> : null}
+      {data.run && run.active ? <Notice tone="neutral" title={run.label}><p role="status">초안이 준비되면 이 화면에서 검토할 수 있습니다.</p></Notice> : null}
       {data.run && (run.failed || run.uncertain) ? <Notice tone="warning" title={run.label} actions={run.uncertain && permissions.canReview ? <Button type="button" variant="secondary" disabled={Boolean(busy) || dirty} onClick={retryUncertain}>확인 후 새 초안 요청</Button> : null}>{run.uncertain ? 'Nora의 처리 결과를 아직 확인하지 못했습니다. 상태를 새로고침해 결과를 확인해 주세요.' : data.run.error_message || 'Nora 연결과 등록된 자료를 확인한 뒤 초안 갱신을 다시 요청해 주세요.'} 기존 검토 완료본은 유지됩니다.</Notice> : null}
       {!data.published && !data.draft && !selectedId ? <section className="domain-guide-start">
-        <Empty icon={BookOpen} title="프로젝트를 이해하는 첫 가이드를 만드세요">등록한 문서와 결정 이력을 바탕으로 업무 용어·흐름·정책을 정리합니다. 작성된 초안은 관리·검토 담당자가 확인합니다.</Empty>
+        <Empty icon={BookOpen} title="아직 도메인 가이드가 없습니다">등록한 자료로 초안을 만들고 담당자가 검토합니다.</Empty>
         {permissions.canConfigure ? <label className="domain-guide-check"><Input type="checkbox" checked={enableAuto} disabled={Boolean(busy) || run.active} onChange={event => setEnableAuto(event.target.checked)} />새 이력이 생기면 가이드 초안 자동 갱신</label> : null}
-        {permissions.canRefresh ? <Button type="button" icon={BookOpen} disabled={!canGenerate} busy={busy === '/refresh'} onClick={() => mutate('/refresh', permissions.canConfigure ? { enable_auto: enableAuto } : {}, '첫 도메인 가이드 초안 작성을 요청했습니다.')}>첫 가이드 초안 만들기</Button> : <p className="domain-guide-help">프로젝트 담당자에게 가이드 초안 작성을 요청해 주세요.</p>}
+        {permissions.canRefresh ? <Button type="button" icon={BookOpen} disabled={!canGenerate} busy={busy === '/refresh'} onClick={() => mutate('/refresh', permissions.canConfigure ? { enable_auto: enableAuto } : {}, '첫 도메인 가이드 초안 작성을 요청했습니다.')}>가이드 초안 만들기</Button> : <p className="domain-guide-help">프로젝트 담당자에게 가이드 초안 작성을 요청해 주세요.</p>}
         {data.source?.source_count === 0 ? <p className="domain-guide-help">먼저 프로젝트 자료를 등록하고 원문 처리 상태를 확인해 주세요.</p> : null}
       </section> : null}
       {version || selectedId ? <div className="domain-guide-layout">
         <aside className="domain-guide-sidebar" aria-label="가이드 목차와 버전">
-          <nav aria-label="도메인 가이드 목차"><h3>이 가이드의 목차</h3>{GUIDE_SECTIONS.map(item => <a key={item.id} href={`#${prefix}-${item.id}`}>{item.label}</a>)}</nav>
-          <Disclosure open><summary><History size={16} /> 버전 이력</summary><ul className="domain-guide-version-list">{(data.versions || []).map(item => <li key={item.id}><ListItem variant="system" layout="stacked" data-ctds="list-item" leading={<ListItemLeadingIcon><FileText size={16} /></ListItemLeadingIcon>} from={`v${item.number} · ${guideVersionState(item).label}`} body={guideDate(item.created_at)} trailing={<Button type="button" variant="ghost" aria-pressed={version?.id === item.id} disabled={Boolean(busy) || loadingVersion} onClick={() => selectVersion(item.id)}>{version?.id === item.id ? '읽는 중' : '보기'}</Button>} /></li>)}</ul></Disclosure>
+          <nav aria-label="도메인 가이드 목차"><h3>목차</h3>{GUIDE_SECTIONS.map(item => <a key={item.id} href={`#${prefix}-${item.id}`}>{item.label}</a>)}</nav>
+          <Disclosure><summary><History size={16} /> 버전 이력</summary><ul className="domain-guide-version-list">{(data.versions || []).map(item => <li key={item.id}><ListItem variant="system" layout="stacked" data-ctds="list-item" leading={<ListItemLeadingIcon><FileText size={16} /></ListItemLeadingIcon>} from={`v${item.number} · ${guideVersionState(item).label}`} body={guideDate(item.created_at)} trailing={<Button type="button" variant="ghost" aria-pressed={version?.id === item.id} disabled={Boolean(busy) || loadingVersion} onClick={() => selectVersion(item.id)}>{version?.id === item.id ? '읽는 중' : '보기'}</Button>} /></li>)}</ul></Disclosure>
         </aside>
         <div className="domain-guide-reading">
           {loadingVersion ? <Spinner label="선택한 가이드 버전을 불러오고 있습니다" /> : version ? <>
-            <div className="domain-guide-version-heading"><div className="domain-guide-version-meta"><strong>v{version.number}</strong><Badge tone={state.tone}>{state.label}</Badge>{stale ? <Badge tone="amber">최신 근거와 다름</Badge> : null}<span>{guideDate(version.created_at)}</span></div><Button type="button" variant="secondary" icon={ArrowDownToLine} busy={busy === 'pdf'} disabled={Boolean(busy)} onClick={downloadPdf}>이 버전 PDF</Button></div>
+            <div className="domain-guide-version-heading"><div className="domain-guide-version-meta"><strong>v{version.number}</strong><Badge tone={state.tone}>{state.label}</Badge>{stale ? <Badge tone="amber">최신 근거와 다름</Badge> : null}<span>{guideDate(version.created_at)}</span></div><Button type="button" variant="secondary" icon={ArrowDownToLine} busy={busy === 'pdf'} disabled={Boolean(busy)} onClick={downloadPdf}>PDF 다운로드</Button></div>
             {version.status === 'draft' ? <Notice tone="warning" title="아직 검토하지 않은 초안입니다.">원문 근거와 변경사항을 대조해 주세요. 승인 전까지 현재 검토 완료본은 바뀌지 않습니다.</Notice> : null}
             {version.review_comment ? <p className="domain-guide-review-comment"><strong>검토 의견</strong> {formatGuideText(version.review_comment, version.snapshot?.sources)}</p> : null}
             <GuideBody version={version} projectId={project.id} prefix={prefix} onSourceRevision={onSourceRevision} navigationDisabled={dirty || Boolean(busy)} />
             {permissions.canReview && version.status === 'draft' ? <form className="domain-guide-review" onSubmit={event => { event.preventDefault(); if (canReviewGuide(reviewArgs)) void mutate(`/versions/${encodeURIComponent(version.id)}/review`, { decision: 'approve', comment: comment.trim() }, '검토한 가이드를 새 완료본으로 반영했습니다.', 'POST', true); }}>
-              <h3><ShieldCheck size={19} />가이드 초안 검토</h3><p>근거의 확정 여부와 문서 내용을 대조하고, 최신 변경이 빠지지 않았는지 확인하세요.</p>
+              <h3><ShieldCheck size={19} />초안 검토</h3>
               <FormField label="검토 의견" hint="반려할 때는 보완할 내용을 입력해 주세요."><Textarea rows={3} maxLength={2000} value={comment} disabled={Boolean(busy)} onChange={event => { pinReviewVersion(); setComment(event.target.value); }} /></FormField>
               <label className="domain-guide-check"><Input type="checkbox" checked={acknowledged} disabled={Boolean(busy) || stale || Boolean(data.source?.error)} onChange={event => { pinReviewVersion(); setAcknowledged(event.target.checked); }} />원문 근거와 변경사항을 확인했습니다.</label>
               {stale ? <p className="domain-guide-help">근거가 변경된 초안은 승인할 수 없습니다. 최신 근거로 새 초안을 요청해 주세요.</p> : null}
@@ -221,9 +221,9 @@ export function DomainGuide({ project, request, notify, onDirty, onSourceRevisio
           </> : !error ? <Empty compact title="선택한 버전을 찾지 못했습니다">버전 이력에서 다른 가이드를 선택해 주세요.</Empty> : null}
         </div>
       </div> : null}
-      <section className="domain-guide-settings" aria-label="자동 초안 갱신 설정"><h3>새 이력 반영</h3><p>새 자료·결정 이력 → 초안 갱신 → 담당자 검토 → 새 검토 완료본. 자동 갱신도 기존 완료본을 바로 바꾸지 않습니다.</p>
+      <Disclosure className="domain-guide-settings"><summary>자동 갱신 설정</summary><p className="domain-guide-help">새 이력은 초안에 반영하고, 검토 후 완료본으로 적용합니다.</p>
         {permissions.canConfigure ? <label className="domain-guide-check"><Input type="checkbox" checked={Boolean(data.settings?.auto_refresh)} disabled={Boolean(busy) || dirty} onChange={event => mutate('/settings', { auto_refresh: event.target.checked }, '자동 초안 갱신 설정을 저장했습니다.', 'PUT')} />새 이력이 생기면 초안 자동 갱신</label> : <p className="domain-guide-help">자동 갱신 설정은 프로젝트 관리자가 변경할 수 있습니다.</p>}
-      </section>
+      </Disclosure>
     </>}
   </div>;
 }

@@ -39,11 +39,12 @@ function NotePagination({ remote }) {
   return <div className="implementation-note-actions"><small>{remote.data.notes.length} / {remote.data.total}개 표시</small>{remote.data.has_more ? <Button type="button" variant="secondary" busy={remote.loading} onClick={() => remote.load(true)}>기록 더 불러오기</Button> : remote.data.notes.length < remote.data.total ? <Button type="button" variant="secondary" busy={remote.loading} onClick={() => remote.load()}>변경된 목록 다시 불러오기</Button> : null}</div>;
 }
 
-export function ImplementationNotesPanel({ projectId, request, role, notify, onDirty, onChanged, onSourceRevision, target, analyses, onRefreshAnalysis, refreshKey }) {
+export function ImplementationNotesPanel({ projectId, request, role, notify, onDirty, onChanged, onSourceRevision, target, analyses, onRefreshAnalysis, refreshKey, onErrorChange }) {
   const sharedView = useSharedView(), permissions = implementationNotePermissions(role, sharedView), confirm = useConfirm();
   const [kind, setKind] = useState(''), [status, setStatus] = useState(''), [selected, setSelected] = useState(null), [dirty, setDirty] = useState(false), [editingBusy, setEditingBusy] = useState(false);
   const seenTarget = useRef(null), mounted = useRef(true), panel = useRef(null);
   const route = `${projectPath(projectId)}/implementation-notes`, remote = useNotesList(`${route}?${new URLSearchParams({ ...(kind ? { kind } : {}), ...(status ? { status } : {}) })}`, request);
+  useEffect(() => { onErrorChange?.(selected ? null : remote.error); }, [remote.error, selected, onErrorChange]);
   const previousRefresh = useRef(refreshKey);
   useEffect(() => { if (previousRefresh.current !== refreshKey) { previousRefresh.current = refreshKey; void remote.load(); } }, [refreshKey, remote.load]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
