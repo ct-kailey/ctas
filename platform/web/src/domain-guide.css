@@ -14,7 +14,7 @@
 .domain-guide-statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); border-block: var(--hairline) solid var(--border); padding-block: var(--space-3); font-size: var(--text-sm); color: var(--fg-muted); }
 .domain-guide-statusbar > span:first-child { color: var(--fg); font-weight: var(--font-weight-semibold); }
 .domain-guide-layout { display: grid; grid-template-columns: var(--ains-layout-guide-sidebar) minmax(0, 1fr); gap: var(--space-8); align-items: start; }
-.domain-guide-sidebar { display: grid; gap: var(--space-6); min-width: 0; }
+.domain-guide-sidebar { display: grid; gap: var(--space-6); min-width: 0; position: sticky; top: var(--space-4); max-height: calc(100dvh - var(--topbar-h) - var(--space-8)); overflow-y: auto; }
 .domain-guide-sidebar nav { display: grid; gap: var(--space-2); padding-block: var(--space-3); }
 .domain-guide-sidebar h3 { font-size: var(--text-sm); margin-bottom: var(--space-2); }
 .domain-guide a { color: var(--ains-primary-text); text-decoration: underline; text-underline-offset: var(--space-1); overflow-wrap: anywhere; }
@@ -56,6 +56,9 @@
 .domain-guide-edge-label { fill: var(--fg); font-size: var(--text-xs); text-anchor: middle; paint-order: stroke; stroke: var(--bg-subtle); stroke-width: 5; stroke-linejoin: round; }
 .domain-guide-node-label { display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; font-size: var(--text-sm); line-height: var(--lh-snug); overflow-wrap: anywhere; color: var(--fg); }
 .domain-guide-node-label > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.domain-guide-flow-legend { display: grid; gap: var(--space-3); margin: 0; font-size: var(--text-sm); line-height: var(--lh-loose); }
+.domain-guide-flow-legend dt { font-weight: var(--font-weight-medium); overflow-wrap: anywhere; }
+.domain-guide-flow-legend dd { margin: 0; color: var(--fg-muted); overflow-wrap: anywhere; }
 .domain-guide-flow-details { display: grid; gap: var(--space-3); padding-left: var(--space-5); font-size: var(--text-sm); }
 .domain-guide-review { display: grid; gap: var(--space-4); padding: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); }
 .domain-guide-review h3 { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-base); }
@@ -67,6 +70,7 @@
 .domain-guide-settings > p { font-size: var(--text-sm); line-height: var(--lh-loose); color: var(--fg-muted); }
 @media (max-width: 1100px) {
   .domain-guide-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .domain-guide-sidebar { position: static; max-height: none; overflow-y: visible; }
   .domain-guide-sidebar nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
   .domain-guide-sidebar nav h3 { flex-basis: 100%; }
 }

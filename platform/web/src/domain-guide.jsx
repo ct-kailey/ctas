@@ -24,7 +24,7 @@ function FlowDiagram({ workflow, sources, prefix, index }) {
       <div className="domain-guide-flow-scroll" tabIndex={0} role="region" aria-label={`${workflow.title || '업무 흐름'} 도식. 좁은 화면에서는 가로로 이동할 수 있습니다.`}>
         <svg className="domain-guide-flow-svg" viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-labelledby={titleId}>
           <defs><marker id={markerId} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" className="domain-guide-arrow" /></marker></defs>
-          {layout.edges.map(edge => <g key={edge.key}><path d={edge.path} className="domain-guide-edge" markerEnd={`url(#${markerId})`} />{edge.label ? <text x={edge.labelX} y={edge.labelY} className="domain-guide-edge-label">{edge.label}</text> : null}</g>)}
+          {layout.edges.map(edge => <g key={edge.key}><path d={edge.path} className="domain-guide-edge" markerEnd={`url(#${markerId})`} />{edge.label ? <text x={edge.labelX} y={edge.labelY} className="domain-guide-edge-label"><title>{edge.label}</title>{edge.displayLabel}</text> : null}</g>)}
           {layout.nodes.map(node => <g key={node.id}>
             <title>{node.label}</title>
             {node.kind === 'decision' ? <polygon className="domain-guide-node decision" points={`${node.x + 100},${node.y} ${node.x + 200},${node.y + 52} ${node.x + 100},${node.y + 104} ${node.x},${node.y + 52}`} /> : <rect className={`domain-guide-node ${node.kind}`} x={node.x} y={node.y} width={node.width} height={node.height} rx={['start', 'end'].includes(node.kind) ? 52 : 0} />}
@@ -32,6 +32,7 @@ function FlowDiagram({ workflow, sources, prefix, index }) {
           </g>)}
         </svg>
       </div>
+      {layout.edges.some(edge => edge.numbered) ? <dl className="domain-guide-flow-legend" aria-label="연결 번호별 전체 설명">{layout.edges.filter(edge => edge.numbered).map(edge => <div key={edge.key}><dt>{edge.displayLabel} {edge.label}</dt><dd>{edge.fromLabel} → {edge.toLabel}</dd></div>)}</dl> : null}
       <Disclosure><summary>단계별 설명과 연결 관계</summary>
         <ol className="domain-guide-flow-details">{layout.nodes.map(node => <li key={node.id}><strong>{node.label}</strong>{node.kind === 'decision' ? <span> · 판단</span> : null}<Evidence ids={node.evidence_ids} sources={sources} prefix={prefix} /></li>)}</ol>
         {layout.edges.map(edge => <p key={edge.key}>{nodeLabel(edge.from)} → {edge.label ? `${edge.label} → ` : ''}{nodeLabel(edge.to)}</p>)}

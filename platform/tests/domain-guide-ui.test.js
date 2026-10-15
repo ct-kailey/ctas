@@ -159,3 +159,15 @@ test('Nora connection recovery action follows known API, run and scheduler error
   assert.equal(guideNeedsConnection(null, null), false);
   assert.equal(guideNeedsConnection({ code: 'constructor', message: 'NORA_AUTH_REQUIRED' }, { run: { error_code: 'OTHER' } }), false);
 });
+
+test('long edge labels use numbered diagram markers with full readable legend data', async () => {
+  const { guideFlowLayout } = await state();
+  const workflow = { nodes: [{ id: 'request', label: '사용자 요청' }, { id: 'route', label: '실행 대상 결정' }, { id: 'run', label: 'CLI 실행 및 스트리밍' }], edges: [{ from: 'request', to: 'route', label: 'Yes' }, { from: 'route', to: 'run', label: '중앙/개인 CLI 라우팅' }, { from: 'run', to: 'request', label: 'No' }, { from: 'request', to: 'run', label: '123456' }, { from: 'run', to: 'route', label: '1234567' }] };
+  const original = structuredClone(workflow), graph = guideFlowLayout(workflow);
+  assert.deepEqual(graph.edges.map(edge => edge.displayLabel), ['Yes', '[2]', 'No', '123456', '[5]']);
+  assert.deepEqual(graph.edges.filter(edge => edge.numbered).map(({ displayLabel, label, fromLabel, toLabel }) => ({ displayLabel, label, fromLabel, toLabel })), [
+    { displayLabel: '[2]', label: '중앙/개인 CLI 라우팅', fromLabel: '실행 대상 결정', toLabel: 'CLI 실행 및 스트리밍' },
+    { displayLabel: '[5]', label: '1234567', fromLabel: 'CLI 실행 및 스트리밍', toLabel: '실행 대상 결정' },
+  ]);
+  assert.deepEqual(workflow, original);
+});

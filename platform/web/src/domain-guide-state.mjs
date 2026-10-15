@@ -135,7 +135,8 @@ export function guideFlowLayout(workflow) {
     else if (sameRow) { const lane = from.y + from.height + 24; path = `M ${from.x + 100} ${from.y + 104} V ${lane} H ${to.x + 100} V ${to.y + 104}`; labelY = lane - 8; }
     else if (Math.abs(to.y - from.y) <= 180) { const middle = (start.y + end.y) / 2; path = `M ${start.x} ${start.y} V ${middle} H ${end.x} V ${end.y}`; }
     else { const lane = right ? 822 : 18, startY = start.y + (down ? 20 : -20), endY = end.y + (down ? -20 : 20); path = `M ${start.x} ${start.y} V ${startY} H ${lane} V ${endY} H ${end.x} V ${end.y}`; labelX = lane; }
-    return { key: `edge-${index}`, from: from.id, to: to.id, label: text(edge.label), path, labelX, labelY };
+    const label = text(edge.label), numbered = Array.from(label).length > 6;
+    return { key: `edge-${index}`, from: from.id, to: to.id, fromLabel: from.label, toLabel: to.label, label, displayLabel: numbered ? `[${index + 1}]` : label, numbered, path, labelX, labelY };
   });
   return { nodes, edges, width: 840, height: Math.max(168, Math.ceil(nodes.length / 3) * 180 - 12) };
 }
