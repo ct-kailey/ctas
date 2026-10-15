@@ -4,8 +4,9 @@ const { membership } = require('./context-ledger');
 const LIMIT = 100;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TRACE = /^trc_[A-Za-z0-9_-]{1,200}$/;
-const CODE = /^(TASK|NORA)_[A-Z0-9_]{1,80}$/;
-const TASK_EVENTS = ['development_requested','review_ready','development_blocked','execution_awaiting_connection','execution_failed','execution_uncertain','merge_approved','merged','artifact_verification_updated'].map(kind => 'task_automation.' + kind).concat('task_area.updated');
+const DESKTOP_TRACE = /^desktop:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CODE = /^(TASK|NORA|DESKTOP)_[A-Z0-9_]{1,80}$/;
+const TASK_EVENTS = ['development_requested','review_ready','development_blocked','execution_awaiting_connection','execution_failed','execution_uncertain','merge_approved','merged','artifact_verification_updated','desktop_job_claimed','desktop_heartbeat','desktop_completed','desktop_expired','desktop_revoked'].map(kind => 'task_automation.' + kind).concat('task_area.updated');
 const ANALYSIS_EVENTS = ['analysis_requested','questions_drafted','tasks_created','execution_awaiting_connection','execution_failed','execution_uncertain'].map(kind => 'task_automation.' + kind);
 const OPERATION_NAMES = { risk: '정책 분석', develop: '개발', merge: '병합', reconcile_merge: '병합 결과 확인' };
 const JOB_STATES = { queued: '실행 대기', running: '실행 중', succeeded: '완료', awaiting_connection: '연결 대기', failed: '실패', uncertain: '결과 확인 필요' };
@@ -24,6 +25,11 @@ const EVENT_TITLES = {
   'task_automation.merge_approved': '병합 승인',
   'task_automation.merged': '병합 완료',
   'task_automation.artifact_verification_updated': '코드·CI·프리뷰 확인 결과 갱신',
+  'task_automation.desktop_job_claimed': '데스크톱 앱에 작업 전달',
+  'task_automation.desktop_heartbeat': '데스크톱 실행 상태 수신',
+  'task_automation.desktop_completed': '데스크톱 실행 결과 동기화',
+  'task_automation.desktop_expired': '데스크톱 연결 확인 필요',
+  'task_automation.desktop_revoked': '데스크톱 연결 해제',
   'task_area.updated': '영역별 담당·진행 변경',
 };
 const EVENT_STATUSES = {
@@ -31,6 +37,8 @@ const EVENT_STATUSES = {
   'task_automation.review_ready': 'ready', 'task_automation.development_blocked': 'blocked',
   'task_automation.execution_awaiting_connection': 'awaiting_connection', 'task_automation.execution_failed': 'failed',
   'task_automation.execution_uncertain': 'uncertain', 'task_automation.merge_approved': 'merging', 'task_automation.merged': 'done',
+  'task_automation.desktop_job_claimed': 'running', 'task_automation.desktop_heartbeat': 'running',
+  'task_automation.desktop_expired': 'uncertain',
 };
 function fail(code, message, status) { throw Object.assign(new Error(message), {code, status}); }
 function taskId(value) {
@@ -39,7 +47,8 @@ function taskId(value) {
 }
 function safeMetadata(row) {
   return { ...(typeof row.error_code === 'string' && CODE.test(row.error_code) ? {error_code: row.error_code} : {}),
-    ...(typeof row.trace_id === 'string' && TRACE.test(row.trace_id) ? {trace_id: row.trace_id} : {}) };
+    ...(typeof row.trace_id === 'string' && TRACE.test(row.trace_id) ? {trace_id: row.trace_id} : {}),
+    ...(typeof row.transport_trace_id === 'string' && DESKTOP_TRACE.test(row.transport_trace_id) ? {transport_trace_id: row.transport_trace_id} : {}) };
 }
 function eventItem(row) {
   if (!EVENT_TITLES[row.kind]) return null;
@@ -54,6 +63,16 @@ function eventItem(row) {
     summary = row.provisional_authorized === true ? '고객 확인 사항을 남기고 임시 구현을 진행하도록 승인했습니다.' : '작업 실행 요청을 저장했습니다.';
   } else if (row.kind === 'task_automation.review_ready') {
     summary = row.evidence_status === 'unverified' ? '개발 결과가 저장되었습니다. 코드 실행 근거를 확인해야 합니다.' : '변경 내역과 결과를 확인할 수 있습니다. 병합은 별도 승인이 필요합니다.';
+  } else if (row.kind === 'task_automation.desktop_job_claimed') {
+    summary = '이 프로젝트에 연결된 기기가 승인된 작업을 받았습니다.';
+  } else if (row.kind === 'task_automation.desktop_heartbeat') {
+    summary = row.desktop_status === 'preparing' ? '별도 작업 복사본에서 실행을 준비하고 있습니다.' : '기기가 개발 실행 중임을 확인했습니다.';
+  } else if (row.kind === 'task_automation.desktop_completed') {
+    summary = row.desktop_status === 'completed' ? '로컬 실행 결과를 저장했습니다. 테스트·PR·프리뷰는 별도로 확인해야 합니다.' : '중단 또는 실패 결과를 저장했습니다. 같은 작업을 자동으로 다시 실행하지 않습니다.';
+  } else if (row.kind === 'task_automation.desktop_expired') {
+    summary = '기기의 응답이 지연되어 실행 상태를 확정할 수 없습니다. 같은 작업을 다시 배정하지 않습니다.';
+  } else if (row.kind === 'task_automation.desktop_revoked') {
+    summary = '실행 기기의 연결이 해제되었습니다. 로컬 작업 결과를 확인한 뒤 후속 작업을 결정하세요.';
   } else if (row.kind.startsWith('task_automation.execution_') && OPERATION_NAMES[row.operation]) summary = OPERATION_NAMES[row.operation] + ' 실행 기록';
   return {id: 'event:' + row.id, kind: row.kind, title: EVENT_TITLES[row.kind], at: row.created_at,
     ...(EVENT_STATUSES[row.kind] ? {status: EVENT_STATUSES[row.kind]} : {}), ...(summary ? {summary} : {}), ...safeMetadata(row)};
@@ -82,8 +101,10 @@ function createTaskActivity({pool}) {
       // Only select explicitly permitted fields. Free-form event bodies, job
       // payloads, prompts, tokens, raw results and runner details are not read.
       const events=(await pool.query(`SELECT id,kind,created_at,
-        CASE WHEN detail->>'error_code' ~ '^(TASK|NORA)_[A-Z0-9_]{1,80}$' THEN detail->>'error_code' END AS error_code,
+        CASE WHEN detail->>'error_code' ~ '^(TASK|NORA|DESKTOP)_[A-Z0-9_]{1,80}$' THEN detail->>'error_code' END AS error_code,
         CASE WHEN detail->>'trace_id' ~ '^trc_[A-Za-z0-9_-]{1,200}$' THEN detail->>'trace_id' END AS trace_id,
+        CASE WHEN detail->>'transport_trace_id' ~ '^desktop:[0-9a-fA-F-]{36}$' THEN detail->>'transport_trace_id' END AS transport_trace_id,
+        CASE WHEN detail->>'status' IN ('preparing','running','completed','failed','cancelled','timed_out','interrupted') THEN detail->>'status' END AS desktop_status,
         CASE WHEN detail->>'kind' IN ('risk','develop','merge','reconcile_merge') THEN detail->>'kind' END AS operation,
         detail->'provisional_authorized'='true'::jsonb AS provisional_authorized,
         CASE WHEN detail->>'evidence_status' IN ('verified','unverified') THEN detail->>'evidence_status' END AS evidence_status,

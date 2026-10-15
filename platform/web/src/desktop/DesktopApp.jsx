@@ -8,6 +8,7 @@ import { Callout } from '../components/ctds/Callout/Callout';
 import { Spinner } from '../components/ctds/Spinner/Spinner';
 import * as desktopBridge from './bridge.mjs';
 import { desktopError, EMPTY_PROFILE, profileChanged, profileDraft, profilePayload, repositoryState, toolState } from './state.mjs';
+import { DesktopConnection } from './DesktopConnection.jsx';
 import { LocalDevelopment } from './LocalDevelopment.jsx';
 import './desktop.css';
 
@@ -51,15 +52,31 @@ export function DesktopApp({ api = desktopBridge, native = desktopBridge.isDeskt
     finally { if (lifecycle.current.active && sequence === lifecycle.current.sequence) setPending(null); }
   }, [api]);
   useEffect(() => { lifecycle.current.active = true; void load(); return () => { lifecycle.current.active = false; lifecycle.current.sequence += 1; }; }, [load]);
+  useEffect(() => {
+    if (!native) return undefined;
+    let active = true, timer;
+    async function poll() {
+      if (!active) return;
+      const sequence = lifecycle.current.sequence;
+      if (!lifecycle.current.operation) {
+        try { const value = await api.getDesktopState(); if (active && lifecycle.current.active && sequence === lifecycle.current.sequence && !lifecycle.current.operation) setState(value); }
+        catch { /* Explicit actions retain their error; the next read retries diagnostics. */ }
+      }
+      if (active) timer = setTimeout(poll, 5000);
+    }
+    timer = setTimeout(poll, 5000); return () => { active = false; clearTimeout(timer); };
+  }, [native, api]);
   async function perform(kind, operation) {
     if (!native || lifecycle.current.operation || pending === 'load') return;
-    const token = Symbol(kind); lifecycle.current.operation = token; setPending(kind); setError(null); setFeedback('');
+    const token = Symbol(kind); lifecycle.current.sequence += 1; lifecycle.current.operation = token; setPending(kind); setError(null); setFeedback('');
     try {
       const value = await operation();
       if (!lifecycle.current.active || lifecycle.current.operation !== token) return;
       setState(value);
-      if (kind === 'save') { setDraft(profileDraft(value)); setFeedback('이 기기에 프로젝트 정보를 저장했습니다. Nora 연결은 아직 완료되지 않았습니다.'); }
+      if (kind === 'pair') setDraft(profileDraft(value));
+      if (kind === 'save') { setDraft(profileDraft(value)); setFeedback('이 기기에 프로젝트 정보를 저장했습니다. 웹 작업 수신은 별도로 연결해 주세요.'); }
       if (kind === 'refresh') setFeedback('현재 로컬 환경을 다시 확인했습니다.');
+      return value;
     } catch (err) { if (lifecycle.current.active && lifecycle.current.operation === token) setError(desktopError(err)); }
     finally { if (lifecycle.current.operation === token) { lifecycle.current.operation = null; if (lifecycle.current.active) setPending(null); } }
   }
@@ -68,30 +85,31 @@ export function DesktopApp({ api = desktopBridge, native = desktopBridge.isDeskt
     try { payload = profilePayload(draft); } catch (err) { setError(desktopError(err)); return; }
     void perform('save', () => api.saveProfile(payload));
   }
-  const busy = Boolean(pending) || executionBusy, writable = native && state !== null, folder = state?.selectedFolder || state?.profile?.workingFolder;
+  const busy = Boolean(pending) || executionBusy, profileLocked = busy || state?.desktopConnection?.paired === true, writable = native && state !== null, folder = state?.selectedFolder || state?.profile?.workingFolder;
   const dirty = profileChanged(draft, state), visibleError = error || desktopError(state?.lastError);
-  function field(key) { return { value: draft[key], disabled: !writable || busy, onChange: event => { setDraft(current => ({ ...current, [key]: event.target.value })); setFeedback(''); } }; }
+  function field(key) { return { value: draft[key], disabled: !writable || profileLocked, onChange: event => { setDraft(current => ({ ...current, [key]: event.target.value })); setFeedback(''); } }; }
   return <main className="desktop-shell">
     <header className="desktop-header"><div className="desktop-brand"><Monitor aria-hidden="true" /><div><span className="desktop-wordmark">CTAS <span>Desktop</span></span><p>로컬 작업 환경</p></div></div><Button type="button" size="sm" variant="outline" disabled={!native || busy} onClick={() => void perform('open', api.openWorkspace)} rightIcon={<ArrowUpRight size={16} aria-hidden="true" />} data-ctds="button">CTAS 웹 열기</Button></header>
-    <div className="desktop-intro"><h1>프로젝트의 개발 작업을 시작하세요</h1><p>작업할 저장소를 지정하고 Codex로 개발한 뒤 변경사항을 확인합니다.</p></div>
-    <section className="desktop-connection" aria-labelledby="desktop-connection-title"><div className="desktop-stack"><div className="desktop-section-heading"><h2 id="desktop-connection-title">Nora 자동 작업 수신</h2><Badge variant="soft" size="md" status="warning" data-ctds="badge">아직 연결되지 않음</Badge></div><Callout tone="warning" title="Nora 작업 자동 수신은 아직 연결 전" data-ctds="callout">이 화면에서 직접 시작한 로컬 개발만 실행합니다. CTAS 칸반이나 Nora에서 요청한 작업을 자동으로 수신하지 않습니다.</Callout></div></section>
+    <div className="desktop-intro"><h1>프로젝트의 개발 작업을 시작하세요</h1><p>웹에서 요청한 작업을 받거나 Codex·Claude Code로 직접 개발합니다.</p></div>
+    <DesktopConnection state={state} native={native} pending={pending} profileDirty={dirty} api={api} onAction={perform} />
     {!native ? <Callout tone="neutral" title="브라우저에서 연 화면입니다" data-ctds="callout">로컬 폴더 선택·저장·진단은 설치한 CTAS Desktop에서 사용할 수 있습니다.</Callout> : null}
     {visibleError ? <Callout tone="destructive" role="alert" title={visibleError.message} actions={!state ? <Button type="button" variant="outline" size="sm" disabled={busy} onClick={load} data-ctds="button">다시 불러오기</Button> : undefined} data-ctds="callout">{visibleError.code ? <code>{visibleError.code}</code> : null}</Callout> : null}
     {pending === 'load' ? <div className="desktop-loading" role="status"><Spinner size="md" aria-hidden="true" role="presentation" /><span>이 기기의 설정을 불러오고 있습니다.</span></div> : null}
-    <LocalDevelopment state={state} dirty={dirty} native={native} disabled={Boolean(pending)} api={api} onRunningChange={setExecutionBusy} />
+    <LocalDevelopment autoReceiving={state?.desktopConnection?.receiving === true} remoteActive={Boolean(state?.desktopConnection?.activeJobId)} remotePending={state?.desktopConnection?.pendingResultCount > 0} state={state} dirty={dirty} native={native} disabled={Boolean(pending)} api={api} onRunningChange={setExecutionBusy} />
     <div className="desktop-columns"><section className="desktop-panel desktop-stack" aria-labelledby="desktop-profile-title">
       <header className="desktop-section-heading"><h2 id="desktop-profile-title">프로젝트 연결 정보</h2><Badge variant="soft" size="md" data-ctds="badge">{dirty ? '저장 전 변경 있음' : state?.profile ? '이 기기에 저장됨' : '설정 전'}</Badge></header>
-      <p className="desktop-caption">CTAS 프로젝트와 저장소를 지정합니다. 입력 정보는 이 기기에만 저장되며 서버 권한을 확인한 상태는 아닙니다.</p>
+      <p className="desktop-caption">CTAS 프로젝트와 저장소를 지정합니다. 입력 정보는 이 기기에 저장됩니다. 웹 작업을 받으려면 연결 코드를 입력하고 자동 수신을 켜 주세요.</p>
+      {state?.desktopConnection?.paired ? <p className="desktop-caption">프로젝트 정보를 변경하려면 자동 수신 연결을 먼저 해제해 주세요.</p> : null}
       <form className="desktop-stack" onSubmit={save}>
         <Input label="프로젝트 ID" description="CTAS 프로젝트 설정에서 확인할 수 있습니다." size="sm" {...field('projectId')} maxLength={200} required autoComplete="off" placeholder="예: ctas" data-ctds="input" />
         <Input label="Nora 워크스페이스 ID (선택)" description="Nora 자동 작업 수신을 연결할 때 사용할 정보입니다." size="sm" {...field('workspaceId')} maxLength={200} autoComplete="off" placeholder="Nora에서 복사한 워크스페이스 ID" data-ctds="input" />
         <Input label="대상 Git 저장소" size="sm" {...field('repositoryUrl')} maxLength={2000} required autoComplete="off" spellCheck={false} placeholder="https://github.com/organization/repository" data-ctds="input" />
-        <fieldset className="desktop-provider"><legend>사용할 개발 도구</legend><div className="desktop-radio-group"><Radio name="provider" value="codex" checked={draft.provider === 'codex'} disabled={!writable || busy} onChange={() => { setDraft(current => ({ ...current, provider: 'codex' })); setFeedback(''); }}>Codex</Radio><Radio name="provider" value="claude-code" checked={draft.provider === 'claude-code'} disabled={!writable || busy} onChange={() => { setDraft(current => ({ ...current, provider: 'claude-code' })); setFeedback(''); }}>Claude Code</Radio></div></fieldset>
-        <section className="desktop-folder desktop-stack" aria-labelledby="desktop-folder-title"><h3 id="desktop-folder-title">작업 폴더</h3><p className={folder ? 'desktop-folder-path desktop-mono' : 'desktop-caption'}>{folder || '이 컴퓨터에 있는 프로젝트 저장소를 선택해 주세요.'}</p><div><Button type="button" variant="outline" size="sm" disabled={!writable || busy} loading={pending === 'folder'} onClick={() => void perform('folder', api.chooseWorkspace)} leftIcon={<FolderOpen size={16} aria-hidden="true" />} data-ctds="button">{folder ? '다른 폴더 선택' : '작업 폴더 선택'}</Button></div><p className="desktop-caption">선택한 로컬 폴더의 저장소 정보를 읽습니다. 폴더 선택만으로 코드를 변경하지 않습니다.</p></section>
-        <div className="desktop-form-footer"><Button type="submit" size="sm" disabled={!writable || busy || !folder || !dirty} loading={pending === 'save'} leftIcon={<Save size={16} aria-hidden="true" />} data-ctds="button">프로젝트 정보 저장</Button>{dirty ? <span className="desktop-caption">입력한 변경사항은 저장 후 적용됩니다.</span> : null}</div>
+        <fieldset className="desktop-provider"><legend>사용할 개발 도구</legend><div className="desktop-radio-group"><Radio name="provider" value="codex" checked={draft.provider === 'codex'} disabled={!writable || profileLocked} onChange={() => { setDraft(current => ({ ...current, provider: 'codex' })); setFeedback(''); }}>Codex</Radio><Radio name="provider" value="claude-code" checked={draft.provider === 'claude-code'} disabled={!writable || profileLocked} onChange={() => { setDraft(current => ({ ...current, provider: 'claude-code' })); setFeedback(''); }}>Claude Code</Radio></div></fieldset>
+        <section className="desktop-folder desktop-stack" aria-labelledby="desktop-folder-title"><h3 id="desktop-folder-title">작업 폴더</h3><p className={folder ? 'desktop-folder-path desktop-mono' : 'desktop-caption'}>{folder || '이 컴퓨터에 있는 프로젝트 저장소를 선택해 주세요.'}</p><div><Button type="button" variant="outline" size="sm" disabled={!writable || profileLocked} loading={pending === 'folder'} onClick={() => void perform('folder', api.chooseWorkspace)} leftIcon={<FolderOpen size={16} aria-hidden="true" />} data-ctds="button">{folder ? '다른 폴더 선택' : '작업 폴더 선택'}</Button></div><p className="desktop-caption">선택한 로컬 폴더의 저장소 정보를 읽습니다. 폴더 선택만으로 코드를 변경하지 않습니다.</p></section>
+        <div className="desktop-form-footer"><Button type="submit" size="sm" disabled={!writable || profileLocked || !folder || !dirty} loading={pending === 'save'} leftIcon={<Save size={16} aria-hidden="true" />} data-ctds="button">프로젝트 정보 저장</Button>{dirty ? <span className="desktop-caption">입력한 변경사항은 저장 후 적용됩니다.</span> : null}</div>
       </form>
       {feedback ? <p className="desktop-feedback" role="status">{feedback}</p> : null}
-    </section><Diagnostics diagnostics={state?.diagnostics} disabled={!writable || busy} refreshing={pending === 'refresh'} onRefresh={() => void perform('refresh', api.refreshDiagnostics)} /></div>
-    <footer className="desktop-footer"><span>CTAS Desktop{state?.appVersion ? ` · ${state.appVersion}` : ''}</span><span>로컬 준비와 Nora 연결 상태는 별도로 표시합니다.</span></footer>
+    </section><Diagnostics diagnostics={state?.diagnostics} disabled={!writable || Boolean(pending)} refreshing={pending === 'refresh'} onRefresh={() => void perform('refresh', api.refreshDiagnostics)} /></div>
+    <footer className="desktop-footer"><span>CTAS Desktop{state?.appVersion ? ` · ${state.appVersion}` : ''}</span><span>웹 작업 수신과 로컬 실행 상태를 구분해 표시합니다.</span></footer>
   </main>;
 }

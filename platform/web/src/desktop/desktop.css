@@ -50,3 +50,4 @@ body { margin: 0; }
 .desktop-event-list time { color: var(--fg-muted); }
 .desktop-code { margin: 0; padding: var(--space-3); max-height: calc(var(--space-8) * 12); overflow: auto; background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-code); font-size: var(--text-xs); line-height: var(--lh-base); }
 .desktop-code code { overflow-wrap: normal; }
+.desktop-connection-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); }

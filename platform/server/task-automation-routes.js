@@ -4,6 +4,7 @@ const {createTaskActivity}=require('./task-activity');
 function mountTaskAutomationRoutes(router,{pool,write,review,owner,provider={}}){
   const service=createTaskAutomation({pool,provider});
   const activity=createTaskActivity({pool});
+  require('./desktop-execution-routes').mountDesktopExecutionProject(router,{pool,owner});
   router.get('/task-automation/sdk-connections',owner,async(req,res)=>res.json(await service.sdkConnections(req.params.p,req.user.id)));
   router.post('/task-automation/sdk-connections',owner,async(req,res)=>res.status(202).json(await service.connectSdk(req.params.p,req.user.id,req.body)));
   router.post('/task-automation/tasks/:id/refresh-artifact',write,async(req,res)=>res.json({task:await service.refreshArtifact(req.params.p,req.user.id,req.params.id,req.body)}));

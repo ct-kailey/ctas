@@ -48,8 +48,19 @@ pub fn workspace_url(profile: &Profile) -> Result<url::Url> {
     url.query_pairs_mut().append_pair("project", &profile.project_id).append_pair("tab", "home"); Ok(url)
 }
 
+pub fn deep_link_project(url:&url::Url)->Option<String>{
+    if url.scheme()!="ctas"||url.host_str()!=Some("open")||!url.username().is_empty()||url.password().is_some()||url.port().is_some()||url.fragment().is_some()||!["","/"].contains(&url.path()){return None;}
+    let pairs:Vec<_>=url.query_pairs().collect();
+    if pairs.len()!=1||pairs[0].0!="project"||!project_id(&pairs[0].1){return None;}
+    Some(pairs[0].1.to_string())
+}
+
 #[cfg(test)] mod tests {
     use super::*;
+    #[test] fn deep_links_only_wake_a_project_and_never_carry_execution_or_pairing() {
+        assert_eq!(deep_link_project(&url::Url::parse("ctas://open?project=ains-sism").unwrap()).as_deref(),Some("ains-sism"));
+        for value in ["ctas://run?project=ains-sism","ctas://open?project=ains-sism&prompt=run","ctas://open?project=ains-sism&code=secret","ctas://open?project=../x","https://open?project=p","ctas://user@open?project=p"]{assert!(deep_link_project(&url::Url::parse(value).unwrap()).is_none());}
+    }
     #[test] fn repository_scope_rejects_credentials_and_non_github_targets() {
         for value in ["https://github.com/acme/repo", "git@github.com:acme/repo.git", "ssh://git@github.com/acme/repo", "https://github.com/acme/repo.git/"] { assert_eq!(repository_url(value).unwrap(), "https://github.com/acme/repo.git"); }
         for value in ["https://token@github.com/acme/repo", "https://a:b@github.com/acme/repo", "http://github.com/acme/repo", "https://github.com.evil/acme/repo", "https://github.com/acme/repo?token=secret", "https://github.com/acme/repo#main", "ssh://token@github.com/acme/repo", "ssh://git:secret@github.com/acme/repo", "file:///tmp/repo", "https://github.com/acme/%2e%2e", "https://github.com/acme/repo/tree/main"] { assert!(repository_url(value).is_err(), "{value}"); }

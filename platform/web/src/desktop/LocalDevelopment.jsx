@@ -13,7 +13,7 @@ function RunResult({ run }) {
   if (!run) return null;
   return <section className="desktop-stack desktop-run-result" aria-label="로컬 개발 실행 결과">
     <div className="desktop-section-heading"><h3>실행 결과</h3><Badge size="md" variant="soft" status={runTone(run)} data-ctds="badge">{runLabel(run)}</Badge></div>
-    <dl className="desktop-facts"><div><dt>프로젝트</dt><dd>{run.projectId}</dd></div><div><dt>대상 저장소</dt><dd><code>{run.repositoryUrl}</code></dd></div><div><dt>기준 커밋</dt><dd><code>{run.baseSha || '확인 중'}</code></dd></div><div><dt>실행 폴더</dt><dd><code>{run.workingFolder || '준비 중'}</code></dd></div><div><dt>시작 / 종료</dt><dd>{time(run.startedAt || run.createdAt)}{run.completedAt ? ` / ${time(run.completedAt)}` : ''}</dd></div></dl>
+    <dl className="desktop-facts">{run.remoteTaskId ? <div><dt>웹 Task</dt><dd><code>{run.remoteTaskId}</code></dd></div> : null}<div><dt>프로젝트</dt><dd>{run.projectId}</dd></div><div><dt>대상 저장소</dt><dd><code>{run.repositoryUrl}</code></dd></div><div><dt>기준 커밋</dt><dd><code>{run.baseSha || '확인 중'}</code></dd></div><div><dt>실행 폴더</dt><dd><code>{run.workingFolder || '준비 중'}</code></dd></div><div><dt>시작 / 종료</dt><dd>{time(run.startedAt || run.createdAt)}{run.completedAt ? ` / ${time(run.completedAt)}` : ''}</dd></div></dl>
     {runActive(run) ? <p className="desktop-caption" role="status">실행 상태를 자동으로 확인하고 있습니다. 저장된 실제 진행 기록은 아래에서 볼 수 있습니다.</p> : null}
     {run.errorCode ? <Callout tone="warning" title={executionError(run)} data-ctds="callout"><code>{run.errorCode}</code></Callout> : null}
     {run.summary ? <p className="desktop-run-summary">{run.summary}</p> : null}
@@ -25,8 +25,9 @@ function RunResult({ run }) {
     {run.limitations?.length ? <ul className="desktop-limits desktop-caption">{run.limitations.map((value, index) => <li key={index}>{value}</li>)}</ul> : null}
   </section>;
 }
-export function LocalDevelopment({ state, dirty, native, disabled, api, onRunningChange }) {
+export function LocalDevelopment({ state, dirty, native, disabled, api, onRunningChange, autoReceiving = false, remoteActive = false, remotePending = false }) {
   const [prompt, setPrompt] = useState(''), [runs, setRuns] = useState([]), [selectedId, setSelectedId] = useState(''), [selected, setSelected] = useState(null), [loading, setLoading] = useState(false), [pending, setPending] = useState(null), [error, setError] = useState(null), [loadError, setLoadError] = useState(null), [revision, setRevision] = useState(0);
+  const watchRemote = autoReceiving || remoteActive || remotePending;
   const lifecycle = useRef({ active: true, sequence: 0, operation: null }), activeRunRef = useRef(false);
   useEffect(() => { lifecycle.current.active = true; return () => { lifecycle.current.active = false; lifecycle.current.sequence += 1; }; }, []);
   useEffect(() => {
@@ -43,12 +44,12 @@ export function LocalDevelopment({ state, dirty, native, disabled, api, onRunnin
         const detail = id ? await api.getLocalRun(id) : null;
         if (!active || sequence !== lifecycle.current.sequence) return;
         setSelected(detail); setLoadError(null); failures = 0;
-        if (list.some(runActive) || runActive(detail)) timer = setTimeout(load, 2000);
-      } catch (err) { if (active && sequence === lifecycle.current.sequence) { setLoadError(executionError(err)); if (activeRunRef.current && failures < 3) timer = setTimeout(load, 2000 * (2 ** failures++)); } }
+        if (watchRemote || list.some(runActive) || runActive(detail)) timer = setTimeout(load, list.some(runActive) || runActive(detail) ? 2000 : 5000);
+      } catch (err) { if (active && sequence === lifecycle.current.sequence) { setLoadError(executionError(err)); if ((activeRunRef.current || watchRemote) && failures < 3) timer = setTimeout(load, 2000 * (2 ** failures++)); } }
       finally { if (active && sequence === lifecycle.current.sequence) setLoading(false); }
     }
     void load(); return () => { active = false; clearTimeout(timer); };
-  }, [api, native, selectedId, revision]);
+  }, [api, native, selectedId, revision, watchRemote]);
   const running = runs.some(runActive) || runActive(selected), readiness = executionReadiness(state, { native, dirty });
   activeRunRef.current = running;
   useEffect(() => { onRunningChange?.(running); }, [onRunningChange, running]);
@@ -64,16 +65,17 @@ export function LocalDevelopment({ state, dirty, native, disabled, api, onRunnin
     finally { if (lifecycle.current.operation === token) { lifecycle.current.operation = null; if (lifecycle.current.active) { setPending(null); setRevision(value => value + 1); } } }
   }
   function start(event) {
-    event.preventDefault(); if (!readiness.ready || running || disabled || pending) return;
+    event.preventDefault(); if (!readiness.ready || watchRemote || running || disabled || pending) return;
     try { const request = localRunRequest(prompt, state); void perform('start', () => api.startLocalRun(request)); } catch (err) { setError(executionError(err)); }
   }
   return <section className="desktop-panel desktop-stack" aria-labelledby="desktop-development-title">
-    <header className="desktop-section-heading"><div><h2 id="desktop-development-title">로컬 AI 개발</h2><p className="desktop-caption">Codex CLI로 별도 작업 폴더에서 코드를 수정하고 실제 diff를 확인합니다.</p></div><Badge variant="soft" size="md" data-ctds="badge">{state?.profile?.provider === 'claude-code' ? 'Claude Code · 실행 준비 중' : 'Codex'}</Badge></header>
+    <header className="desktop-section-heading"><div><h2 id="desktop-development-title">로컬 AI 개발</h2><p className="desktop-caption">선택한 개발 도구로 별도 작업 폴더에서 코드를 수정하고 실제 diff를 확인합니다.</p></div><Badge variant="soft" size="md" data-ctds="badge">{state?.profile?.provider === 'claude-code' ? 'Claude Code' : 'Codex'}</Badge></header>
+    {watchRemote ? <Callout tone="neutral" title={remotePending ? "웹 작업 결과 동기화 중" : autoReceiving ? "웹 작업 자동 수신 중" : "웹 작업 실행 중"} data-ctds="callout">{remotePending ? "결과 전송이 끝나면 직접 요청을 입력할 수 있습니다." : autoReceiving ? "직접 요청을 입력하려면 자동 수신을 끄고 진행 중인 작업을 마쳐 주세요." : "진행 중인 웹 작업이 끝나면 직접 요청을 입력할 수 있습니다."}</Callout> : null}
     <form className="desktop-stack" onSubmit={start}>
-      <Textarea label="개발할 내용" size="sm" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={!native || Boolean(pending) || running} placeholder="구현할 기능, 수정 범위와 확인할 테스트를 적어 주세요." maxLength={12000} showCount minRows={3} maxRows={8} data-ctds="textarea" />
+      <Textarea label="개발할 내용" size="sm" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={!native || Boolean(pending) || running || watchRemote} placeholder="구현할 기능, 수정 범위와 확인할 테스트를 적어 주세요." maxLength={12000} showCount minRows={3} maxRows={8} data-ctds="textarea" />
       <p className="desktop-caption">{readiness.reason} CLI 계정 로그인이 필요합니다.</p>
       {state?.diagnostics?.repository?.clean === false ? <Callout tone="warning" title="커밋하지 않은 변경은 포함되지 않습니다" data-ctds="callout">현재 HEAD 기준으로 작업합니다. 변경 중인 파일까지 작업에 포함하려면 먼저 원본 저장소에서 커밋한 뒤 환경을 다시 확인해 주세요.</Callout> : null}
-      <div className="desktop-section-heading"><Button type="submit" size="sm" disabled={!readiness.ready || disabled || loading || running || Boolean(pending) || !prompt.trim()} loading={pending === 'start'} leftIcon={<Play size={16} aria-hidden="true" />} data-ctds="button">개발 시작</Button><span className="desktop-caption">원본 폴더 유지 · 자동 push·PR·merge 없음</span></div>
+      <div className="desktop-section-heading"><Button type="submit" size="sm" disabled={!readiness.ready || watchRemote || disabled || loading || running || Boolean(pending) || !prompt.trim()} loading={pending === 'start'} leftIcon={<Play size={16} aria-hidden="true" />} data-ctds="button">개발 시작</Button><span className="desktop-caption">원본 폴더 유지 · 자동 push·PR·merge 없음</span></div>
     </form>
     {error || loadError ? <Callout tone="destructive" role="alert" title={error || loadError} data-ctds="callout" /> : null}
     <div className="desktop-section-heading"><h3>이 기기의 실행 내역</h3><Button type="button" variant="ghost" size="sm" disabled={!native || loading || Boolean(pending)} loading={loading && !running} onClick={() => { setError(null); setRevision(value => value + 1); }} leftIcon={<RefreshCw size={16} aria-hidden="true" />} data-ctds="button">새로고침</Button></div>

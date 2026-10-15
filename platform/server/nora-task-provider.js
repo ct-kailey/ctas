@@ -207,6 +207,7 @@ function createNoraTaskProvider({pool,provider,git}){
     const blockers=[];let row;
     try{row=await bound(input);}catch(error){return{risk_analysis:false,development:false,merge:false,blockers:[block(error.code,'Nora 워크스페이스 연결을 완료하세요.')]};}
     let s;try{s=await git.snapshot(input.projectId);}catch(error){blockers.push(block(error.code,error.message));}
+    if(input.settings.execution_mode==='desktop')return {risk_analysis:Boolean(row),development:false,merge:false,diff:false,pr:false,ci:false,preview:false,blockers};
     const sdk=sdkMode(input);let write=s&&(supported(s,'apply_task_patch',['task_id','expected_base_sha','patch'])||supported(s,'push_task_files',['task_id','expected_base_sha','files']));
     if(sdk){try{await sdkConnection(input);write=true;}catch(error){write=false;blockers.push(block(error.code,error.message));}}
     const diff=Boolean(s&&supported(s,'compare',['base','head'])),pr=Boolean(s&&supported(s,'get_pull_request',['pull_number'])),ci=Boolean(s&&supported(s,'list_check_runs',['ref'])),preview=Boolean(s&&supported(s,'list_deployments',['sha'])&&supported(s,'list_deployment_statuses',['deployment_id'])&&input.settings.preview_origins?.length);

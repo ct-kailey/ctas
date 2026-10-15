@@ -5,6 +5,7 @@ export const AUTOMATION_EXECUTION = { idle: '개발 시작 전', queued: '개발
 export const RISK_STATES = { queued: '분석 대기', running: '리스크 분석 중', completed: '분석 완료', blocked: '고객 확인 필요', awaiting_connection: '분석 연결 필요', failed: '분석 실패', uncertain: '분석 결과 확인 필요' };
 export function automationUncertaintyMode(value) { return value === 'provisional' ? 'provisional' : 'strict'; }
 const BLOCKERS = {
+  DESKTOP_DEVICE_REQUIRED: 'CTAS Desktop 기기 연결과 선택', DESKTOP_DEVICE_REVOKED: '해제된 기기를 다시 연결하거나 다른 기기 선택', DESKTOP_PROVIDER_MISMATCH: '기기와 설정의 개발 도구 일치 확인', DESKTOP_REPOSITORY_MISMATCH: '기기의 작업 저장소와 프로젝트 대상 저장소 확인', DESKTOP_JOB_EXPIRED: '기기 연결과 작업 실행 기록 확인',
   NORA_SDK_SETTINGS_REQUIRED: 'SDK 실행 도구와 프로젝트 저장소 작업 폴더 설정', NORA_SDK_CONNECTION_REQUIRED: 'Nora 데스크톱에서 SDK 연결 승인 후 연결 상태 확인', NORA_SDK_BUSY: 'SDK 실행 환경의 기존 작업 완료 대기',
   NORA_SDK_CONNECTION_CHANGED: '개발 도중 SDK 연결이 변경되어 결과 확인 필요', NORA_SDK_FLOW_SCOPE_REQUIRED: 'SDK 실행 도구·작업 폴더와 일치하는 개발 흐름 선택', NORA_SDK_RESPONSE_INVALID: 'Nora SDK 연결 응답 확인 필요', TASK_ARTIFACT_UNVERIFIED: 'AI 변경안과 실제 코드 근거 대조 필요',
   TASK_PROVISIONAL_CONTEXT_CHANGED: '질문·답변이 변경되어 최신 내용으로 다시 확인 필요', TASK_PROVISIONAL_CONFIRMATION_REQUIRED: '고객 확인 사항을 보고 임시 구현 진행 여부 확인',
@@ -85,6 +86,7 @@ export function automationColumn(task) {
   return AUTOMATION_COLUMNS.some(([id]) => id === task.status) ? task.status : 'blocked';
 }
 export function automationExecutionLabel(task) {
+  if (task?.execution_context?.execution_profile?.execution_mode === 'desktop') { if (task.execution_status === 'queued') return '데스크톱 수신 대기'; if (task.execution_status === 'running') return '데스크톱 AI 개발 중'; }
   if (task?.execution_status === 'ready' && task?.artifact?.evidence_status === 'unverified') return 'AI 변경안 · 근거 확인 필요';
   if (task?.status === 'qa' && task?.execution_status === 'ready' && ['pending', 'failed', 'unavailable'].includes(task?.artifact?.verification_status)) return task?.artifact?.implementation_report?.completion === 'partial' ? '부분 구현 · 검증 확인 필요' : '개발 결과 준비 · 검증 확인 필요';
   if (task?.status === 'blocked' && task?.execution_status === 'ready') return '보완 필요 · 결과·이력 확인';
@@ -154,7 +156,7 @@ export function automationReportedChecks(artifact, sharedView = false) {
 }
 
 export function automationCanRefreshArtifact(task, permissions) {
-  return Boolean(permissions?.canWrite && ['qa', 'blocked'].includes(task?.status) && task?.execution_status === 'ready' && !task?.review && automationHasCodeArtifact(task?.artifact));
+  return Boolean(task?.artifact?.transport !== 'desktop' && permissions?.canWrite && ['qa', 'blocked'].includes(task?.status) && task?.execution_status === 'ready' && !task?.review && automationHasCodeArtifact(task?.artifact));
 }
 
 export async function refreshAutomationArtifact({ request, taskPath, task, permissions }) {
@@ -163,7 +165,7 @@ export async function refreshAutomationArtifact({ request, taskPath, task, permi
 }
 
 export function automationSettingsDraft(settings) {
-  return { enabled: settings.enabled, uncertainty_mode: automationUncertaintyMode(settings.uncertainty_mode), risk_flow_slug: settings.risk_flow_slug === 'ains-policy-risk-v1' ? '' : settings.risk_flow_slug || '', development_flow_slug: settings.development_flow_slug || '', preview_origins: (settings.preview_origins || []).join('\n'), execution_mode: settings.execution_mode === 'nora_sdk' ? 'nora_sdk' : 'connector_api', sdk_provider: settings.sdk_provider || '', sdk_connection_id: settings.sdk_connection_id || '', sdk_working_folder: settings.sdk_working_folder || '' };
+  return { enabled: settings.enabled, uncertainty_mode: automationUncertaintyMode(settings.uncertainty_mode), risk_flow_slug: settings.risk_flow_slug === 'ains-policy-risk-v1' ? '' : settings.risk_flow_slug || '', development_flow_slug: settings.development_flow_slug || '', preview_origins: (settings.preview_origins || []).join('\n'), execution_mode: ['nora_sdk', 'desktop'].includes(settings.execution_mode) ? settings.execution_mode : 'connector_api', sdk_provider: settings.sdk_provider || '', sdk_connection_id: settings.sdk_connection_id || '', sdk_working_folder: settings.sdk_working_folder || '', desktop_device_id: settings.desktop_device_id || '' };
 }
 
 export function automationSdkConnections(data, provider) {
@@ -193,8 +195,10 @@ export function automationSdkConnectionRequest(draft) {
 }
 
 export function automationSettingsPayload(draft, version) {
-  if (!['connector_api', 'nora_sdk'].includes(draft.execution_mode)) throw new Error('AI 개발 실행 방식을 선택해 주세요.');
+  if (!['connector_api', 'nora_sdk', 'desktop'].includes(draft.execution_mode)) throw new Error('AI 개발 실행 방식을 선택해 주세요.');
   if (draft.execution_mode === 'nora_sdk') automationSdkConnectionRequest(draft);
+  if (draft.execution_mode === 'desktop' && !['codex', 'claude-code'].includes(draft.sdk_provider)) throw new Error('데스크톱 개발 도구를 선택해 주세요.');
+  if (draft.desktop_device_id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(draft.desktop_device_id)) throw new Error('연결된 데스크톱 기기를 선택해 주세요.');
   return { expected_version: version, enabled: draft.enabled, uncertainty_mode: draft.uncertainty_mode, risk_flow_slug: draft.risk_flow_slug, development_flow_slug: draft.development_flow_slug || null, preview_origins: parsePreviewOrigins(draft.preview_origins), execution_mode: draft.execution_mode,
-    sdk_provider: draft.sdk_provider || null, sdk_connection_id: draft.sdk_connection_id || null, sdk_working_folder: draft.sdk_working_folder?.trim() || null };
+    sdk_provider: draft.sdk_provider || null, sdk_connection_id: draft.sdk_connection_id || null, sdk_working_folder: draft.sdk_working_folder?.trim() || null, desktop_device_id: draft.desktop_device_id || null };
 }

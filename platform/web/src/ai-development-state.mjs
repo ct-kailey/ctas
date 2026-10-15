@@ -1,3 +1,4 @@
+import { desktopTaskMode } from './desktop-connection-state.mjs';
 const ACTIVE_AUTOMATION = new Set(['queued', 'running', 'merging']);
 const ACTIVE_LEGACY = new Set(['queued', 'claimed', 'running']);
 const STATUS = {
@@ -13,6 +14,7 @@ export function developmentOverviewActive(data) {
 }
 export function developmentLegacyActive(data) { return data?.requests?.some(item => ACTIVE_LEGACY.has(item.status) || item.status === 'awaiting_runner'); }
 export function developmentState(task) {
+  if (desktopTaskMode(task)) { if (task?.execution_status === 'queued') return { label: '데스크톱 수신 대기', tone: 'quiet' }; if (task?.execution_status === 'running') return { label: '데스크톱 개발 중', tone: 'blue' }; }
   if (task?.execution_status === 'awaiting_connection') return { label: '연결 대기', tone: 'amber' };
   if (task?.status === 'done') return { label: '병합 완료', tone: 'green' };
   if (ACTIVE_AUTOMATION.has(task?.execution_status) || ['failed', 'uncertain'].includes(task?.execution_status)) {
@@ -55,7 +57,7 @@ export function developmentNextAction(task, { canWrite, canReview, sharedView, c
 export function developmentNextStep(task) {
   if (task?.execution_status === 'awaiting_connection') return '이미 접수한 작업입니다. Nora 실행 환경과 프로젝트 작업 폴더의 연결을 확인하세요.';
   if (task?.execution_status === 'merging') return '승인한 변경의 병합 결과를 확인하고 있습니다.';
-  if (task?.execution_status === 'queued') return '개발 실행을 기다리고 있습니다. 결과가 준비되면 변경 내용을 확인하세요.';
+  if (task?.execution_status === 'queued') return desktopTaskMode(task) ? '개발 요청을 접수했습니다. CTAS Desktop을 열고 자동 수신을 켜 주세요.' : '개발 실행을 기다리고 있습니다. 결과가 준비되면 변경 내용을 확인하세요.';
   if (task?.execution_status === 'running') return '개발 결과를 기다린 뒤 코드 변경과 테스트 결과를 확인하세요.';
   if (task?.status === 'done') return '승인한 변경의 병합 결과와 남은 기록을 확인하세요.';
   if (['failed', 'uncertain'].includes(task?.execution_status)) return '실행 기록과 실제 변경 결과를 먼저 확인하세요. 재실행 여부는 결과 확인 뒤 결정합니다.';

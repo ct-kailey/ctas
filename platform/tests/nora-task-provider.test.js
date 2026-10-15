@@ -287,3 +287,7 @@ test('SDK metadata mismatches are reported by capability discovery before a task
   const f=fixture({v3:true,sdk:true,customDevelopment:f=>Object.assign(f.payload.meta,mismatch)}),c=await f.service.capabilities(f.input);assert.equal(c.development,false);assert.ok(c.blockers.some(b=>b.code==='NORA_SDK_FLOW_SCOPE_REQUIRED'));assert.equal(f.calls.some(c=>c.name==='run_flow'),false);
  }
 });
+
+test('desktop capabilities keep Nora binding and Git-read blockers without checking unrelated development flows or SDK',async()=>{
+ const f=fixture({v3:true,noSdk:true});f.input.settings.execution_mode='desktop';f.input.settings.development_flow_slug=null;const result=await f.service.capabilities(f.input);assert.equal(result.risk_analysis,true);assert.equal(result.development,false);assert.equal(result.merge,false);assert.equal(result.blockers.some(b=>/^NORA_(SDK|DEVELOPMENT|DIFF)/.test(b.code)),false);assert.equal(f.calls.some(c=>['get_local_sdk_connections','get_flow','run_flow'].includes(c.name)),false);
+});

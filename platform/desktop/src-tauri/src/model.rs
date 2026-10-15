@@ -42,13 +42,15 @@ pub struct Diagnostics { pub checked_at: Option<String>, pub tools: Tools, pub r
 pub struct DesktopState {
     pub schema_version: u8, pub app_version: String, pub connection: Connection, pub profile: Option<Profile>,
     pub selected_folder: Option<String>, pub diagnostics: Diagnostics, pub last_error: Option<AppError>,
+    pub desktop_connection: crate::receiver::DesktopConnection,
 }
 impl DesktopState {
     pub fn new(profile: Option<Profile>, error: Option<AppError>) -> Self {
         let unknown = || ToolDiagnostic { installed: false, path: None, version: None, error_code: Some("DIAGNOSTICS_NOT_RUN".into()) };
         Self { schema_version: 1, app_version: env!("CARGO_PKG_VERSION").into(),
             connection: Connection { status: "protocol_required".into(), connected: false, protocol_required: true,
-                message: "Nora 작업 자동 수신은 아직 연결 전입니다. 로컬 Codex 실행과 별도로 관리됩니다.".into() },
+                message: "Nora SDK 연결과 CTAS 데스크톱 작업 수신은 별도로 관리됩니다.".into() },
+            desktop_connection: crate::receiver::DesktopConnection::default(),
             selected_folder: profile.as_ref().map(|p| p.working_folder.clone()), profile,
             diagnostics: Diagnostics { checked_at: None, tools: Tools { git: unknown(), codex: unknown(), claude: unknown() }, repository: RepositoryDiagnostic::empty() }, last_error: error }
     }

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Code2, FileText, RefreshCw, Settings2 } from 'lucide-react';
 import { Badge, Button, ControlButton, Disclosure, Empty, ErrorNotice, Notice, Spinner, dateTime, projectPath } from './ui.jsx';
 import { useSharedView } from './shared-view.jsx';
+import { DesktopTaskNotice, DesktopArtifactSummary } from './desktop-execution-settings.jsx';
 import { DevelopmentChangeViewer } from './development-change-viewer.jsx';
 import { IMPLEMENTATION_NOTE_KINDS, IMPLEMENTATION_NOTE_STATES } from './implementation-notes-state.mjs';
 import { createDevelopmentReadSession, developmentActivity, developmentBlockers, developmentGroups, developmentLegacyActive, developmentNextAction, developmentNextStep, developmentNotesPath, developmentOverviewActive, developmentSelection, developmentState, developmentTaskRefreshing } from './ai-development-state.mjs';
@@ -51,7 +52,7 @@ function DevelopmentActivity({ remote }) {
   const items = developmentActivity(remote.data);
   return <section className="ai-dev-activity ains-section-stack" aria-label="실행 활동 기록"><header className="ai-dev-section-heading"><h3>실행 활동</h3>{remote.data?.has_more ? <small>최근 {remote.data.limit || items.length}건</small> : null}</header>
     <ErrorNotice error={remote.error} onRetry={() => remote.load()} />
-    {!remote.data && remote.loading ? <Spinner label="저장된 실행 활동을 불러오고 있습니다" /> : items.length ? <ol className="ai-dev-activity-list">{items.map(item => <li key={item.id}><div className="ai-dev-activity-time"><time dateTime={item.at}>{dateTime(item.at)}</time></div><div className="ai-dev-activity-content"><strong>{item.title}</strong>{item.summary ? <p>{item.summary}</p> : null}{item.error_code || item.trace_id ? <Disclosure><summary>실행 식별 정보</summary>{item.trace_id ? <p>Trace <code>{item.trace_id}</code></p> : null}{item.error_code ? <p>오류 코드 <code>{item.error_code}</code></p> : null}</Disclosure> : null}</div></li>)}</ol> : !remote.error ? <p className="ai-dev-empty-line">아직 저장된 실행 활동이 없습니다.</p> : null}
+    {!remote.data && remote.loading ? <Spinner label="저장된 실행 활동을 불러오고 있습니다" /> : items.length ? <ol className="ai-dev-activity-list">{items.map(item => <li key={item.id}><div className="ai-dev-activity-time"><time dateTime={item.at}>{dateTime(item.at)}</time></div><div className="ai-dev-activity-content"><strong>{item.title}</strong>{item.summary ? <p>{item.summary}</p> : null}{item.error_code || item.trace_id || item.transport_trace_id ? <Disclosure><summary>실행 식별 정보</summary>{item.trace_id ? <p>Nora Trace <code>{item.trace_id}</code></p> : null}{item.transport_trace_id ? <p>데스크톱 요청 <code>{item.transport_trace_id}</code></p> : null}{item.error_code ? <p>오류 코드 <code>{item.error_code}</code></p> : null}</Disclosure> : null}</div></li>)}</ol> : !remote.error ? <p className="ai-dev-empty-line">아직 저장된 실행 활동이 없습니다.</p> : null}
   </section>;
 }
 
@@ -80,9 +81,11 @@ function AutomatedDevelopmentDetail({ projectId, taskId, request, settings, capa
     {!task ? taskRemote.loading ? <Spinner label="개발 작업의 결과를 불러오고 있습니다" /> : null : <>
       <header className="ai-dev-detail-heading"><div className="ains-section-stack"><Badge tone={state.tone}>{state.label}</Badge><h2>{task.title}</h2></div><div className="ai-dev-actions"><Button type="button" variant="ghost" icon={RefreshCw} disabled={taskRemote.loading} onClick={() => { void taskRemote.load(); void activity.load(); void notes.load(); }} aria-label="선택한 개발 작업 새로고침">새로고침</Button></div></header>
       <Notice className="ai-dev-next-step" title="다음 할 일" actions={(action.target === 'work' && onWorkItems || action.target === 'settings' && onSettings) ? <Button type="button" onClick={openAction}>{action.label}</Button> : null}>{developmentNextStep(task)}</Notice>
+      <DesktopTaskNotice task={task} settings={settings} projectId={projectId} sharedView={sharedView} />
       {task.description ? <p className="ai-dev-description">{task.description}</p> : null}
       {task.acceptance_criteria?.length ? <Disclosure><summary>완료 기준 · {task.acceptance_criteria.length}개</summary><ul className="ains-prose-list">{task.acceptance_criteria.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul></Disclosure> : null}
       {task.requires_provisional_confirmation && task.execution_status === 'idle' ? <p className="ai-dev-help">고객에게 확인할 내용이 남아 있습니다. 개발 시작 시 임시 구현 진행 여부를 확인합니다.</p> : null}
+      <DesktopArtifactSummary artifact={task.artifact} />
       {task.artifact ? <DevelopmentChangeViewer artifact={task.artifact} previewOrigins={settings?.preview_origins || []} sharedView={sharedView} previewFramePath={`${path}/preview-frame`} /> : <p className="ai-dev-help">아직 저장된 개발 결과가 없습니다.</p>}
       {report ? <section className="ains-section-stack"><header className="ai-dev-section-heading"><h3>AI 구현 보고</h3><Badge tone={report.completion === 'complete' ? 'green' : 'amber'}>{{ complete: '구현 완료 보고', partial: '부분 구현', blocked: '보완 필요' }[report.completion] || '검토 필요'}</Badge></header><p className="ai-dev-help">AI가 보고한 구현 범위입니다. 실제 변경 내용과 완료 기준을 함께 검토하세요.</p>{report.remaining_criteria?.length ? <ul className="ains-prose-list">{report.remaining_criteria.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul> : null}</section> : null}
       <Disclosure open={activityOpen} onOpenChange={setActivityOpen}><summary>실행 기록</summary><DevelopmentActivity remote={activity} /></Disclosure>

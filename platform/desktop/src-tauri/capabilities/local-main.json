@@ -3,6 +3,21 @@
   "identifier": "local-main",
   "description": "Only the local main window can use explicit CTAS profile, diagnostics, and isolated-run commands. No remote IPC, general filesystem, or shell commands.",
   "local": true,
-  "windows": ["main"],
-  "permissions": ["allow-desktop-state", "allow-choose-workspace", "allow-save-profile", "allow-refresh-diagnostics", "allow-open-workspace", "allow-start-local-run", "allow-list-local-runs", "allow-get-local-run", "allow-cancel-local-run"]
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "allow-desktop-state",
+    "allow-choose-workspace",
+    "allow-save-profile",
+    "allow-refresh-diagnostics",
+    "allow-open-workspace",
+    "allow-start-local-run",
+    "allow-list-local-runs",
+    "allow-get-local-run",
+    "allow-cancel-local-run",
+    "allow-pair-desktop",
+    "allow-set-desktop-receiving",
+    "allow-disconnect-desktop"
+  ]
 }

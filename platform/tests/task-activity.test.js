@@ -29,6 +29,19 @@ test('activity retains the newest bounded records and displays them chronologica
   assert.deepEqual(output.items.map(item=>item.id),['2','3']);assert.equal(output.has_more,true);assert.equal(output.order,'asc');assert.equal(output.limit,2);
   assert.deepEqual(source.map(item=>item.id),['1','3','2']);
 });
+test('desktop activity distinguishes transport from Nora traces and never exposes device credentials',()=>{
+  const transport='desktop:'+randomUUID(),at=new Date();
+  const event=eventItem({id:'desktop',kind:'task_automation.desktop_job_claimed',created_at:at,transport_trace_id:transport,trace_id:transport,lease_token:'PRIVATE_LEASE',device_id:'PRIVATE_DEVICE',prompt:'PRIVATE_PROMPT'});
+  assert.equal(event.transport_trace_id,transport);assert.equal(event.trace_id,undefined);assert.equal(event.status,'running');
+  assert.doesNotMatch(JSON.stringify(event),/PRIVATE_|lease_token|device_id|prompt/);
+  const failed=eventItem({id:'f',kind:'task_automation.desktop_completed',created_at:at,desktop_status:'failed',transport_trace_id:'https://private.example/token'});
+  assert.equal(failed.transport_trace_id,undefined);assert.match(failed.summary,/자동으로 다시 실행하지 않습니다/);
+  const completed=eventItem({id:'c',kind:'task_automation.desktop_completed',created_at:at,desktop_status:'completed'});
+  assert.match(completed.summary,/별도로 확인/);
+  assert.equal(eventItem({id:'x',kind:'task_automation.desktop_expired',created_at:at,error_code:'DESKTOP_LEASE_EXPIRED'}).status,'uncertain');
+  const revoked=eventItem({id:'r',kind:'task_automation.desktop_revoked',created_at:at,error_code:'DESKTOP_DEVICE_REVOKED'});
+  assert.equal(revoked.status,undefined);assert.match(revoked.summary,/연결이 해제/);
+});
 
 test('task activity reads exact task evidence with bounded history, permissions and shared projection', {skip:!process.env.TEST_DATABASE_URL},async t=>{
   const schema='task_activity_'+randomUUID().replaceAll('-',''),admin=createPool(process.env.TEST_DATABASE_URL);let pool,server;
@@ -64,6 +77,9 @@ test('task activity reads exact task evidence with bounded history, permissions 
   const wrongAnalysis=await audit('task_automation.analysis_requested',other.aid);
   const privateMetadata=await audit('task_automation.execution_failed',f.tid,{error_code:'Token PRIVATE_CODE',trace_id:'https://private.example/PRIVATE_TRACE',kind:'develop'});
   const artifactSaved=await audit('task_automation.review_ready');
+  const desktopTrace='desktop:'+randomUUID();
+  const desktopEvent=await audit('task_automation.desktop_job_claimed',f.tid,{transport_trace_id:desktopTrace,trace_id:desktopTrace,device_id:'PRIVATE_DEVICE',lease_token:'PRIVATE_LEASE'});
+  const revokedEvent=await audit('task_automation.desktop_revoked',f.tid,{transport_trace_id:desktopTrace,error_code:'DESKTOP_DEVICE_REVOKED',device_id:'PRIVATE_DEVICE'});
   await pool.query("UPDATE automation_tasks SET execution_trace_id='trc_saved_development' WHERE id=$1",[f.tid]);
   const job=(await pool.query(`INSERT INTO task_automation_jobs(project_id,kind,task_id,created_by,payload,status,error_code,trace_id,created_at,updated_at)
     VALUES($1,'develop',$2,$3,$4,'awaiting_connection','TASK_CONNECTION_REQUIRED','trc_saved_job','2026-10-15T01:01:00Z','2026-10-15T01:02:00Z') RETURNING id`,[f.p,f.tid,users.owner,{token:'PRIVATE_JOB_TOKEN',prompt:'PRIVATE_JOB_PROMPT'}])).rows[0].id;
@@ -81,6 +97,9 @@ test('task activity reads exact task evidence with bounded history, permissions 
     assert.equal(data.items.find(item=>item.id==='job:'+job+':state').trace_id,'trc_saved_job');
     assert.equal(data.items.find(item=>item.id==='note:'+note+':created').trace_id,'trc_saved_note');
     assert.equal(data.items.find(item=>item.id==='event:'+artifactSaved).trace_id,'trc_saved_development');
+    assert.equal(data.items.find(item=>item.id==='event:'+desktopEvent).transport_trace_id,desktopTrace);
+    assert.equal(data.items.find(item=>item.id==='event:'+desktopEvent).trace_id,undefined);
+    assert.equal(data.items.find(item=>item.id==='event:'+revokedEvent).error_code,'DESKTOP_DEVICE_REVOKED');
     assert.doesNotMatch(JSON.stringify(data),/PRIVATE_|payload|raw_input|password|prompt|lease_token|sdk_working_folder/);
     assert.ok(data.items.every((item,index)=>!index||new Date(data.items[index-1].at)<=new Date(item.at)));
     const client=await pool.connect();try{await client.query('BEGIN READ ONLY');assert.deepEqual(await createTaskActivity({pool:client}).get(f.p,users.member,f.tid),data);}finally{await client.query('ROLLBACK');client.release();}

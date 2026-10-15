@@ -85,6 +85,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   runnerRoutes.post('/:id/heartbeat',async(req,res)=>res.json(await runner.heartbeat(req.params.id,req.headers.authorization,req.body)));
   runnerRoutes.post('/:id/complete',async(req,res)=>res.json(await runner.complete(req.params.id,req.headers.authorization,req.body)));
   app.use('/api/implementation-runner',runnerRoutes);
+  require('./desktop-execution-routes').mountDesktopExecutionNative(app,{pool});
   app.use('/api', auth.checkOrigin, express.json({limit:'1mb'}));
   app.get('/api/auth/providers', (_req,res) => res.json({google:{enabled:googleAuth.enabled,signup_domains:googleAuth.signupDomains}}));
   app.get('/api/auth/google', googleAuth.start);

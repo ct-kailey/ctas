@@ -18,8 +18,10 @@ test('browser, missing profile and unavailable CLI cannot start', () => {
   assert.equal(executionReadiness({}).ready, false);
   assert.equal(executionReadiness({ ...state, diagnostics: { ...state.diagnostics, tools: { codex: { installed: false } } } }).ready, false);
 });
-test('Claude selection does not claim direct execution is implemented', () => {
-  assert.match(executionReadiness({ ...state, profile: { ...profile, provider: 'claude-code' } }).reason, /준비 중/);
+test('Claude execution checks its own CLI installation', () => {
+  const claude = {...state, profile: {...profile, provider:'claude-code'}};
+  assert.equal(executionReadiness(claude).ready, false);
+  assert.equal(executionReadiness({...claude, diagnostics:{...state.diagnostics,tools:{claude:{installed:true}}}}).ready, true);
 });
 test('repository identity requires positive match, matching folder and observed HEAD', () => {
   assert.equal(executionReadiness(state).ready, true);
@@ -48,7 +50,7 @@ test('only preparing and running schedule active refresh', () => {
   assert.equal(runLabel({ status: 'unknown' }), '상태 확인 필요');
 });
 test('authentication and desktop failures give actionable safe text', () => {
-  assert.match(executionError({ errorCode: 'CLI_AUTH_REQUIRED' }), /터미널에서 Codex에 로그인/);
+  assert.match(executionError({ errorCode: 'CLI_AUTH_REQUIRED' }), /터미널에서 선택한 CLI에 로그인/);
   assert.match(desktopError({ code: 'DESKTOP_REQUIRED' }).message, /설치한 CTAS Desktop/);
 });
 test('preserves a safe native execution error summary when no tailored code exists', () => {

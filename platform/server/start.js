@@ -130,13 +130,16 @@ async function main() {
   const transcriptionWorker=startTranscriptionWorker({pool,resolveConfig,onError:()=>console.error(JSON.stringify({event:'transcription_worker_error'}))});
   const semanticWorker=startSemanticWorker(createSemanticService(pool,{resolveConfig}),{onError:()=>console.error(JSON.stringify({event:'semantic_worker_error'}))});
   const insightWorker=startInsightWorker({pool,onError:()=>console.error(JSON.stringify({event:'insight_worker_error'}))});
-  await implementationRunner.recoverExpired();
-  const runnerRecovery=setInterval(()=>implementationRunner.recoverExpired().catch(()=>console.error(JSON.stringify({event:'runner_recovery_error'}))),30000);runnerRecovery.unref();
+  const desktopExecution=require('./desktop-execution').createDesktopExecution({pool});
+  const recoverLocalRuns=()=>Promise.all([implementationRunner.recoverExpired(),desktopExecution.recoverExpired()]);
+  await recoverLocalRuns();
+  const runnerRecovery=setInterval(()=>recoverLocalRuns().catch(()=>console.error(JSON.stringify({event:'runner_recovery_error'}))),30000);runnerRecovery.unref();
   const maintenance=setInterval(()=>Promise.all([
     pool.query('DELETE FROM sessions WHERE expires_at<now()'),
     pool.query('DELETE FROM google_oauth_attempts WHERE expires_at<now()'),
     pool.query('DELETE FROM project_nora_oauth_states WHERE expires_at<now()'),
     pool.query('DELETE FROM auth_attempts WHERE expires_at<now()'),
+    pool.query("DELETE FROM desktop_execution_pairings WHERE expires_at<now()-interval '1 day'"),
   ]).catch(()=>{}),3600000); maintenance.unref();
   let closing=false;
   async function stop() {

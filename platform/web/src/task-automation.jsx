@@ -13,6 +13,7 @@ import './task-automation.css';
 import { TaskAreasPanel } from './task-areas.jsx';
 import { TaskAutomationKanban } from './task-automation-kanban.jsx';
 import { draftPolicyResultKey, draftPolicyResults, draftPolicySourceState, policyAnalysisRetryPayload } from './draft-policy-preparation-state.mjs';
+import { DesktopExecutionSettings, DesktopTaskNotice, DesktopArtifactSummary } from './desktop-execution-settings.jsx';
 import { QUESTION_LANGUAGES } from './question-language-state.mjs';
 
 function useAutomationResource(path, request, poll = automationActive) {
@@ -229,7 +230,9 @@ function AutomationTaskDetail({ id, projectId, route, request, permissions, shar
     {task.evidence?.length ? <Disclosure><summary>정책 원문 근거 · {task.evidence.length}개</summary>{task.evidence.map((evidence, index) => <blockquote key={index}><small>{evidence.segment_id}</small><p>{evidence.quote}</p></blockquote>)}</Disclosure> : null}
     {task.error_code ? <Notice tone="warning" title="작업 준비 상태를 확인해 주세요">{automationBlockerLabel(task.error_code)}</Notice> : null}
     {task.status === 'todo' && permissions.canWrite ? <><Button type="button" icon={ArrowRight} busy={busy} disabled={areasBusy || !automationCanStart(task, permissions, capabilities)} onClick={beginDevelopment}>AI 개발 시작</Button>{capabilities?.development !== true ? <CapabilityNotice capabilities={capabilities} /> : null}</> : null}
-    {task.status === 'in_progress' && ['queued', 'running'].includes(task.execution_status) ? <Notice title="AI 개발 결과를 기다리고 있습니다">코드 변경안과 임시 구현 이력이 준비되면 먼저 검토할 수 있습니다. CI·웹 미리보기와 병합 여부는 별도로 확인합니다.</Notice> : null}
+    <DesktopTaskNotice task={task} settings={settings} projectId={projectId} sharedView={sharedView} />
+    {task.execution_context?.execution_profile?.execution_mode !== 'desktop' && task.status === 'in_progress' && ['queued', 'running'].includes(task.execution_status) ? <Notice title="AI 개발 결과를 기다리고 있습니다">코드 변경안과 임시 구현 이력이 준비되면 먼저 검토할 수 있습니다. CI·웹 미리보기와 병합 여부는 별도로 확인합니다.</Notice> : null}
+    <DesktopArtifactSummary artifact={artifact} />
     {automationHasCodeArtifact(artifact) ? <section className="ains-section-stack"><h3>개발 결과 검토</h3><ArtifactVerification artifact={artifact} settings={settings} />
       {!sharedView && automationPrUrl(artifact) ? <Button type="button" asChild variant="secondary"><a href={automationPrUrl(artifact)} target="_blank" rel="noopener noreferrer">PR #{artifact.pr_number} 열기<ExternalLink size={15} /></a></Button> : null}
       {artifact.evidence_status === 'unverified' ? <Notice tone="warning" title="코드 변경 근거를 확인해야 합니다">AI가 전달한 변경안입니다. 실제 파일·커밋과 일치하는지 확인되기 전에는 검증된 개발 결과로 처리하거나 병합할 수 없습니다.</Notice> : null}
@@ -361,7 +364,7 @@ function SdkExecutionSettings({ route, request, draft, setDraft, owner, disabled
   </section>;
 }
 
-export function TaskAutomationSettings({ project, request, notify, onDirty, disabled }) {
+export function TaskAutomationSettings({ project, repositoryUrl, request, notify, onDirty, disabled }) {
   const route = `${projectPath(project.id)}/task-automation`, remote = useAutomationResource(route, request, () => false);
   const flowRemote = useAutomationResource(`${projectPath(project.id)}/nora-workspace/flows`, request, () => false), flows = flowRemote.data?.flows?.filter(flow => flow.published === true);
   const [draft, setDraft] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [sdkBusy, setSdkBusy] = useState(false);
@@ -381,10 +384,11 @@ export function TaskAutomationSettings({ project, request, notify, onDirty, disa
   const field = key => ({ value: draft[key], disabled: !owner || disabled || busy || sdkBusy, onChange: event => setDraft(current => ({ ...current, [key]: event.target.value })) });
   return <section className="repository-check" aria-label="정책 분석·AI 개발 연결"><div className="settings-context-heading"><Sparkles size={19} /><h3>정책 분석·AI 개발</h3></div><ErrorNotice error={remote.error} onRetry={remote.load} />{!draft ? remote.loading ? <Spinner /> : null : <>
     <CapabilityNotice capabilities={remote.data.capabilities} /><form className="ains-section-stack" onSubmit={save}><label className="checkbox-label"><Input type="checkbox" checked={draft.enabled} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, enabled: event.target.checked }))} /><span>정책 분석·AI 개발 활성화</span></label>
-      <Notice title="임시 구현은 작업을 시작할 때 확인합니다">고객 질문이나 확인할 내용이 남은 작업을 진행 중으로 옮기면 확인창을 표시합니다. 확인하면 AI가 개발을 시작하고, 임시로 구현한 내용과 남은 작업 공백을 자동으로 기록합니다.</Notice>
-      <FormField label="AI 개발 실행 방식"><Select value={draft.execution_mode} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, execution_mode: event.target.value, sdk_provider: event.target.value === 'nora_sdk' ? current.sdk_provider || 'codex' : current.sdk_provider }))}><option value="connector_api">GitHub 커넥터를 통한 개발</option><option value="nora_sdk">Nora 데스크톱 SDK · Codex / Claude Code</option></Select></FormField>
+      <Notice title="임시 구현은 작업을 시작할 때 확인합니다">고객 질문이나 확인할 내용이 남은 작업을 진행 중으로 옮기면 확인창을 표시합니다. {draft.execution_mode === 'desktop' ? '확인한 질문을 개발 요청에 포함합니다. 개발 결과의 요약과 코드를 검토하고, 임시 구현·작업 공백은 검토자가 기록해야 합니다.' : '확인하면 AI가 개발을 시작하고, 임시로 구현한 내용과 남은 작업 공백을 자동으로 기록합니다.'}</Notice>
+      <FormField label="AI 개발 실행 방식"><Select value={draft.execution_mode} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, execution_mode: event.target.value, sdk_provider: ['nora_sdk', 'desktop'].includes(event.target.value) ? current.sdk_provider || 'codex' : current.sdk_provider }))}><option value="connector_api">GitHub 커넥터를 통한 개발</option><option value="nora_sdk">Nora 데스크톱 SDK · Codex / Claude Code</option><option value="desktop">CTAS Desktop · Codex / Claude Code</option></Select></FormField>
+      {draft.execution_mode === 'desktop' ? <DesktopExecutionSettings key={project.id} route={route} projectId={project.id} repositoryUrl={repositoryUrl || project.repository_url} request={request} draft={draft} savedSettings={settings} setDraft={setDraft} owner={owner} sharedView={sharedView} disabled={!owner || disabled || busy} onBusy={setSdkBusy} /> : null}
       {draft.execution_mode === 'nora_sdk' ? <SdkExecutionSettings route={route} request={request} draft={draft} setDraft={setDraft} owner={owner} disabled={!owner || disabled || busy} onBusy={setSdkBusy} /> : null}
-      <ErrorNotice error={flowRemote.error} onRetry={flowRemote.load} />{[['risk_flow_slug', '정책 리스크 분석 흐름', '기본 Nora 리스크 분석 흐름 · 자동 준비'], ['development_flow_slug', 'AI 개발 흐름', '연결 필요']].map(([key, label, empty]) => <FormField label={label} key={key}><Select {...field(key)}><option value="">{empty}</option>{draft[key] && !flows?.some(flow => flow.slug === draft[key]) ? <option value={draft[key]} disabled>{draft[key]} · 현재 설정</option> : null}{flows?.map(flow => <option key={flow.slug} value={flow.slug}>{flow.name || flow.slug}</option>)}</Select></FormField>)}
+      <ErrorNotice error={flowRemote.error} onRetry={flowRemote.load} />{[['risk_flow_slug', '정책 리스크 분석 흐름', '기본 Nora 리스크 분석 흐름 · 자동 준비'], ...(draft.execution_mode === 'desktop' ? [] : [['development_flow_slug', 'AI 개발 흐름', '연결 필요']])].map(([key, label, empty]) => <FormField label={label} key={key}><Select {...field(key)}><option value="">{empty}</option>{draft[key] && !flows?.some(flow => flow.slug === draft[key]) ? <option value={draft[key]} disabled>{draft[key]} · 현재 설정</option> : null}{flows?.map(flow => <option key={flow.slug} value={flow.slug}>{flow.name || flow.slug}</option>)}</Select></FormField>)}
       <FormField label="웹 미리보기 허용 주소" hint="예: https://preview.example.com — 경로 없이 한 줄에 한 도메인, 최대 10개. 미리보기 연결 전에도 코드 변경안과 자동 기록을 확인할 수 있습니다."><Textarea {...field('preview_origins')} rows={3} maxLength={4000} /></FormField>
       <p>CI·웹 미리보기 상태는 개발 결과와 별도로 확인합니다. 실제 PR·검증·미리보기가 준비되면 사람이 검토한 뒤 기준 브랜치 병합을 승인합니다.</p><ErrorNotice error={error} />{owner ? <Button type="submit" variant="secondary" busy={busy} disabled={disabled || sdkBusy || !dirty}>분석·개발 연결 저장</Button> : <p>프로젝트 관리자만 연결을 변경할 수 있습니다.</p>}
     </form></>}

@@ -11,7 +11,7 @@ test('ordinary browser never invokes native or claims a connection', async () =>
   assert.equal(state.runtime, 'browser');
   assert.equal(state.connection.connected, false);
   assert.deepEqual(await api.listLocalRuns(), []);
-  for (const action of [() => api.chooseWorkspace(), () => api.saveProfile({}), () => api.refreshDiagnostics(), () => api.openWorkspace(), () => api.startLocalRun({prompt:'x',expectedHead:'x'}), () => api.cancelLocalRun('x')]) {
+  for (const action of [() => api.chooseWorkspace(), () => api.saveProfile({}), () => api.refreshDiagnostics(), () => api.openWorkspace(), () => api.startLocalRun({prompt:'x',expectedHead:'x'}), () => api.cancelLocalRun('x'), () => api.pairDesktop('code'), () => api.setDesktopReceiving(true), () => api.disconnectDesktop()]) {
     await assert.rejects(action, { code: 'DESKTOP_REQUIRED' });
   }
 });
@@ -42,4 +42,12 @@ test('desktop capabilities grant no remote page native access', () => {
   assert.ok(!capability.permissions.some(x => String(x).startsWith('shell:')));
   assert.match(config.app.security.csp, /frame-src 'none'/);
   assert.match(config.app.security.csp, /form-action 'none'/);
+});
+
+
+test('desktop receiver bridge forwards only code and explicit boolean consent', async () => {
+  const {createDesktopBridge}=await load(), calls=[];
+  const api=createDesktopBridge({isNative:()=>true,call:async (...args)=>{calls.push(args);return {desktopConnection:{paired:true,receiving:false}};}});
+  await api.pairDesktop('test-one-time-code'); await api.setDesktopReceiving(true); await api.disconnectDesktop();
+  assert.deepEqual(calls,[['pair_desktop',{code:'test-one-time-code'}],['set_desktop_receiving',{enabled:true}],['disconnect_desktop',undefined]]);
 });

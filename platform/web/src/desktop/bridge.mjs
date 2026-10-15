@@ -3,6 +3,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 export const browserState = () => ({
   schemaVersion: 1, appVersion: '0.1.0', runtime: 'browser',
   connection: { status: 'protocol_required', connected: false, protocolRequired: true, message: 'Nora 작업 자동 수신은 아직 연결되지 않았습니다.' },
+  desktopConnection: { status: 'unpaired', paired: false, receiving: false, deviceId: null, projectId: null, workspaceId: null, repositoryUrl: null, provider: null, lastCheckedAt: null, lastError: null, activeJobId: null, pendingResultCount: 0 },
   profile: null, selectedFolder: null,
   diagnostics: { checkedAt: null, tools: { git: null, codex: null, claude: null }, repository: { status: 'not_selected', workingFolder: null, branch: null, head: null, clean: null, origin: null, matchesProfile: null, errorCode: null } },
   lastError: null,
@@ -16,6 +17,9 @@ export function createDesktopBridge({ call = invoke, isNative = isTauri } = {}) 
   return {
     isDesktopRuntime: () => Boolean(isNative()),
     getDesktopState: async () => isNative() ? { ...await call('desktop_state'), runtime: 'desktop' } : browserState(),
+    pairDesktop: code => required('pair_desktop', { code }),
+    setDesktopReceiving: enabled => required('set_desktop_receiving', { enabled }),
+    disconnectDesktop: () => required('disconnect_desktop'),
     chooseWorkspace: () => required('choose_workspace'),
     saveProfile: value => required('save_profile', { profile: { project_id: value.projectId, workspace_id: value.workspaceId, repository_url: value.repositoryUrl, provider: value.provider } }),
     refreshDiagnostics: () => required('refresh_diagnostics'),
@@ -28,4 +32,4 @@ export function createDesktopBridge({ call = invoke, isNative = isTauri } = {}) 
 }
 
 const bridge = createDesktopBridge();
-export const { isDesktopRuntime, getDesktopState, chooseWorkspace, saveProfile, refreshDiagnostics, openWorkspace, startLocalRun, listLocalRuns, getLocalRun, cancelLocalRun } = bridge;
+export const { isDesktopRuntime, getDesktopState, chooseWorkspace, saveProfile, refreshDiagnostics, openWorkspace, startLocalRun, listLocalRuns, getLocalRun, cancelLocalRun, pairDesktop, setDesktopReceiving, disconnectDesktop } = bridge;

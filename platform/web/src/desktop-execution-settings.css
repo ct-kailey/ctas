@@ -1,0 +1,7 @@
+/* CTDS tokens own sizes; each stack owns sibling spacing. */
+.desktop-execution-settings > :is(.field, .notice, p),
+.desktop-execution-settings .ains-section-stack > :is(.field, p),
+.desktop-artifact-summary > p,
+.desktop-artifact-summary h3 { margin: 0; }
+.desktop-settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.desktop-result-summary { white-space: pre-wrap; overflow-wrap: anywhere; }
