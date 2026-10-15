@@ -59,7 +59,9 @@ function inspect(file) {
   }
   visit(ast);
 }
-for (const entry of fs.readdirSync(source)) if (entry.endsWith('.jsx')) inspect(path.join(source, entry));
+for (const directory of [source, path.join(source, 'desktop')].filter(directory => fs.existsSync(directory))) {
+  for (const entry of fs.readdirSync(directory)) if (entry.endsWith('.jsx')) inspect(path.join(directory, entry));
+}
 console.log(`CTDS component audit: ${files} application files, ${Object.values(counts).reduce((sum, count) => sum + count, 0)} CTDS/adapter uses, ${slots} valid asChild slots.`);
 if (issues.length) { issues.forEach(issue => console.error(issue)); process.exitCode = 1; }
 else console.log('PASS: active application controls use CTDS; browser-only form transport is confined to reviewed adapters.');

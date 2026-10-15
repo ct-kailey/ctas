@@ -18,7 +18,13 @@
     "ctds:sync": "node scripts/ctds-sync.cjs",
     "check:ctds": "node scripts/check-ctds-tokens.cjs && node scripts/check-ctds-components.cjs",
     "build:workspace": "node node_modules/vite/bin/vite.js build",
-    "check:ctds:components": "node scripts/check-ctds-components.cjs"
+    "check:ctds:components": "node scripts/check-ctds-components.cjs",
+    "desktop:dev": "node scripts/desktop.cjs dev",
+    "desktop:web": "node scripts/desktop.cjs web",
+    "desktop:build": "node scripts/desktop.cjs build",
+    "desktop:build:web": "node scripts/desktop.cjs build:web",
+    "desktop:info": "node scripts/desktop.cjs info",
+    "desktop:test": "node scripts/desktop.cjs test"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",
@@ -30,6 +36,7 @@
     "@radix-ui/react-slot": "1.3.3",
     "@radix-ui/react-toast": "1.3.1",
     "@radix-ui/react-tooltip": "1.4.1",
+    "@tauri-apps/api": "2.12.4",
     "ajv": "8.20.0",
     "express": "5.2.1",
     "google-auth-library": "11.1.0",
@@ -43,6 +50,7 @@
   "devDependencies": {
     "@babel/parser": "8.0.7",
     "@conscience-technology/ctds": "0.3.4",
+    "@tauri-apps/cli": "2.12.3",
     "pretendard": "1.3.9",
     "vite": "8.3.1"
   }
