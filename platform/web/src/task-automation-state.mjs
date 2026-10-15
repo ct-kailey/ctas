@@ -32,7 +32,33 @@ export function automationPermissions(role, sharedView) {
   return { canWrite: !sharedView && ['owner', 'reviewer', 'member'].includes(role), canReview: !sharedView && ['owner', 'reviewer'].includes(role), canConfigure: !sharedView && role === 'owner' };
 }
 export function automationCanStart(task, permissions, capabilities) {
-  return Boolean(task?.status === 'todo' && task?.execution_status === 'idle' && permissions?.canWrite === true && capabilities?.development === true);
+  return automationCanRequestStart(task, permissions) && capabilities?.development === true;
+}
+
+// Keep the move affordance available when execution is disconnected so the user
+// gets an explanation. This never grants execution: start-check still gates it.
+export function automationCanRequestStart(task, permissions) {
+  return Boolean(task?.status === 'todo' && task?.execution_status === 'idle' && permissions?.canWrite === true);
+}
+export function automationBoardAction({ kind, item, target, permissions, busy }) {
+  if (busy || permissions?.canWrite !== true || !item || !['task', 'draft'].includes(kind) || !target) return 'none';
+  const source = kind === 'draft' ? 'todo' : automationColumn(item);
+  if (target === source) return 'none';
+  if (target !== 'in_progress') return 'unavailable';
+  if (kind === 'draft') return 'prepare_draft';
+  return automationCanRequestStart(item, permissions) ? 'start' : 'unavailable';
+}
+export function automationKeyboardCoordinates(event, { currentCoordinates, context }) {
+  if (!['ArrowLeft', 'ArrowRight'].includes(event.code) || !context.collisionRect) return;
+  event.preventDefault();
+  const current = context.over?.id || 'lane:todo';
+  const index = AUTOMATION_COLUMNS.findIndex(([status]) => `lane:${status}` === current);
+  const next = AUTOMATION_COLUMNS[index + (event.code === 'ArrowRight' ? 1 : -1)];
+  if (!next) return;
+  const rect = context.droppableRects.get(`lane:${next[0]}`);
+  if (!rect) return;
+  const dragged = context.collisionRect;
+  return { x: currentCoordinates.x + rect.left + rect.width / 2 - dragged.left - dragged.width / 2, y: currentCoordinates.y + rect.top + Math.min(rect.height, dragged.height) / 2 - dragged.top - dragged.height / 2 };
 }
 
 export function automationStartCheck(value, taskId) {

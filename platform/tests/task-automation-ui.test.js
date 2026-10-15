@@ -94,6 +94,40 @@ test('only idle todo tasks with writer permission and connected development can 
   assert.equal(automationCanStart(task, { canWrite: true }, { development: false }), false);
 });
 
+test('board movement stays available while disconnected but does not bypass development readiness', async () => {
+  const { automationCanRequestStart, automationCanStart, automationBoardAction, automationPermissions } = await state();
+  const item = { id: 'task-1', status: 'todo', execution_status: 'idle' }, permissions = automationPermissions('member', null);
+  assert.equal(automationCanRequestStart(item, permissions), true);
+  assert.equal(automationCanStart(item, permissions, { development: false }), false);
+  assert.equal(automationBoardAction({ kind: 'task', item, target: 'in_progress', permissions }), 'start');
+  assert.equal(automationBoardAction({ kind: 'draft', item: { id: 'draft-1' }, target: 'in_progress', permissions }), 'prepare_draft');
+  for (const target of ['qa', 'done', 'blocked']) assert.equal(automationBoardAction({ kind: 'task', item, target, permissions }), 'unavailable');
+  for (const target of ['todo', null]) assert.equal(automationBoardAction({ kind: 'task', item, target, permissions }), 'none');
+  for (const kind of ['task', 'draft']) {
+    for (const denied of [automationPermissions('viewer', null), automationPermissions('owner', { shared: true })]) assert.equal(automationBoardAction({ kind, item, target: 'in_progress', permissions: denied }), 'none');
+    assert.equal(automationBoardAction({ kind, item, target: 'in_progress', permissions, busy: true }), 'none');
+  }
+  for (const status of ['qa', 'blocked', 'done']) assert.equal(automationBoardAction({ kind: 'task', item: { ...item, status }, target: 'in_progress', permissions }), 'unavailable');
+  assert.equal(automationBoardAction({ kind: 'task', item: null, target: 'in_progress', permissions }), 'none');
+  assert.equal(automationBoardAction({ kind: 'unknown', item, target: 'in_progress', permissions }), 'none');
+  assert.equal(automationBoardAction({ kind: 'task', item: { ...item, execution_status: 'queued' }, target: 'in_progress', permissions }), 'unavailable');
+});
+
+test('keyboard dragging moves by whole columns and stops at board boundaries', async () => {
+  const { automationKeyboardCoordinates } = await state();
+  const rects = new Map([['lane:todo', { left: 0, top: 100, width: 250, height: 600 }], ['lane:in_progress', { left: 270, top: 100, width: 250, height: 600 }], ['lane:blocked', { left: 540, top: 100, width: 250, height: 600 }]]);
+  const context = { over: { id: 'lane:todo' }, collisionRect: { left: 10, top: 150, width: 230, height: 180 }, droppableRects: rects };
+  const currentCoordinates = { x: 20, y: 30 }; let prevented = 0;
+  const event = code => ({ code, preventDefault() { prevented++; } });
+  const moved = automationKeyboardCoordinates(event('ArrowRight'), { currentCoordinates, context });
+  assert.deepEqual(moved, { x: 290, y: -20 });
+  assert.equal(prevented, 1);
+  assert.equal(automationKeyboardCoordinates(event('ArrowLeft'), { currentCoordinates, context }), undefined);
+  assert.equal(automationKeyboardCoordinates(event('ArrowDown'), { currentCoordinates, context }), undefined);
+  assert.equal(automationKeyboardCoordinates(event('ArrowRight'), { currentCoordinates, context: { ...context, over: { id: 'lane:done' } } }), undefined);
+  assert.equal(automationKeyboardCoordinates(event('ArrowRight'), { currentCoordinates, context: { ...context, collisionRect: null } }), undefined);
+});
+
 const startCheck = () => ({ task_id: 'task-1', task_version: 3, review_token: 'a'.repeat(64), requires_confirmation: true, questions: [{ id: 'question-1', question: '승인 전 한도는 얼마인가요?', answer: '임시로 10건까지', status: 'answered' }] });
 
 test('a cancelled provisional start only reads evidence and never writes consent or task state', async () => {

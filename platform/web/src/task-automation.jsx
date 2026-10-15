@@ -1,16 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, ExternalLink, GitMerge, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
-import { Badge, Button, ControlButton, Disclosure, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, dateTime, projectPath } from './ui.jsx';
+import { Badge, Button, Disclosure, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, dateTime, projectPath } from './ui.jsx';
 import { useSharedView } from './shared-view.jsx';
 import { useConfirm } from './confirmation.jsx';
 import { Modal as CTDSModal } from './components/ctds/Modal/Modal';
-import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationArtifactStages, automationBlockerLabel, automationCanRefreshArtifact, automationCanStart, automationColumn, automationExecutionLabel, automationHasCodeArtifact, automationMergeReadiness, automationPermissions, automationPreviewUrl, automationPrUrl, automationReportedChecks, automationSdkConnectionKey, automationSdkConnectionRequest, automationSdkConnections, automationSdkSelectedConnection, automationSettingsDraft, automationSettingsPayload, refreshAutomationArtifact, startAutomationTask } from './task-automation-state.mjs';
+import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationArtifactStages, automationBlockerLabel, automationCanRefreshArtifact, automationCanRequestStart, automationCanStart, automationExecutionLabel, automationHasCodeArtifact, automationMergeReadiness, automationPermissions, automationPreviewUrl, automationPrUrl, automationReportedChecks, automationSdkConnectionKey, automationSdkConnectionRequest, automationSdkConnections, automationSdkSelectedConnection, automationSettingsDraft, automationSettingsPayload, refreshAutomationArtifact, startAutomationTask } from './task-automation-state.mjs';
 import { retainProjectRequest } from './nora-workspace-state.mjs';
 import { mergeTaskDraftPage, taskDraftSourceUrl } from './task-draft-state.mjs';
 import { ImplementationNotesPanel, RelatedImplementationNotes } from './implementation-notes.jsx';
 import { journeyTaskSelection } from './project-journey-navigation.mjs';
 import './task-automation.css';
-import { TaskAreasPanel, TaskAreaSummary } from './task-areas.jsx';
+import { TaskAreasPanel } from './task-areas.jsx';
+import { TaskAutomationKanban } from './task-automation-kanban.jsx';
 
 function useAutomationResource(path, request, poll = automationActive) {
   const [data, setData] = useState(null), [error, setError] = useState(null), [loading, setLoading] = useState(true);
@@ -99,8 +100,8 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
   const areas = useAutomationResource(`${route}/areas`, request, () => false);
   const [selectedId, setSelectedId] = useState(() => journeyTaskSelection(initialTarget).taskId), [selectedDraftId, setSelectedDraftId] = useState(() => journeyTaskSelection(initialTarget).draftId);
   const [noteTarget, setNoteTarget] = useState(() => journeyTaskSelection(initialTarget).noteId ? { id: initialTarget.id, nonce: crypto.randomUUID() } : null), [dirtyFields, setDirtyFields] = useState({});
-  const [startBusy, setStartBusy] = useState(false), [startError, setStartError] = useState(null), [startConfirmation, setStartConfirmation] = useState(null), [draggedId, setDraggedId] = useState(null);
-  const startSession = useRef(null), draggedTask = useRef(null), startMounted = useRef(true);
+  const [startBusy, setStartBusy] = useState(false), [startError, setStartError] = useState(null), [startConfirmation, setStartConfirmation] = useState(null), [draftStart, setDraftStart] = useState(null), [connectionNeeded, setConnectionNeeded] = useState(false);
+  const startSession = useRef(null), startMounted = useRef(true);
   const automationDirty = useCallback(value => setDirtyFields(current => ({ ...current, automation: value })), []);
   const notesDirty = useCallback(value => setDirtyFields(current => ({ ...current, notes: value })), []);
   useEffect(() => { onDirty?.(startBusy || Object.values(dirtyFields).some(Boolean)); }, [dirtyFields, startBusy, onDirty]);
@@ -119,9 +120,10 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
     void onChanged?.({ quiet: true });
   }
   async function start(task, restoreDetail = false) {
-    if (startSession.current || !automationCanStart(task, permissions, remote.data?.capabilities)) return;
+    if (startSession.current || !automationCanRequestStart(task, permissions)) return;
+    if (!automationCanStart(task, permissions, remote.data?.capabilities)) { setStartError(null); setConnectionNeeded(true); return; }
     const session = { controller: new AbortController(), resolve: null };
-    startSession.current = session; setStartBusy(true); setStartError(null); if (restoreDetail) setSelectedId(null);
+    startSession.current = session; setStartBusy(true); setStartError(null); setConnectionNeeded(false); if (restoreDetail) setSelectedId(null);
     const current = () => startMounted.current && startSession.current === session;
     try {
       const outcome = await startAutomationTask({ request, taskPath: `${route}/tasks/${encodeURIComponent(task.id)}`, taskId: task.id, signal: session.controller.signal, isActive: current,
@@ -139,16 +141,8 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
     if (!resolve) return;
     startSession.current.resolve = null; setStartConfirmation(null); resolve(accepted);
   }
-  function dropTask(event, status) {
-    if (status !== 'in_progress' || !draggedTask.current) return;
-    event.preventDefault();
-    const id = draggedTask.current; draggedTask.current = null; setDraggedId(null);
-    if (event.dataTransfer.getData('application/x-ains-automation-task') !== id) return;
-    const task = tasks.find(item => item.id === id);
-    if (task) void start(task);
-  }
   return <section className="task-automation ains-section-stack" aria-label="Nora 정책 분석·개발 작업">
-    <header className="task-auto-heading"><div><h2>정책 분석·AI 개발 작업</h2><p>할 일을 진행 중으로 옮기면 AI 개발을 시작합니다. 검토가 필요한 내용은 확인 후 임시로 구현하고 자동 기록합니다.</p></div><Button type="button" variant="secondary" icon={RefreshCw} disabled={startBusy} onClick={() => { void remote.load(); void drafts.load(); void areas.load(); }}>새로고침</Button></header>
+    <header className="task-auto-heading"><div><h2>정책 분석·AI 개발 작업</h2><p>{permissions.canWrite ? '카드를 진행 중으로 드래그하세요. 검증 전 초안은 정책 분석을 안내하고, 준비된 할 일은 확인 후 AI 개발을 시작합니다. 검수 대기·병합 완료는 실행 결과에 따라 갱신됩니다.' : '작업을 선택해 정책 근거와 개발 진행 상황을 조회하세요. 조회 전용 화면에서는 작업 상태를 변경할 수 없습니다.'}</p></div><Button type="button" variant="secondary" icon={RefreshCw} disabled={startBusy} onClick={() => { void remote.load(); void drafts.load(); void areas.load(); }}>새로고침</Button></header>
     <ErrorNotice error={startError} />
     {startBusy && !startConfirmation ? <Spinner label="개발 시작 요청을 확인하고 있습니다" /> : null}
     {remote.error ? <div aria-label="정책 분석·개발 작업 조회 오류"><p className="task-auto-help">정책 분석·개발 작업을 불러오지 못했습니다.</p><ErrorNotice error={remote.error} onRetry={remote.load} /></div> : null}
@@ -159,15 +153,7 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
     {areas.error ? <ErrorNotice error={areas.error} onRetry={areas.load} /> : null}
     <IntakeNotice items={remote.data?.intake} />
     {remote.data || drafts.data ? <>
-      {/* No CTDS Kanban primitive exists; columns compose existing CTDS card buttons and badges. */}
-      <div className="task-auto-board" role="region" aria-label="AI 개발 작업 칸반" tabIndex={0}>{AUTOMATION_COLUMNS.map(([status, label]) => {
-        const column = tasks.filter(task => automationColumn(task) === status);
-        const sourceDrafts = status === 'todo' ? draftItems : [], count = column.length + sourceDrafts.length;
-        return <section className={`task-auto-column${status === 'in_progress' && draggedId ? ' task-auto-drop-target' : ''}`} key={status} aria-label={label} onDragOver={event => { if (status === 'in_progress' && draggedTask.current && !startBusy) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={event => dropTask(event, status)}><header><h3>{label}</h3><Badge tone="quiet">{count}</Badge></header><div className="task-auto-cards">{sourceDrafts.map(item => <ControlButton type="button" variant="outline" layout="card" className="task-auto-card" key={`draft:${item.id}`} disabled={startBusy} onClick={() => setSelectedDraftId(item.id)}><span><Badge tone="amber">Nora 검증 전</Badge><strong>{item.title}</strong><small>{item.source_title} · 출처 기반 초안</small><small>{item.key}{item.depends_on?.length ? ` · 선행 작업 ${item.depends_on.length}개` : ''}</small></span></ControlButton>)}{column.map(task => {
-          const startable = automationCanStart(task, permissions, remote.data?.capabilities);
-          return <div className="task-auto-card-group" key={`automation:${task.id}`}><ControlButton type="button" variant="outline" layout="card" className="task-auto-card" disabled={startBusy} draggable={startable && !startBusy} onDragStart={event => { if (!startable || startBusy) { event.preventDefault(); return; } draggedTask.current = task.id; setDraggedId(task.id); event.dataTransfer.setData('application/x-ains-automation-task', task.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => { draggedTask.current = null; setDraggedId(null); }} onClick={() => setSelectedId(task.id)}><span><strong>{task.title}</strong>{task.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}<small>{automationExecutionLabel(task)}</small><TaskAreaSummary value={areas.data?.items?.find(item => item.task_id === task.id)} unavailable={Boolean(areas.error)} /><small>{status === 'qa' ? '코드·자동 이력 확인 · 검증 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(task.updated_at)} 갱신`}</small></span></ControlButton>{startable ? <Button type="button" variant="ghost" icon={ArrowRight} disabled={startBusy} aria-label={`${task.title} · 진행 중으로 이동하고 AI 개발 시작`} onClick={() => void start(task)}>진행 중으로 이동</Button> : null}</div>;
-        })}</div>{status === 'in_progress' && draggedId ? <p className="task-auto-help">여기에 놓으면 개발 시작을 확인합니다.</p> : !count ? <p className="task-auto-help">작업 없음</p> : null}</section>;
-      })}</div>
+      <TaskAutomationKanban key={projectId} tasks={tasks} drafts={draftItems} areas={areas.data?.items} areasUnavailable={Boolean(areas.error)} permissions={permissions} busy={startBusy} onStart={task => void start(task)} onDraftStart={setDraftStart} onSelectTask={setSelectedId} onSelectDraft={setSelectedDraftId} onInvalidMove={notify} />
       {drafts.data?.total ? <div className="inline-actions"><p className="task-auto-help">출처 기반 작업 초안 {draftItems.length} / {drafts.data.total}개 표시</p>{drafts.data.has_more ? <Button type="button" variant="secondary" busy={drafts.loading} onClick={() => drafts.load(true)}>작업 초안 더 불러오기</Button> : null}</div> : null}
       {drafts.data && !drafts.data.has_more && draftItems.length < drafts.data.total ? <Notice title="조회 중 작업 목록이 바뀌었습니다">전체 작업을 확인하려면 목록을 다시 불러와 주세요.<Button type="button" variant="secondary" busy={drafts.loading} onClick={() => drafts.load()}>작업 초안 목록 새로고침</Button></Notice> : null}
       {!tasks.length && !draftItems.length ? <p className="task-auto-help">자료·기록에 정책 문서를 등록하고 Nora 리스크 분석을 요청하세요. 실행 가능한 범위를 작업으로 등록하고, 확인할 내용이 있으면 검토 필요로 표시합니다.</p> : null}
@@ -176,6 +162,8 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
     <ImplementationNotesPanel projectId={projectId} request={request} role={role} notify={notify} onDirty={notesDirty} onChanged={async options => { await remote.load(); await onChanged?.(options); }} onSourceRevision={onSourceRevision} target={noteTarget} analyses={analyses} onRefreshAnalysis={remote.load} refreshKey={[...tasks, ...analyses].map(item => `${item.id}:${item.updated_at}:${item.status}`).join('|')} />
     {selectedId ? <AutomationTaskDetail key={`${projectId}:${selectedId}`} id={selectedId} projectId={projectId} route={route} request={request} permissions={permissions} sharedView={sharedView} settings={remote.data?.settings} capabilities={remote.data?.capabilities} onClose={() => setSelectedId(null)} onDirty={automationDirty} onChanged={changed} onAreasChanged={areasChanged} onOpenNote={openNote} onStart={task => void start(task, true)} startError={startError} /> : null}
     {selectedDraftId ? <SourceTaskDraftDetail key={selectedDraftId} id={selectedDraftId} projectId={projectId} route={`${projectPath(projectId)}/task-drafts`} request={request} onClose={() => setSelectedDraftId(null)} onDependency={setSelectedDraftId} onSourceRevision={onSourceRevision} onSettings={!sharedView && remote.data?.capabilities?.risk_analysis !== true ? onSettings : undefined} onOpenNote={openNote} onCreateNote={permissions.canWrite ? createNote : undefined} /> : null}
+    {draftStart ? <CTDSModal open title="정책 분석이 먼저 필요합니다" description="이 카드는 정책 원문에서 추출한 작업 초안입니다. 원문을 확인하고 Nora 리스크 분석을 마친 뒤 생성된 할 일을 진행 중으로 옮겨 주세요." onOpenChange={open => { if (!open) setDraftStart(null); }} dismissLabel="취소" data-ctds="modal" footer={<><Button type="button" variant="secondary" onClick={() => setDraftStart(null)}>취소</Button>{onSourceRevision ? <Button type="button" onClick={() => { const revision = draftStart.source_revision_id; setDraftStart(null); onSourceRevision(revision); }}>정책 원문·리스크 분석 열기</Button> : <Button type="button" onClick={() => { setSelectedDraftId(draftStart.id); setDraftStart(null); }}>작업 초안 확인</Button>}</>}><p>{draftStart.title}</p><p className="task-auto-help">아직 개발을 요청하거나 작업 상태를 바꾸지 않았습니다.</p></CTDSModal> : null}
+    {connectionNeeded ? <CTDSModal open title="AI 개발 실행 환경이 연결되지 않았습니다" description="작업을 진행 중으로 옮기려면 실행 환경 연결이 필요합니다. 개발을 요청하거나 작업 상태를 바꾸지 않았습니다." onOpenChange={open => { if (!open) setConnectionNeeded(false); }} dismissLabel="닫기" data-ctds="modal" footer={<><Button type="button" variant="secondary" onClick={() => setConnectionNeeded(false)}>닫기</Button>{onSettings ? <Button type="button" onClick={() => { setConnectionNeeded(false); onSettings(); }}>프로젝트 연결 설정</Button> : null}</>}><CapabilityNotice capabilities={remote.data?.capabilities} /></CTDSModal> : null}
     {startConfirmation ? <ProvisionalStartConfirmation {...startConfirmation} onCancel={() => settleStart(false)} onConfirm={() => settleStart(true)} /> : null}
   </section>;
 }
@@ -301,6 +289,7 @@ function SdkExecutionSettings({ route, request, draft, setDraft, owner, disabled
     } finally { pending.current = false; if (remote.lifecycle.current.active) setRequesting(false); }
   }
   return <section className="ains-section-stack" aria-label="Nora SDK 실행 연결">
+    <Notice tone="warning" title="Nora 데스크톱 앱이 필요합니다">이 방식은 Nora 데스크톱 앱이 설치·실행된 컴퓨터가 필요합니다. 앱이 없으면 웹에서 연결 요청을 보내도 승인하거나 개발을 실행할 수 없습니다.</Notice>
     <FormField label="개발 실행 도구"><Select value={draft.sdk_provider} disabled={disabled || requesting} onChange={event => { setRequestNotice(null); setDraft(current => ({ ...current, sdk_provider: event.target.value, sdk_connection_id: '', sdk_working_folder: '' })); }}><option value="">선택</option><option value="codex">Codex</option><option value="claude-code">Claude Code</option></Select></FormField>
     <FormField label="Nora에 연결된 실행 환경"><Select value={selectedKey || unavailableKey} disabled={disabled || requesting || remote.loading} onChange={event => { const connection = connections.find(item => automationSdkConnectionKey(item) === event.target.value); if (connection) setDraft(current => ({ ...current, sdk_connection_id: connection.id || '', sdk_working_folder: connection.workingFolder })); }}><option value="">연결 선택</option>{unavailableKey && !selected ? <option value={unavailableKey} disabled>현재 작업 폴더 · 연결 확인 필요</option> : null}{connections.map(connection => <option key={automationSdkConnectionKey(connection)} value={automationSdkConnectionKey(connection)}>{connection.provider} · {connection.workingFolder}{connection.busy ? ' · 실행 중' : ''}</option>)}</Select></FormField>
     <FormField label="저장소 작업 폴더" hint="Nora 데스크톱에서 이 프로젝트의 저장소를 읽고 작업할 절대 경로입니다. 연결된 폴더를 선택하거나 새 연결을 요청하세요."><Input value={draft.sdk_working_folder} disabled={disabled || requesting} maxLength={2000} onChange={event => { setRequestNotice(null); setDraft(current => ({ ...current, sdk_connection_id: '', sdk_working_folder: event.target.value })); }} placeholder="/Users/사용자/프로젝트" /></FormField>
@@ -329,7 +318,7 @@ export function TaskAutomationSettings({ project, request, notify, onDirty, disa
   return <section className="repository-check" aria-label="정책 분석·AI 개발 연결"><div className="settings-context-heading"><Sparkles size={19} /><h3>정책 분석·AI 개발</h3></div><ErrorNotice error={remote.error} onRetry={remote.load} />{!draft ? remote.loading ? <Spinner /> : null : <>
     <CapabilityNotice capabilities={remote.data.capabilities} /><form className="ains-section-stack" onSubmit={save}><label className="checkbox-label"><Input type="checkbox" checked={draft.enabled} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, enabled: event.target.checked }))} /><span>정책 분석·AI 개발 활성화</span></label>
       <Notice title="임시 구현은 작업을 시작할 때 확인합니다">고객 질문이나 확인할 내용이 남은 작업을 진행 중으로 옮기면 확인창을 표시합니다. 확인하면 AI가 개발을 시작하고, 임시로 구현한 내용과 남은 작업 공백을 자동으로 기록합니다.</Notice>
-      <FormField label="AI 개발 실행 방식"><Select value={draft.execution_mode} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, execution_mode: event.target.value, sdk_provider: event.target.value === 'nora_sdk' ? current.sdk_provider || 'codex' : current.sdk_provider }))}><option value="connector_api">GitHub 커넥터를 통한 개발</option><option value="nora_sdk">Nora SDK · Codex / Claude Code</option></Select></FormField>
+      <FormField label="AI 개발 실행 방식"><Select value={draft.execution_mode} disabled={!owner || disabled || busy || sdkBusy} onChange={event => setDraft(current => ({ ...current, execution_mode: event.target.value, sdk_provider: event.target.value === 'nora_sdk' ? current.sdk_provider || 'codex' : current.sdk_provider }))}><option value="connector_api">GitHub 커넥터를 통한 개발</option><option value="nora_sdk">Nora 데스크톱 SDK · Codex / Claude Code</option></Select></FormField>
       {draft.execution_mode === 'nora_sdk' ? <SdkExecutionSettings route={route} request={request} draft={draft} setDraft={setDraft} owner={owner} disabled={!owner || disabled || busy} onBusy={setSdkBusy} /> : null}
       <ErrorNotice error={flowRemote.error} onRetry={flowRemote.load} />{[['risk_flow_slug', '정책 리스크 분석 흐름', '기본 Nora 리스크 분석 흐름 · 자동 준비'], ['development_flow_slug', 'AI 개발 흐름', '연결 필요']].map(([key, label, empty]) => <FormField label={label} key={key}><Select {...field(key)}><option value="">{empty}</option>{draft[key] && !flows?.some(flow => flow.slug === draft[key]) ? <option value={draft[key]} disabled>{draft[key]} · 현재 설정</option> : null}{flows?.map(flow => <option key={flow.slug} value={flow.slug}>{flow.name || flow.slug}</option>)}</Select></FormField>)}
       <FormField label="웹 미리보기 허용 주소" hint="예: https://preview.example.com — 경로 없이 한 줄에 한 도메인, 최대 10개. 미리보기 연결 전에도 코드 변경안과 자동 기록을 확인할 수 있습니다."><Textarea {...field('preview_origins')} rows={3} maxLength={4000} /></FormField>

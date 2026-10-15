@@ -145,7 +145,7 @@ function createNoraTaskProvider({pool,provider,git}){
   }
   async function sdkConnection(input,{after=false}={}){
     const expected=sdkSettings(input.settings),result=await sdkConnections(input),connection=result.connections.find(c=>(!expected.id||c.id===expected.id)&&c.provider===expected.provider&&c.workingFolder===expected.workingFolder);
-    if(!connection||!connection.connected||connection.provider!==expected.provider||connection.workingFolder!==expected.workingFolder)fail('NORA_SDK_CONNECTION_REQUIRED','선택한 Nora SDK와 프로젝트 작업 폴더의 연결을 확인하세요.');
+    if(!connection||!connection.connected||connection.provider!==expected.provider||connection.workingFolder!==expected.workingFolder)fail('NORA_SDK_CONNECTION_REQUIRED','Nora 데스크톱 SDK가 연결되지 않았습니다. 이 실행 방식은 데스크톱 앱에서 작업 폴더를 승인해야 하며, 앱이 없으면 웹에서 승인하거나 개발을 시작할 수 없습니다.');
     if(!after&&connection.busy)fail('NORA_SDK_BUSY','Nora SDK에서 다른 작업이 실행 중입니다. 완료 후 다시 시작하세요.');
     return {id:connection.id,provider:connection.provider,workingFolder:connection.workingFolder};
   }
