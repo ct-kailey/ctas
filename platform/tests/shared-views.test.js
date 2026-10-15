@@ -5,7 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { createPool, migrate } = require('../server/db');
 const { provisionUser, sha256 } = require('../server/auth');
 const { createApp } = require('../server/server');
-const { projectSharedJSON } = require('../server/shared-views');
+const { projectSharedJSON, READ_PATHS } = require('../server/shared-views');
 
 test('anonymous projection removes credential metadata, member emails and inline code patches', () => {
   assert.deepEqual(projectSharedJSON({ members: [{ name: 'K', email: 'private@example.test' }], result: { patch: 'diff', summary: 'done' }, token_hash: 'hash' }), { members: [{ name: 'K' }], result: { summary: 'done' } });
@@ -16,6 +16,14 @@ test('anonymous projection hides SDK execution output and local connection detai
   assert.deepEqual(projectSharedJSON(source), { settings: { execution_mode: 'nora_sdk', sdk_provider: 'codex' }, task: { artifact: { head_sha: 'a'.repeat(40) }, execution_context: { execution_profile: {} } } });
   assert.equal(source.task.artifact.reported_checks[0].output, 'private runner output');
   assert.deepEqual(projectSharedJSON({ detail: { provider: 'codex', working_folder: '/private/project', task_working_folder: '/private/project/task' } }), { detail: { provider: 'codex' } });
+});
+
+test('shared task-area projection permits reads without SDK or mutation endpoints', () => {
+  const task = randomUUID(), allowed = path => READ_PATHS.some(pattern => pattern.test(path));
+  assert.equal(allowed('/task-automation/areas'), true);
+  assert.equal(allowed(`/task-automation/tasks/${task}/areas`), true);
+  assert.equal(allowed(`/task-automation/tasks/${task}/areas/screen`), false);
+  assert.equal(allowed('/task-automation/sdk-connections'), false);
 });
 
 test('temporary shared links authorize only selected read projections and preserve normal login isolation', { skip: !process.env.TEST_DATABASE_URL }, async t => {

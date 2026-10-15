@@ -35,6 +35,8 @@ async function assignments(db, p, id) {
   return (await db.query(`SELECT
     (SELECT count(*)::int FROM work_items WHERE project_id=$1 AND assignee_id=$2) AS tasks,
     (SELECT count(*)::int FROM work_items WHERE project_id=$1 AND assignee_id=$2 AND status<>'done') AS open_tasks,
+    (SELECT count(*)::int FROM automation_task_area_assignees WHERE project_id=$1 AND user_id=$2) AS task_areas,
+    (SELECT count(*)::int FROM automation_task_area_assignees a JOIN automation_task_areas t USING(project_id,task_id,area) WHERE a.project_id=$1 AND a.user_id=$2 AND t.status NOT IN ('done','not_applicable')) AS open_task_areas,
     (SELECT count(*)::int FROM project_questions WHERE project_id=$1 AND assigned_to=$2) AS questions,
     (SELECT count(*)::int FROM project_questions WHERE project_id=$1 AND assigned_to=$2 AND status IN ('draft','waiting','answered_pending')) AS open_questions,
     (SELECT count(*)::int FROM work_scope_locks WHERE project_id=$1 AND assignee_id=$2) AS scopes,
@@ -58,16 +60,17 @@ function createProjectMembers(pool) {
         SELECT role FROM memberships WHERE project_id=$1 AND user_id=$2
       ) SELECT a.role AS current_role,COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'id',u.id,'name',u.name,'email',u.email,'role',m.role,
-        'assignments',jsonb_build_object('open_tasks',COALESCE(w.open_count,0),'open_questions',COALESCE(q.open_count,0),'active_scopes',COALESCE(s.open_count,0)),
-        'has_assignment_history',COALESCE(w.total,0)+COALESCE(q.total,0)+COALESCE(s.total,0)>0
+        'assignments',jsonb_build_object('open_tasks',COALESCE(w.open_count,0),'open_task_areas',COALESCE(ta.open_count,0),'open_questions',COALESCE(q.open_count,0),'active_scopes',COALESCE(s.open_count,0)),
+        'has_assignment_history',COALESCE(w.total,0)+COALESCE(ta.total,0)+COALESCE(q.total,0)+COALESCE(s.total,0)>0
       ) ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'reviewer' THEN 1 WHEN 'member' THEN 2 ELSE 3 END,u.name,u.id)
       FROM memberships m JOIN users u ON u.id=m.user_id
       LEFT JOIN (SELECT assignee_id,count(*) AS total,count(*) FILTER(WHERE status<>'done') AS open_count FROM work_items WHERE project_id=$1 GROUP BY assignee_id) w ON w.assignee_id=m.user_id
       LEFT JOIN (SELECT assigned_to,count(*) AS total,count(*) FILTER(WHERE status IN ('draft','waiting','answered_pending')) AS open_count FROM project_questions WHERE project_id=$1 GROUP BY assigned_to) q ON q.assigned_to=m.user_id
       LEFT JOIN (SELECT assignee_id,count(*) AS total,count(*) FILTER(WHERE status='active') AS open_count FROM work_scope_locks WHERE project_id=$1 GROUP BY assignee_id) s ON s.assignee_id=m.user_id
+      LEFT JOIN (SELECT a.user_id,count(*) AS total,count(*) FILTER(WHERE t.status NOT IN ('done','not_applicable')) AS open_count FROM automation_task_area_assignees a JOIN automation_task_areas t USING(project_id,task_id,area) WHERE a.project_id=$1 GROUP BY a.user_id) ta ON ta.user_id=m.user_id
       WHERE m.project_id=$1 AND NOT u.is_shared_view),'[]'::jsonb) AS members FROM authorized a`, [p, u]);
       if (!rows[0]) throw error('NOT_FOUND', '프로젝트를 찾을 수 없습니다.', 404);
-      return { ...rows[0], assignment_model: 'one_primary_assignee_per_task' };
+      return { ...rows[0], assignment_model: 'one_primary_assignee_per_task', task_area_assignment_model: 'multiple_assignees' };
     },
     async add(p, actor, body) {
       input(body, ['email', 'role']);
@@ -92,7 +95,7 @@ function createProjectMembers(pool) {
         await protectOwner(db, p, actor, id, previous.role, nextRole);
         if (nextRole === 'viewer') {
           const refs = await assignments(db, p, id);
-          if (refs.open_tasks || refs.open_questions || refs.active_scopes) throw error('MEMBER_HAS_ACTIVE_ASSIGNMENTS', '진행 중인 담당 작업·질문을 정리하거나 다른 담당자로 변경하고 작업 범위를 해제한 뒤 열람 권한으로 바꾸세요.', 409);
+          if (refs.open_tasks || refs.open_task_areas || refs.open_questions || refs.active_scopes) throw error('MEMBER_HAS_ACTIVE_ASSIGNMENTS', '진행 중인 담당 작업·화면·서버·DB 영역·질문을 정리하거나 다른 담당자로 변경하고 작업 범위를 해제한 뒤 열람 권한으로 바꾸세요.', 409);
         }
         await db.query('UPDATE memberships SET role=$3 WHERE project_id=$1 AND user_id=$2', [p, id, nextRole]);
         await audit(db, p, actor, 'member.role_changed', id, { before: previous.role, after: nextRole });
@@ -106,7 +109,7 @@ function createProjectMembers(pool) {
         const previous = await target(db, p, id, expectedRole);
         await protectOwner(db, p, actor, id, previous.role, null);
         const refs = await assignments(db, p, id);
-        if (refs.tasks || refs.questions || refs.scopes) throw error('MEMBER_HAS_ASSIGNMENT_HISTORY', '담당 작업·질문·작업 범위 이력이 있어 해제할 수 없습니다. 이력을 보존하며 권한만 변경할 수 있습니다.', 409);
+        if (refs.tasks || refs.task_areas || refs.questions || refs.scopes) throw error('MEMBER_HAS_ASSIGNMENT_HISTORY', '담당 작업·영역·질문·작업 범위 이력이 있어 해제할 수 없습니다. 이력을 보존하며 권한만 변경할 수 있습니다.', 409);
         await db.query('DELETE FROM memberships WHERE project_id=$1 AND user_id=$2', [p, id]);
         await audit(db, p, actor, 'member.removed', id, { role: previous.role });
         return { removed: true, user_id: id };

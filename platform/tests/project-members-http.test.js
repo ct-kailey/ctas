@@ -83,9 +83,9 @@ test('project members preserve owner authority, assignment history, and project 
   await pool.query("INSERT INTO work_scope_locks(project_id,preflight_id,resources,assignee_id) VALUES('team',$1,'[]',$2)", [preflight, users.scope]);
   await t.test('assignment counts are scoped, active responsibilities prevent read-only demotion, and history is preserved', async () => {
     const data = await req(); const byName = name => data.members.find(member => member.id === users[name]);
-    assert.deepEqual(byName('member').assignments, { open_tasks: 1, open_questions: 0, active_scopes: 0 });
-    assert.deepEqual(byName('reviewer').assignments, { open_tasks: 0, open_questions: 1, active_scopes: 0 });
-    assert.deepEqual(byName('scope').assignments, { open_tasks: 0, open_questions: 0, active_scopes: 1 });
+    assert.deepEqual(byName('member').assignments, { open_tasks: 1, open_task_areas: 0, open_questions: 0, active_scopes: 0 });
+    assert.deepEqual(byName('reviewer').assignments, { open_tasks: 0, open_task_areas: 0, open_questions: 1, active_scopes: 0 });
+    assert.deepEqual(byName('scope').assignments, { open_tasks: 0, open_task_areas: 0, open_questions: 0, active_scopes: 1 });
     assert.equal(byName('history').has_assignment_history, true); assert.equal(byName('history').assignments.open_tasks, 0);
     for (const name of ['member', 'reviewer', 'scope']) await change(name, { expected_role: byName(name).role, role: 'viewer' }, { status: 409, code: 'MEMBER_HAS_ACTIVE_ASSIGNMENTS' });
     await change('history', { expected_role: 'member', role: 'viewer' });

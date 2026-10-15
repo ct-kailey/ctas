@@ -59,6 +59,20 @@ test('project journey aggregates real histories, honest progress and immutable m
     assert.equal(list.total,4);assert.equal(list.events.some(e=>e.type==='audit'),false);
     assert.equal((await service.getSource(p,users.viewer,'automation_task',doneTask)).fields.find(f=>f.label==='현재 상태').value,'done');
   });
+  await t.test('area assignment changes appear in the timeline and link to the task without changing task progress',async()=>{
+    const before=(await service.overview(p,users.viewer)).progress;
+    const id=await audit('task_area.updated',qaTask,{area:'screen',changed_fields:['status','assignee_ids'],before:{status:'todo'},after:{status:'in_progress'}});
+    const detail=await service.detail(p,users.viewer,'audit',id);
+    assert.equal(detail.event.title,'화면·서버·DB 담당 영역 변경');
+    assert.equal(detail.event.source_refs[0].type,'automation_task');
+    assert.equal(detail.event.source_refs[0].id,qaTask);
+    const fields=Object.fromEntries(detail.detail.fields.map(f=>[f.label,f.value]));
+    assert.equal(fields['작업 영역'],'화면');
+    assert.equal(fields['변경 전 상태'],'할 일');
+    assert.equal(fields['변경 후 상태'],'진행 중');
+    assert.equal(fields['변경 항목'],'진행 상태 · 담당자');
+    assert.deepEqual((await service.overview(p,users.viewer)).progress,before);
+  });
   await t.test('timeline uses immutable event states, includes actual contract/review records and omits audit duplicates',async()=>{
     const wid=(await pool.query("INSERT INTO work_item_events(project_id,work_item_id,version,kind,actor_id,note,after_state,created_at) VALUES($1,$2,1,'imported',$3,'작업 등록',$4,'2021-01-01') RETURNING id",[p,work,users.owner,{status:'todo'}])).rows[0].id;
     await audit('work_item.imported',work,{status:'done'});await audit('task_draft.created',randomUUID());

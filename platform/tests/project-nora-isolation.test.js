@@ -15,6 +15,17 @@ const { createImplementationRunner } = require('../server/implementation-runner'
 // test failure, making this prove that foreign publications are never invoked.
 function queuePool(table) {
   const row = { id: randomUUID(), project_id: 'bound-project', created_by: randomUUID(), status: 'queued', lease_token: randomUUID(), input_snapshot: {} };
+  if (table === 'channel_inbox') {
+    row.source_id = randomUUID(); row.conversation_key = 'synthetic-isolation-thread';
+    // Request validation precedes workspace dispatch. Use valid synthetic
+    // evidence so this test reaches, and specifically verifies, the binding gate.
+    row.input_snapshot = {
+      schema_version: '1.0', request_id: row.id, project_id: row.project_id,
+      source: { id: row.source_id, provider: 'slack', name: '합성 격리 검증', external_workspace_id: 'synthetic-workspace', external_channel_id: 'synthetic-channel' },
+      conversation_key: row.conversation_key,
+      messages: [{ event_id: randomUUID(), message_id: 'synthetic-message', kind: 'created', author: '합성 담당자', text: '이 프로젝트의 논의입니다.', sent_at: null, changed_at: null, url: null }],
+    };
+  }
   const result = rows => ({ rows, rowCount: rows.length });
   const query = async (sql, args = []) => {
     if (/^(BEGIN|COMMIT|ROLLBACK)$/.test(sql) || sql.includes('INSERT INTO events') || sql.includes('pg_advisory_xact_lock')) return result([]);
