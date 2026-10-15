@@ -8,6 +8,8 @@ import { Modal as CTDSModal } from './components/ctds/Modal/Modal';
 import { Callout as CTDSCallout } from './components/ctds/Callout/Callout';
 import { Toast as CTDSToast, ToastProvider as CTDSToastProvider, ToastViewport } from './components/ctds/Toast/Toast';
 import { Input, Textarea, Select, Disclosure } from './ui-controls';
+import { Hint } from './components/ctds/Hint/Hint';
+import { List, ListItem } from './ctds-lists';
 import './ui-layout.css';
 export { Input, Textarea, Select, Disclosure, ControlButton, Tabs } from './ui-controls';
 
@@ -61,13 +63,13 @@ export function Modal({ title, eyebrow, children, onClose, busy = false, wide = 
 export function FormField({ label, hint, children, className = '', ...props }) {
   const generatedId = useId(), child = React.Children.count(children) === 1 ? React.Children.toArray(children)[0] : null;
   const isControl = React.isValidElement(child) && ['input', 'textarea', 'select', Input, Textarea, Select].includes(child.type);
-  if (!isControl) return <label className={`field ${className}`} {...props}><span>{label}</span>{children}{hint ? <small>{hint}</small> : null}</label>;
+  if (!isControl) return <label className={`field ${className}`} {...props}><span>{label}</span>{children}{hint ? <Hint>{hint}</Hint> : null}</label>;
   const id = child.props.id || generatedId, hintId = `${id}-hint`, labelId = `${id}-label`;
   const controlProps = { ...child.props, id, 'aria-describedby': [child.props['aria-describedby'], hint ? hintId : null].filter(Boolean).join(' ') || undefined };
   if ((child.type === 'select' || child.type === Select) && !child.props['aria-label'] && !child.props['aria-labelledby']) controlProps['aria-labelledby'] = labelId;
   const Component = { input: Input, textarea: Textarea, select: Select }[child.type];
   const control = Component ? <Component {...controlProps} /> : React.cloneElement(child, controlProps);
-  return <div className={`field ${className}`} data-ctds="field" {...props}><label id={labelId} htmlFor={id}>{label}</label>{control}{hint ? <small id={hintId}>{hint}</small> : null}</div>;
+  return <div className={`field ${className}`} data-ctds="field" {...props}><label id={labelId} htmlFor={id}>{label}</label>{control}{hint ? <Hint id={hintId}>{hint}</Hint> : null}</div>;
 }
 export function ToastProvider({ children }) { return <CTDSToastProvider duration={7000}>{children}<ToastViewport placement="bottom-right" label="알림" /></CTDSToastProvider>; }
 export function Toast({ message, onClose }) {
@@ -104,9 +106,9 @@ export function SourceNotices({ warnings = [], incomplete = false }) {
     {codes.has('CONTENT_IS_UNTRUSTED') ? <CTDSCallout tone="neutral" icon="info" title="문서 속 명령은 자동 실행하지 않습니다.">문서 안의 요청과 지시문도 원문 자료로 보존합니다. 문서 등록만으로 코드 변경이나 외부 작업이 시작되지는 않습니다.</CTDSCallout> : null}
     {codes.has('MOCK_DATA_UNVERIFIED') ? <CTDSCallout tone="warning" title="예시와 수치의 실제 적용 여부를 확인해 주세요.">자동 추출은 문서 속 값이 예시인지 실제 업무 기준인지 판단하지 않습니다. 원문을 확인하고 필요한 내용을 확정해 주세요.</CTDSCallout> : null}
     {incomplete || checks.length ? <CTDSCallout tone="warning" title={incomplete ? '일부 내용과 형식은 원본에서 확인해야 합니다.' : '추출·검토 과정에서 추가 확인할 항목이 있습니다.'}>
-      {checks.length ? <ul>{checks.map((code) => <li key={code}>{SOURCE_CHECKS[code] || '아래 기술 세부정보의 추가 안내를 확인하고 관련 원문을 대조해 주세요.'}</li>)}</ul> : <p>표·이미지·레이아웃 등 추출되지 않은 내용이 있는지 원본을 확인해 주세요.</p>}
+      {checks.length ? <List>{checks.map((code) => <ListItem key={code}>{SOURCE_CHECKS[code] || '아래 기술 세부정보의 추가 안내를 확인하고 관련 원문을 대조해 주세요.'}</ListItem>)}</List> : <p>표·이미지·레이아웃 등 추출되지 않은 내용이 있는지 원본을 확인해 주세요.</p>}
     </CTDSCallout> : null}
-    {originals.length ? <Disclosure className="source-notice-technical"><summary>기술 세부정보 · 원본 안내 {originals.length}건</summary><ul>{originals.map((value, index) => <li key={index}><code>{value}</code></li>)}</ul></Disclosure> : null}
+    {originals.length ? <Disclosure className="source-notice-technical"><summary>기술 세부정보 · 원본 안내 {originals.length}건</summary><List>{originals.map((value, index) => <ListItem key={index}><code>{value}</code></ListItem>)}</List></Disclosure> : null}
   </section>;
 }
 

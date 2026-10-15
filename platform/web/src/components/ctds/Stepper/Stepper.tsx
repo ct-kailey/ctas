@@ -18,14 +18,22 @@ import styles from "./Stepper.module.css";
 
 type Orientation = "vertical" | "horizontal";
 type Marker = "dot" | "number";
+type Variant = "md" | "sm";
+type Tone = "primary" | "neutral";
+type HintPlacement = "below" | "inline";
+type LineStyle = "dashed" | "solid";
 type ItemState = "upcoming" | "active" | "done";
 
 type StepperContextValue = {
   orientation: Orientation;
   marker: Marker;
+  variant: Variant;
+  tone: Tone;
+  hintPlacement: HintPlacement;
   activeIndex: number;
   onStepClick?: (index: number) => void;
 };
+
 
 const StepperContext = createContext<StepperContextValue | null>(null);
 
@@ -46,6 +54,22 @@ export type StepperProps = Omit<HTMLAttributes<HTMLDivElement>, "onSelect"> & {
   orientation?: Orientation;
   /** marker 종류. dot(기본) | number. */
   marker?: Marker;
+  /**
+   * marker 사이즈.
+   * - `md` : 24px 동그라미 marker (기본, 01 Stripe 류)
+   * - `sm` : 10px 작은 solid dot (02 헤이딜러 류, title 중심)
+   */
+  variant?: Variant;
+  /**
+   * 색 톤.
+   * - `primary` : done/active 모두 Primary (기본)
+   * - `neutral` : done은 모노톤, active만 Primary 혹은 fg-strong
+   */
+  tone?: Tone;
+  /** hint 배치. below(기본) | inline(title 옆). */
+  hintPlacement?: HintPlacement;
+  /** 스텝 사이 연결선 스타일. dashed(기본) | solid. */
+  lineStyle?: LineStyle;
   /** 스텝 클릭 시. 자식 Item에 onClick이 있으면 그쪽이 우선. */
   onStepClick?: (index: number) => void;
   children: ReactNode;
@@ -57,6 +81,10 @@ const StepperRoot = forwardRef<HTMLDivElement, StepperProps>(
       activeIndex,
       orientation = "vertical",
       marker = "dot",
+      variant = "md",
+      tone = "primary",
+      hintPlacement = "below",
+      lineStyle = "dashed",
       onStepClick,
       className,
       children,
@@ -65,11 +93,26 @@ const StepperRoot = forwardRef<HTMLDivElement, StepperProps>(
     ref,
   ) => {
     const ctxValue = useMemo<StepperContextValue>(
-      () => ({ orientation, marker, activeIndex, onStepClick }),
-      [orientation, marker, activeIndex, onStepClick],
+      () => ({
+        orientation,
+        marker,
+        variant,
+        tone,
+        hintPlacement,
+        activeIndex,
+        onStepClick,
+      }),
+      [
+        orientation,
+        marker,
+        variant,
+        tone,
+        hintPlacement,
+        activeIndex,
+        onStepClick,
+      ],
     );
 
-    // 자식 Item에 index를 자동 주입
     const items = Children.toArray(children).filter(isValidElement);
     const injected = items.map((child, i) =>
       cloneElement(child as ReactElement<StepperItemProps>, {
@@ -91,6 +134,10 @@ const StepperRoot = forwardRef<HTMLDivElement, StepperProps>(
             .join(" ")}
           data-orientation={orientation}
           data-marker={marker}
+          data-variant={variant}
+          data-tone={tone}
+          data-hint-placement={hintPlacement}
+          data-line-style={lineStyle}
           {...rest}
         >
           {injected}
@@ -107,11 +154,9 @@ export type StepperItemProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   "title"
 > & {
-  /** Stepper가 자동 주입. 수동 override 가능. */
   index?: number;
   title: ReactNode;
   hint?: ReactNode;
-  /** 명시적 상태 지정. 미지정이면 activeIndex 기준으로 자동 결정. */
   state?: ItemState;
 };
 
@@ -130,13 +175,29 @@ const StepperItem = forwardRef<HTMLButtonElement, StepperItemProps>(
     },
     ref,
   ) => {
-    const { orientation, marker, activeIndex, onStepClick } =
+    const { orientation, marker, variant, activeIndex, onStepClick } =
       useStepperContext();
 
     const idx = index ?? 0;
     const state: ItemState =
       stateProp ??
       (idx === activeIndex ? "active" : idx < activeIndex ? "done" : "upcoming");
+
+    // marker 내부 렌더링 규칙:
+    // ─ sm variant   : 내부 글자/dot 없음 (marker 자체가 작은 solid dot)
+    // ─ done         : check 아이콘
+    // ─ number marker: 숫자 (active여도 숫자 유지)
+    // ─ dot + active : 작은 Primary dot
+    const markerContent =
+      variant === "sm"
+        ? null
+        : state === "done"
+          ? <Icon name="check" size={10} />
+          : marker === "number"
+            ? idx + 1
+            : state === "active"
+              ? <span className={styles.markerInnerDot} />
+              : null;
 
     return (
       <button
@@ -155,13 +216,7 @@ const StepperItem = forwardRef<HTMLButtonElement, StepperItemProps>(
         {...rest}
       >
         <span className={styles.marker} aria-hidden>
-          {state === "done" ? (
-            <Icon name="check" size={12} />
-          ) : marker === "number" ? (
-            idx + 1
-          ) : state === "active" ? (
-            <span className={styles.markerInnerDot} />
-          ) : null}
+          {markerContent}
         </span>
         <span className={styles.body}>
           <span className={styles.title}>{title}</span>

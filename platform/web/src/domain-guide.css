@@ -21,7 +21,7 @@
 .domain-guide-sidebar nav a { padding-block: var(--space-1); color: var(--fg-muted); text-decoration: none; font-size: var(--text-sm); }
 .domain-guide a:focus-visible, .domain-guide-flow-scroll:focus-visible { outline: none; box-shadow: var(--ring-shadow); border-radius: var(--radius-xs); }
 .domain-guide-sidebar nav a:hover { color: var(--fg); text-decoration: underline; }
-.domain-guide-version-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-6); }
+.domain-guide-version-list { display: grid; gap: var(--space-1); }
 .domain-guide-reading { display: grid; gap: var(--space-5); min-width: 0; }
 .domain-guide-version-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
 .domain-guide-version-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
@@ -38,12 +38,8 @@
 .domain-guide-glossary dt { font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; padding-top: var(--space-3); font-size: var(--text-sm); }
 .domain-guide-glossary dd { margin: 0; min-width: 0; }
 .domain-guide-policy { margin-top: var(--space-6); }
-.domain-guide-entry-list { padding-left: var(--space-5); display: grid; gap: var(--space-5); }
-.domain-guide-entry-list li { padding-left: var(--space-2); }
-.domain-guide-source-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-6); }
-.domain-guide-source-list > li { min-width: 0; display: grid; gap: var(--space-3); scroll-margin-top: var(--space-8); padding-block: var(--space-2); }
-.domain-guide-source-list > li > a { font-size: var(--text-sm); }
-.domain-guide-source-list > li > [data-ctds="button"] { justify-self: start; }
+.domain-guide-entry-list { display: grid; gap: var(--space-1); }
+.domain-guide-source-list { display: grid; gap: var(--space-1); }
 .domain-guide-flow { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
 .domain-guide-flow h4 { margin-bottom: 0; }
 .domain-guide-flow-scroll { width: 100%; overflow-x: auto; border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); }

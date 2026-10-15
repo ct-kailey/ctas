@@ -1,3 +1,4 @@
+import { List, ListItem } from './ctds-lists.jsx';
 import { useConfirm } from './confirmation.jsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw, ShieldCheck, UserPlus, Users } from 'lucide-react';
@@ -38,11 +39,11 @@ export function ProjectMembers({ projectId, request, userId, onDirty, onOpenWork
     <ErrorNotice error={error} onRetry={load}/>
     {loading && !data ? <Spinner label="프로젝트 구성원을 불러오고 있습니다"/> : data ? <>
 
-      {members.length ? <ul className="project-members-list">{members.map(member => {
+      {members.length ? <List className="project-members-list">{members.map(member => {
         const role = ROLES[member.role], self = member.id === userId;
-        return <li key={member.id} className="project-member-row"><div className="project-member-identity"><div><strong>{member.name}</strong>{self ? <span className="project-member-self">나</span> : null}<Badge tone={role?.tone}>{role?.label || member.role}</Badge></div><span>{member.email}</span></div><dl className="project-member-counts"><div><dt>담당 작업·영역</dt><dd>{member.assignments.open_tasks + (member.assignments.open_task_areas || 0)}</dd></div><div><dt>진행 중 질문</dt><dd>{member.assignments.open_questions}</dd></div><div><dt>확정한 작업 범위</dt><dd>{member.assignments.active_scopes}</dd></div></dl>{canManage ? <div className="project-member-manage"><div className="project-members-actions"><Button type="button" variant="secondary" disabled={self} onClick={() => setModal({ mode: 'role', member })} aria-label={`${member.name} 권한 변경`}>권한 변경</Button><Button type="button" variant="destructive-ghost" disabled={self || member.has_assignment_history} onClick={() => setModal({ mode: 'remove', member })} aria-label={`${member.name} 구성원 해제`}>해제</Button></div><small>{self ? '본인 권한은 다른 관리자가 변경합니다.' : member.has_assignment_history ? '담당 이력이 있어 해제 대신 권한을 조정합니다.' : ''}</small></div> : null}</li>;
-      })}</ul> : <Empty icon={Users} title="구성원이 없습니다">프로젝트 접근 권한을 다시 확인해 주세요.</Empty>}
-      <Disclosure><summary>역할별 권한</summary><ul className="ains-prose-list">{Object.entries(ROLES).map(([key, role]) => <li key={key}><strong>{role.label}</strong> · {role.description}</li>)}</ul></Disclosure>
+        return <ListItem key={member.id}><ListItem.Title>{member.name}{self ? <Badge tone="quiet">나</Badge> : null}<Badge tone={role?.tone}>{role?.label || member.role}</Badge></ListItem.Title><ListItem.Meta><span>{member.email}</span></ListItem.Meta><ListItem.Meta><span>담당 작업·영역 {member.assignments.open_tasks + (member.assignments.open_task_areas || 0)}</span><ListItem.MetaDivider /><span>진행 중 질문 {member.assignments.open_questions}</span><ListItem.MetaDivider /><span>확정한 작업 범위 {member.assignments.active_scopes}</span></ListItem.Meta>{canManage ? <><ListItem.Meta><Button type="button" variant="secondary" disabled={self} onClick={() => setModal({ mode: 'role', member })} aria-label={`${member.name} 권한 변경`}>권한 변경</Button><Button type="button" variant="destructive-ghost" disabled={self || member.has_assignment_history} onClick={() => setModal({ mode: 'remove', member })} aria-label={`${member.name} 구성원 해제`}>해제</Button></ListItem.Meta>{self || member.has_assignment_history ? <ListItem.Description>{self ? '본인 권한은 다른 관리자가 변경합니다.' : '담당 이력이 있어 해제 대신 권한을 조정합니다.'}</ListItem.Description> : null}</> : null}</ListItem>;
+      })}</List> : <Empty icon={Users} title="구성원이 없습니다">프로젝트 접근 권한을 다시 확인해 주세요.</Empty>}
+      <Disclosure><summary>역할별 권한</summary><List>{Object.entries(ROLES).map(([key, role]) => <ListItem key={key}><ListItem.Title>{role.label}</ListItem.Title><ListItem.Description>{role.description}</ListItem.Description></ListItem>)}</List></Disclosure>
       <p className="project-members-footnote"><ShieldCheck size={15} aria-hidden="true"/>{canManage ? '기존 가입 계정만 추가할 수 있습니다. 변경 사항은 프로젝트 활동 기록에 남습니다.' : '구성원 추가와 권한 변경은 프로젝트 관리자에게 요청해 주세요.'}</p>
     </> : null}
     {modal ? <MemberModal key={`${modal.mode}:${modal.member?.id || 'new'}`} {...modal} route={route} request={request} onClose={() => setModal(null)} onSaved={saved}/> : null}

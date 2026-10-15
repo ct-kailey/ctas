@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { ArrowRight, CalendarDays, CheckCheck, FileText, Flag, FolderKanban, MessageSquare, Plus, RefreshCw, Search } from 'lucide-react';
+import { ArrowRight, CheckCheck, Plus, RefreshCw, Search } from 'lucide-react';
 import { Badge, Button, ControlButton, Disclosure, Empty, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, projectPath } from './ui.jsx';
 import { MetricCard } from './components/ctds/MetricCard/MetricCard';
 import { TableCellMeter } from './components/ctds/TableCell/TableCellMeter';
-import { ListItem, ListItemLeadingIcon } from './components/ctds/ListItem/ListItem';
+import { List, ListItem } from './ctds-lists.jsx';
+import { EventListItem } from './components/ctds/EventListItem/EventListItem';
+import { ProgressBar } from './components/ctds/ProgressBar/ProgressBar';
 import { useConfirm } from './confirmation.jsx';
 import { useSharedView } from './shared-view.jsx';
 import { retainProjectRequest } from './nora-workspace-state.mjs';
@@ -13,7 +15,6 @@ import './project-journey.css';
 const noop = () => {};
 const number = value => Number.isSafeInteger(value) && value >= 0 ? value.toLocaleString('ko-KR') : '—';
 const fieldText = value => typeof value === 'string' || typeof value === 'number' ? String(value) : Array.isArray(value) ? value.filter(item => typeof item === 'string' || typeof item === 'number').join(' · ') : '—';
-const eventIcon = type => type === 'milestone' ? Flag : ['task_draft', 'work_item_event', 'automation_task'].includes(type) ? FolderKanban : type === 'question_event' ? MessageSquare : FileText;
 
 function useJourneyRead(path, request, refreshKey = 0) {
   const [data, setData] = useState(null), [error, setError] = useState(null), [loading, setLoading] = useState(Boolean(path));
@@ -83,7 +84,7 @@ function JourneyFilters({ filters, stages, onChange }) {
 function JourneySources({ refs, onOpenSource }) {
   const sources = journeySourceRefs(refs);
   if (!sources.length) return <p className="project-journey-help">연결된 원문·작업이 없습니다.</p>;
-  return <ul className="project-journey-source-list">{sources.map(ref => <li key={`${ref.type}:${ref.id}`}>{onOpenSource ? <Button type="button" variant="secondary" rightIcon={<ArrowRight size={14} />} onClick={() => onOpenSource(ref)}>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</Button> : <strong>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</strong>}<span className="project-journey-help">{JOURNEY_SOURCE_LABELS[ref.type]}</span></li>)}</ul>;
+  return <List className="project-journey-source-list">{sources.map(ref => <ListItem key={`${ref.type}:${ref.id}`}><ListItem.Title>{onOpenSource ? <Button type="button" variant="secondary" rightIcon={<ArrowRight size={14} />} onClick={() => onOpenSource(ref)}>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</Button> : <strong>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</strong>}</ListItem.Title><ListItem.Meta>{JOURNEY_SOURCE_LABELS[ref.type]}</ListItem.Meta></ListItem>)}</List>;
 }
 
 function JourneyFields({ fields }) {
@@ -123,9 +124,9 @@ function MilestoneSources({ projectId, request, refs, onChange, disabled }) {
   const path = query === null ? null : `${projectPath(projectId)}/context/search?${new URLSearchParams({ query, include_unapproved: 'true', limit: '10', offset: String(offset) })}`;
   const remote = useJourneyRead(path, request, attempt), choices = journeySourceRefs((remote.data?.items || []).map(source => ({ ...source.internal_ref, type: source.internal_ref?.type || source.type, id: source.internal_ref?.id || source.id, title: source.title })), true);
   const find = () => { setQuery(input.trim()); setOffset(0); setAttempt(value => value + 1); };
-  return <section className="project-journey-related"><h3>연결할 자료 · 선택 사항</h3>{refs.length ? <ul className="project-journey-source-list">{refs.map(ref => <li key={`${ref.type}:${ref.id}`}><span>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</span><Button type="button" variant="ghost" disabled={disabled} onClick={() => onChange(refs.filter(item => item.type !== ref.type || item.id !== ref.id))}>연결 해제</Button></li>)}</ul> : null}
+  return <section className="project-journey-related"><h3>연결할 자료 · 선택 사항</h3>{refs.length ? <List className="project-journey-source-list">{refs.map(ref => <ListItem key={`${ref.type}:${ref.id}`} trailing={<Button type="button" variant="ghost" disabled={disabled} onClick={() => onChange(refs.filter(item => item.type !== ref.type || item.id !== ref.id))}>연결 해제</Button>}><ListItem.Title>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}</ListItem.Title></ListItem>)}</List> : null}
     <div className="project-journey-inline"><Input aria-label="일정에 연결할 자료 검색" placeholder="이 프로젝트의 문서·작업 검색" maxLength={500} disabled={disabled} value={input} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); find(); } }} /><Button type="button" variant="secondary" icon={Search} disabled={disabled} busy={remote.loading} onClick={find}>찾기</Button></div>
-    <ErrorNotice error={remote.error} onRetry={remote.load} />{remote.loading ? <Spinner label="연결할 자료를 찾고 있습니다" /> : remote.data ? <><div className="project-journey-source-options">{choices.map(ref => { const checked = refs.some(item => item.type === ref.type && item.id === ref.id); return <label className="checkbox-label" key={`${ref.type}:${ref.id}`}><Input type="checkbox" checked={checked} disabled={disabled || !checked && refs.length >= 20} onChange={() => onChange(checked ? refs.filter(item => item.type !== ref.type || item.id !== ref.id) : [...refs, ref])} /><span>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}<small>{JOURNEY_SOURCE_LABELS[ref.type]}</small></span></label>; })}</div>{!choices.length ? <p className="project-journey-help">이 페이지에 연결 가능한 자료가 없습니다. 다른 검색어나 다음 페이지를 확인하세요.</p> : null}<div className="project-journey-inline">{offset > 0 ? <Button type="button" variant="ghost" disabled={disabled} onClick={() => setOffset(value => Math.max(0, value - 10))}>이전 자료</Button> : null}{remote.data.has_more ? <Button type="button" variant="ghost" disabled={disabled} onClick={() => setOffset(value => value + 10)}>다음 자료</Button> : null}</div></> : null}
+    <ErrorNotice error={remote.error} onRetry={remote.load} />{remote.loading ? <Spinner label="연결할 자료를 찾고 있습니다" /> : remote.data ? <><List className="project-journey-source-options">{choices.map(ref => { const checked = refs.some(item => item.type === ref.type && item.id === ref.id); return <ListItem key={`${ref.type}:${ref.id}`}><label className="checkbox-label"><Input type="checkbox" checked={checked} disabled={disabled || !checked && refs.length >= 20} onChange={() => onChange(checked ? refs.filter(item => item.type !== ref.type || item.id !== ref.id) : [...refs, ref])} /><span>{ref.title || JOURNEY_SOURCE_LABELS[ref.type]}<small>{JOURNEY_SOURCE_LABELS[ref.type]}</small></span></label></ListItem>; })}</List>{!choices.length ? <p className="project-journey-help">이 페이지에 연결 가능한 자료가 없습니다. 다른 검색어나 다음 페이지를 확인하세요.</p> : null}<div className="project-journey-inline">{offset > 0 ? <Button type="button" variant="ghost" disabled={disabled} onClick={() => setOffset(value => Math.max(0, value - 10))}>이전 자료</Button> : null}{remote.data.has_more ? <Button type="button" variant="ghost" disabled={disabled} onClick={() => setOffset(value => value + 10)}>다음 자료</Button> : null}</div></> : null}
   </section>;
 }
 
@@ -165,12 +166,17 @@ function ProjectJourneyContent({ project, request, canWrite = false, onDirty = n
   const filterActive = Object.values(filters).some(Boolean);
   return <section className="project-journey" aria-labelledby={headingId}>
     <header className="project-journey-header"><div><h2 id={headingId}>프로젝트 진행</h2></div><div className="project-journey-inline"><Button type="button" variant="ghost" icon={RefreshCw} busy={loading} onClick={refresh}>새로고침</Button>{canRecord ? <Button type="button" variant="secondary" icon={Plus} onClick={() => record()}>주요 일정 기록</Button> : null}</div></header>
-    <ErrorNotice error={summary.error} onRetry={summary.load} />{summary.loading && !summary.data ? <Spinner label="프로젝트 전체 진행률을 확인하고 있습니다" /> : summary.data ? <><JourneyProgress data={summary.data.progress} onNavigate={onNavigate} />{summary.error ? <p className="project-journey-help" role="status">이전 조회의 진행률을 표시하고 있습니다.</p> : null}</> : null}
+    {loading ? <ProgressBar position="inline" aria-label="프로젝트 기록 조회" data-ctds="progress-bar" /> : null}<ErrorNotice error={summary.error} onRetry={summary.load} />{summary.loading && !summary.data ? <p className="project-journey-help" role="status">프로젝트 전체 진행률을 확인하고 있습니다.</p> : summary.data ? <><JourneyProgress data={summary.data.progress} onNavigate={onNavigate} />{summary.error ? <p className="project-journey-help" role="status">이전 조회의 진행률을 표시하고 있습니다.</p> : null}</> : null}
     <ErrorNotice error={timeline.error} onRetry={timeline.retry} /><Disclosure className="project-journey-timeline"><summary>전체 이력{summary.data?.summary ? ` · ${number(summary.data.summary.event_count)}건` : ''}</summary>
       <Disclosure><summary>기간·유형 필터{filterActive ? ' · 적용 중' : ''}</summary><JourneyFilters filters={filters} stages={summary.data?.stages} onChange={setFilters} /></Disclosure>
       {timeline.loading && !timeline.data ? <Spinner label="프로젝트 이력을 불러오고 있습니다" /> : timeline.data ? <>
-        {/* CTDS has no timeline primitive; the date rail groups interactive ListItem rows. */}
-        {groups.length ? <ol className="project-journey-days">{groups.map(group => <li className="project-journey-day" key={group.day}><div className="project-journey-day-label"><CalendarDays size={16} aria-hidden="true" /><time dateTime={group.day}>{journeyDateTime(group.events[0].occurred_at, true)}</time></div><ol className="project-journey-events">{group.events.map(event => { const Icon = eventIcon(event.type); return <li key={journeyEventKey(event)}><ListItem asChild layout="stacked" className="project-journey-event" leading={<ListItemLeadingIcon tone={event.type === 'milestone' ? 'primary' : 'neutral'}><Icon size={15} /></ListItemLeadingIcon>} from={event.title || JOURNEY_EVENT_TYPES[event.type]} body={<span className="project-journey-event-meta">{JOURNEY_STAGES[event.stage] || '프로젝트'} · {JOURNEY_EVENT_TYPES[event.type]} · {journeyTimeLabel(event)} {journeyDateTime(event.occurred_at)}{event.description ? <span className="project-journey-excerpt">{event.description}</span> : null}</span>} trailing={<ArrowRight size={15} aria-hidden="true" />} onClick={() => setSelected(event)} data-ctds="list-item"><ControlButton type="button" /></ListItem></li>; })}</ol></li>)}</ol> : <Empty compact icon={CheckCheck} title={filterActive ? '이 조건의 기록이 없습니다' : '아직 타임라인 기록이 없습니다'}>{filterActive ? '기간·단계를 넓혀 다른 기록을 확인해 주세요.' : '문서·작업·주요 일정 기록이 시간순으로 표시됩니다.'}</Empty>}
+        {/* EventListItem uses local calendar fields; keep its date block aligned with the KST day group. */}
+        {groups.length ? <List className="project-journey-events" aria-label="날짜별 프로젝트 이력">{groups.flatMap(group => group.events.map(event => <EventListItem key={journeyEventKey(event)} role="listitem" variant="line" size="sm" data-ctds="event-list-item" date={new Date(`${group.day}T12:00:00`)} title={<ControlButton type="button" variant="ghost" onClick={() => setSelected(event)}>{event.title || JOURNEY_EVENT_TYPES[event.type]}</ControlButton>} meta={[
+          { label: JOURNEY_STAGES[event.stage] || '프로젝트' },
+          { label: JOURNEY_EVENT_TYPES[event.type] },
+          { label: `${journeyTimeLabel(event)} ${journeyDateTime(event.occurred_at)} KST` },
+          ...(event.description ? [{ label: <span className="project-journey-excerpt">{event.description}</span> }] : []),
+        ]} />))}</List> : <Empty compact icon={CheckCheck} title={filterActive ? '이 조건의 기록이 없습니다' : '아직 타임라인 기록이 없습니다'}>{filterActive ? '기간·단계를 넓혀 다른 기록을 확인해 주세요.' : '문서·작업·주요 일정 기록이 시간순으로 표시됩니다.'}</Empty>}
         <div className="project-journey-pagination"><p className="project-journey-help">{number(timeline.data.events.length)} / {number(timeline.data.total)}건 표시 · {journeyDateTime(timeline.data.snapshot_at)} KST 조회 기준</p>{!timeline.data.has_more && timeline.data.events.length < timeline.data.total ? <p className="project-journey-help">조회 중 기록이 변경되었습니다. 누락된 이력을 확인하려면 새로고침해 주세요.</p> : null}{timeline.data.has_more ? <Button type="button" variant="secondary" busy={timeline.loading} onClick={() => timeline.load(true)}>다음 이력 더 불러오기</Button> : null}</div>
       </> : null}
     </Disclosure>

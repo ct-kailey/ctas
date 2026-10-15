@@ -1,201 +1,102 @@
 "use client";
 
 /**
- * ListItem — 앞에 아바타/아이콘이 달린 리스트 한 줄 단위. 피드·알림·인박스·활동 로그를 포괄.
+ * ListItem — 3구역(leading / content / trailing) 고정 뼈대 + content 내부 자유 조립.
  *
- * anatomy 고정: [leading] [from (body | verb+target+surface)] [meta/trailing] [hoverActions]
- * 자체 chrome(border/padding/bg) 없음 — 리스트 분리는 부모 레이아웃이 담당.
+ * 축:
+ *   size       — 세로 여백감. md(기본, 작업/자원 리스트 밀도) | sm (활동 로그·알림 스트림 타이트)
+ *   align      — leading 세로 정렬. center(기본) | top (2줄 이상 본문용)
+ *   interactive — hover/focus 피드백 (href 또는 onClick 있을 때 자동)
  *
- * 서술 모드 배타:
- *   (A) body            — "회계팀 — 외주비 결재 요청"
- *   (B) verb+target     — "박지훈 · 댓글 남김 · ERP 2.0 사이드바"
+ * chrome 없음 — bg·border·radius 자체 공급 X. 리스트 분리는 부모가 담당.
+ * 블록 외형(배경·테두리로 상태 신호)이 필요하면 Callout 사용.
  *
- * variant는 default만 바꾼다 (anatomy는 공통):
- *   activity      — 과거 서술. unread false 기본
- *   notification  — 처리 필요. unread true 기본
- *   mention       — 멘션/댓글. unread true 기본
- *   system        — 사람 아닌 서비스 이벤트
+ * content 안에서 쓰는 subcomponents:
+ *   ListItem.Title        메인 제목 (앞에 Badge 등 inline 자유)
+ *   ListItem.Description  muted 서브 텍스트
+ *   ListItem.Meta         하단 meta 라인 (타임스탬프·상태)
+ *   ListItem.MetaDivider  hairline 세로 구분자
+ *
+ * 일정·이벤트처럼 날짜가 leading 아이덴티티인 자리는 [[EventListItem]] 사용.
  */
 
 import {
-  Children,
-  cloneElement,
   forwardRef,
-  isValidElement,
   type AnchorHTMLAttributes,
   type HTMLAttributes,
-  type ReactElement,
   type ReactNode,
   type Ref,
 } from "react";
-import { Slot } from "@radix-ui/react-slot";
 
 import styles from "./ListItem.module.css";
 
-export type ListItemVariant = "activity" | "notification" | "mention" | "system";
-export type ListItemLayout = "inline" | "stacked";
+export type ListItemSize = "sm" | "md";
+export type ListItemAlign = "center" | "top";
 
 type Common = {
-  // 왼쪽
   leading?: ReactNode;
-  /**
-   * 읽음/안읽음 신호.
-   * - undefined (default): 중립 톤. 리드/언리드 개념 없는 자리(활동 로그·히스토리).
-   * - true: 안 읽음. body/from 강조 + meta primary.
-   * - false: 읽음. 전체 톤 한두 단계 다운.
-   */
-  unread?: boolean;
-
-  // 본문
-  from?: ReactNode;
-  body?: ReactNode;
-  verb?: ReactNode;
-  target?: ReactNode;
-  surface?: ReactNode;
-
-  // 메타
-  meta?: ReactNode;
   trailing?: ReactNode;
-  hoverActions?: ReactNode;
-
-  // 레이아웃·상호작용
-  variant?: ListItemVariant;
-  layout?: ListItemLayout;
-  asChild?: boolean;
+  size?: ListItemSize;
+  align?: ListItemAlign;
+  children?: ReactNode;
 };
 
 type DivProps = Common &
-  Omit<HTMLAttributes<HTMLDivElement>, keyof Common> & {
-    href?: undefined;
-  };
+  Omit<HTMLAttributes<HTMLDivElement>, keyof Common> & { href?: undefined };
 
 type AnchorProps = Common &
-  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof Common> & {
-    href: string;
-  };
+  Omit<AnchorHTMLAttributes<HTMLAnchorElement>, keyof Common> & { href: string };
 
 export type ListItemProps = DivProps | AnchorProps;
 
-/* unread는 명시적으로 넘긴 경우에만 신호. variant는 default를 강제하지 않는다 — 리드/언리드 개념이 없는 자리에서도 자유롭게 쓰기 위함. */
-
-const ListItem = forwardRef<HTMLElement, ListItemProps>(function ListItem(
+const ListItemRoot = forwardRef<HTMLElement, ListItemProps>(function ListItem(
   props,
   ref,
 ) {
   const {
     leading,
-    unread,
-    from,
-    body,
-    verb,
-    target,
-    surface,
-    meta,
     trailing,
-    hoverActions,
-    variant = "activity",
-    layout = "inline",
-    asChild,
+    size = "md",
+    align = "center",
     className,
+    children,
     ...rest
   } = props as Common & { className?: string } & Record<string, unknown>;
 
-  const isActionMode = verb !== undefined || target !== undefined;
   const isLink = typeof (props as AnchorProps).href === "string";
-  const isInteractive = isLink || typeof (props as HTMLAttributes<HTMLElement>).onClick === "function";
-
-  // read-state class — unread 명시적으로 넘겼을 때만 신호. undefined면 중립.
-  const readStateClass =
-    unread === true ? styles.unread : unread === false ? styles.read : "";
+  const isInteractive =
+    isLink || typeof (props as HTMLAttributes<HTMLElement>).onClick === "function";
 
   const rootClass = [
     styles.root,
-    styles[variant],
-    layout === "stacked" ? styles.stacked : styles.inline,
-    readStateClass,
+    styles[`size-${size}`],
+    styles[`align-${align}`],
     isInteractive ? styles.interactive : "",
     className ?? "",
   ]
     .filter(Boolean)
     .join(" ");
 
-  const leadingNode = leading ? (
-    <span className={styles.leading} aria-hidden>
-      {leading}
-    </span>
-  ) : null;
-
-  // 본문 — 서술 모드 배타. verb/target이 하나라도 있으면 action 모드.
-  // layout=stacked이면 두 줄로 분리: 1줄째 from(+verb+target+surface), 2줄째 body
-  const isStacked = layout === "stacked";
-  const bodyNode = isActionMode ? (
-    isStacked ? (
-      <>
-        <span className={styles.actionBody}>
-          {from && <span className={styles.from}>{from}</span>}
-          {verb && <span className={styles.verb}>{verb}</span>}
-          {target && <span className={styles.target}>{target}</span>}
-          {surface && <span className={styles.surface}>{surface}</span>}
-        </span>
-        {body && <span className={styles.body}>{body}</span>}
-      </>
-    ) : (
-      <span className={styles.actionBody}>
-        {from && <span className={styles.from}>{from}</span>}
-        {verb && <span className={styles.verb}>{verb}</span>}
-        {target && <span className={styles.target}>{target}</span>}
-        {surface && <span className={styles.surface}>{surface}</span>}
-      </span>
-    )
-  ) : isStacked ? (
-    <>
-      {from && <span className={styles.from}>{from}</span>}
-      {body && <span className={styles.body}>{body}</span>}
-    </>
-  ) : (
-    <span className={styles.narrativeBody}>
-      {from && <span className={styles.from}>{from}</span>}
-      {body && <span className={styles.body}>{body}</span>}
-    </span>
-  );
-
-  // trailing: 명시 trailing 우선, 없으면 meta
-  const trailingNode = trailing !== undefined ? (
-    <span className={styles.trailing}>{trailing}</span>
-  ) : meta !== undefined ? (
-    <span className={styles.meta}>{meta}</span>
-  ) : null;
-
-  // hoverActions: 배열이면 간격 유지하며 렌더
-  const hoverNode = hoverActions ? (
-    <span className={styles.hoverActions}>
-      {Children.map(hoverActions, (child) =>
-        isValidElement(child) ? child : child,
-      )}
-    </span>
-  ) : null;
-
   const content = (
     <>
-      {leadingNode}
-      <span className={styles.content}>{bodyNode}</span>
-      {hoverNode}
-      {trailingNode}
+      {leading !== undefined && leading !== null && (
+        <span className={styles.leading} aria-hidden>
+          {leading}
+        </span>
+      )}
+      <span className={styles.content}>{children}</span>
+      {trailing !== undefined && trailing !== null && (
+        <span className={styles.trailing}>{trailing}</span>
+      )}
     </>
   );
 
-  if (asChild) {
-    const only = Children.only(rest.children) as ReactElement<HTMLAttributes<HTMLElement>>;
-    return cloneElement(only, { className: rootClass, ...rest }, content);
-  }
-
   if (isLink) {
-    const { children, ...anchorRest } = rest as AnchorHTMLAttributes<HTMLAnchorElement>;
     return (
       <a
         ref={ref as Ref<HTMLAnchorElement>}
         className={rootClass}
-        {...anchorRest}
+        {...(rest as AnchorHTMLAttributes<HTMLAnchorElement>)}
         href={(props as AnchorProps).href}
       >
         {content}
@@ -203,29 +104,86 @@ const ListItem = forwardRef<HTMLElement, ListItemProps>(function ListItem(
     );
   }
 
-  const { children, ...divRest } = rest as HTMLAttributes<HTMLDivElement>;
   return (
     <div
       ref={ref as Ref<HTMLDivElement>}
       className={rootClass}
-      data-variant={variant}
-      {...divRest}
+      data-size={size}
+      {...(rest as HTMLAttributes<HTMLDivElement>)}
     >
       {content}
     </div>
   );
 });
 
-ListItem.displayName = "ListItem";
-
-export { ListItem };
+ListItemRoot.displayName = "ListItem";
 
 /* ──────────────────────────────────────────────────────
-   ListItemLeadingIcon — "배경색 + 아이콘" leading 타입.
+   content subcomponents
+   ──────────────────────────────────────────────────── */
 
-   Avatar/Icon 사이에 섞어도 정렬이 흔들리지 않도록 같은 사이즈 트랙(xs/sm/md/lg)에 올림.
-   tone 프리셋으로 bg/fg 쌍을 한 번에, 혹은 CSS 변수(--leading-icon-bg / --leading-icon-fg)로
-   세밀 조절. 아이콘 자체는 자식으로 받아 Icon/커스텀 노드 모두 허용.
+type SpanProps = HTMLAttributes<HTMLSpanElement>;
+type DivOnlyProps = HTMLAttributes<HTMLDivElement>;
+
+const Title = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(
+  function ListItemTitle({ className, children, ...rest }, ref) {
+    return (
+      <div
+        ref={ref as unknown as Ref<HTMLHeadingElement>}
+        className={[styles.title, className ?? ""].filter(Boolean).join(" ")}
+        {...(rest as HTMLAttributes<HTMLDivElement>)}
+      >
+        {children}
+      </div>
+    );
+  },
+);
+Title.displayName = "ListItem.Title";
+
+const Description = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(
+  function ListItemDescription({ className, children, ...rest }, ref) {
+    return (
+      <p
+        ref={ref}
+        className={[styles.description, className ?? ""].filter(Boolean).join(" ")}
+        {...rest}
+      >
+        {children}
+      </p>
+    );
+  },
+);
+Description.displayName = "ListItem.Description";
+
+const Meta = forwardRef<HTMLDivElement, DivOnlyProps>(function ListItemMeta(
+  { className, children, ...rest },
+  ref,
+) {
+  return (
+    <div ref={ref} className={[styles.meta, className ?? ""].filter(Boolean).join(" ")} {...rest}>
+      {children}
+    </div>
+  );
+});
+Meta.displayName = "ListItem.Meta";
+
+const MetaDivider = forwardRef<HTMLSpanElement, SpanProps>(function ListItemMetaDivider(
+  { className, ...rest },
+  ref,
+) {
+  return (
+    <span
+      ref={ref}
+      aria-hidden
+      className={[styles.metaDivider, className ?? ""].filter(Boolean).join(" ")}
+      {...rest}
+    />
+  );
+});
+MetaDivider.displayName = "ListItem.MetaDivider";
+
+/* ──────────────────────────────────────────────────────
+   LeadingIcon — "배경색 + 아이콘" leading 타입. 기존 유지.
    ──────────────────────────────────────────────────── */
 
 export type ListItemLeadingIconSize = "xs" | "sm" | "md" | "lg" | "auto";
@@ -244,8 +202,13 @@ export type ListItemLeadingIconProps = Omit<HTMLAttributes<HTMLSpanElement>, "ch
 };
 
 const ListItemLeadingIcon = forwardRef<HTMLSpanElement, ListItemLeadingIconProps>(
-  function ListItemLeadingIcon({ size = "sm", tone = "neutral", className, children, ...rest }, ref) {
-    const cls = [styles.leadingIcon, styles[size], className ?? ""].filter(Boolean).join(" ");
+  function ListItemLeadingIcon(
+    { size = "sm", tone = "neutral", className, children, ...rest },
+    ref,
+  ) {
+    const cls = [styles.leadingIcon, styles[`li-${size}`], className ?? ""]
+      .filter(Boolean)
+      .join(" ");
     return (
       <span ref={ref} aria-hidden {...rest} className={cls} data-tone={tone}>
         {children}
@@ -253,10 +216,23 @@ const ListItemLeadingIcon = forwardRef<HTMLSpanElement, ListItemLeadingIconProps
     );
   },
 );
-
 ListItemLeadingIcon.displayName = "ListItemLeadingIcon";
 
-export { ListItemLeadingIcon };
+/* ──────────────────────────────────────────────────────
+   compound export
+   ──────────────────────────────────────────────────── */
 
-// Slot export (asChild 패턴 지원이 필요한 경우 상위에서 사용)
-export const ListItemSlot = Slot;
+type ListItemCompound = typeof ListItemRoot & {
+  Title: typeof Title;
+  Description: typeof Description;
+  Meta: typeof Meta;
+  MetaDivider: typeof MetaDivider;
+};
+
+const ListItem = ListItemRoot as ListItemCompound;
+ListItem.Title = Title;
+ListItem.Description = Description;
+ListItem.Meta = Meta;
+ListItem.MetaDivider = MetaDivider;
+
+export { ListItem, ListItemLeadingIcon };

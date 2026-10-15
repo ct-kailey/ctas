@@ -4,6 +4,7 @@ import { Badge, Button, Empty, ErrorNotice, Spinner, ControlButton, Notice } fro
 import { Tabs } from './ui.jsx';
 import { ProjectJourney } from './project-journey.jsx';
 import './workspace-home.css';
+import { List, ListItem } from './ctds-lists';
 
 const GRADES = {
   urgent: { label: '긴급', tone: 'red' },
@@ -39,22 +40,10 @@ function orderedItems(attention) {
 }
 function AttentionRow({ item, onNavigate, documentLoading }) {
   const grade = GRADES[item.grade] || GRADES.info;
-  return <article className="workspace-attention-row">
-    <div className="workspace-attention-grade"><Badge tone={grade.tone}>{grade.label}</Badge></div>
-    <div className="workspace-attention-main">
-      <h3>{item.title}</h3>
-      <p>{item.description}</p>
-      <div className="workspace-home-meta">
-        <span>{RULE_LABELS[item.rule] || '원본 업무 상태 기준'}</span>
-        <span aria-hidden="true">·</span>
-        <time dateTime={item.created_at}>{displayDate(item.created_at)}</time>
-      </div>
-    </div>
-    <div className="workspace-attention-action"><Button type="button" variant="secondary" rightIcon={<ArrowRight size={15} />} disabled={Boolean(documentLoading && item.target?.revisionId)} onClick={() => onNavigate(item.tab, item.target)}>{TAB_LABELS[item.tab] || '업무 확인'}</Button></div>
-  </article>;
+  return <ListItem className="workspace-attention-item"><ListItem.Title><Badge tone={grade.tone}>{grade.label}</Badge>{item.title}</ListItem.Title><ListItem.Description>{item.description}</ListItem.Description><ListItem.Meta><span>{RULE_LABELS[item.rule] || '원본 업무 상태 기준'}</span><time dateTime={item.created_at}>{displayDate(item.created_at)}</time><Button type="button" variant="secondary" rightIcon={<ArrowRight size={15} />} disabled={Boolean(documentLoading && item.target?.revisionId)} onClick={() => onNavigate(item.tab, item.target)}>{TAB_LABELS[item.tab] || '업무 확인'}</Button></ListItem.Meta></ListItem>;
 }
 function AttentionList({ items, onNavigate, documentLoading = false, emptyTitle = '지금 확인할 알림이 없습니다', emptyDescription = '검토할 기록이나 응답 대기가 생기면 이곳에서 확인할 수 있습니다.' }) {
-  return items.length ? <div className="workspace-home-panel workspace-home-flush">{items.map(item => <AttentionRow key={item.id} item={item} onNavigate={onNavigate} documentLoading={documentLoading} />)}</div>
+  return items.length ? <List className="workspace-home-panel workspace-home-flush">{items.map(item => <AttentionRow key={item.id} item={item} onNavigate={onNavigate} documentLoading={documentLoading} />)}</List>
     : <div className="workspace-home-panel"><Empty compact icon={CheckCheck} title={emptyTitle}>{emptyDescription}</Empty></div>;
 }
 function SectionHead({ title, count, children }) {
@@ -79,7 +68,7 @@ export function ProjectHome({ project, overview, onNavigate, onUpload, attention
     <section className="workspace-home-section" aria-label="최근 문서">
       <SectionHead title="최근 자료"><Button type="button" variant="ghost" onClick={() => onNavigate('documents')}>자료 모두 보기</Button></SectionHead>
       <div className="workspace-home-panel workspace-home-flush">
-        {recentDocuments.length ? recentDocuments.map(document => <ControlButton type="button" layout="card" key={document.id} className="workspace-home-record" onClick={() => onNavigate('documents', document.revisions?.[0]?.id ? { revisionId: document.revisions[0].id } : undefined)}><Files size={17} aria-hidden="true" /><span><strong>{document.title}</strong><small>{document.domain_name || '프로젝트 자료'} · 버전 {document.revisions?.length || 0}</small></span><Badge status={document.revisions?.[0]?.status || 'draft'}>{document.revisions?.[0]?.status ? undefined : '초안'}</Badge></ControlButton>) : <Empty compact icon={Files} title="첫 자료를 등록하세요" action={canWrite && onUpload ? <Button type="button" icon={FilePlus2} onClick={onUpload}>자료 등록</Button> : null}>기획서·계약서·회의록을 올리면 분석과 검토를 시작할 수 있습니다.</Empty>}
+        {recentDocuments.length ? <List>{recentDocuments.map(document => <ListItem key={document.id} leading={<Files size={17} />}><ListItem.Title><Button type="button" variant="ghost" onClick={() => onNavigate('documents', document.revisions?.[0]?.id ? { revisionId: document.revisions[0].id } : undefined)}>{document.title}</Button></ListItem.Title><ListItem.Meta><span>{document.domain_name || '프로젝트 자료'} · 버전 {document.revisions?.length || 0}</span><Badge status={document.revisions?.[0]?.status || 'draft'}>{document.revisions?.[0]?.status ? undefined : '초안'}</Badge></ListItem.Meta></ListItem>)}</List> : <Empty compact icon={Files} title="첫 자료를 등록하세요" action={canWrite && onUpload ? <Button type="button" icon={FilePlus2} onClick={onUpload}>자료 등록</Button> : null}>기획서·계약서·회의록을 올리면 분석과 검토를 시작할 수 있습니다.</Empty>}
       </div>
     </section>
   </div>;

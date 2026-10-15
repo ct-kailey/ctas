@@ -1,0 +1,339 @@
+/*
+ * Kanban — 보드 / 컬럼 / 카드 3-레벨.
+ *
+ * CSS 변수 조절점:
+ *   --kanban-column-width  컬럼 1장 width
+ *   --kanban-column-gap    컬럼 사이 가로 간격
+ *   --kanban-column-pad    컬럼 내부 padding
+ *   --kanban-card-pad      카드 내부 padding
+ *   --kanban-card-gap      카드 안 slot 세로 gap
+ *   --kanban-stack-gap     한 컬럼 안 카드 세로 gap
+ *
+ * layout 축:
+ *   wrap   — 컬럼 자체가 chrome(배경/테두리)을 가지고 header·body가 안에 함께 들어감.
+ *   stack  — 컬럼 자체엔 chrome 없고 header와 body가 각자 자체 chrome을 가진
+ *            두 블록으로 세로 분리. header가 chrome 바깥 위에 "얹어진" 모습.
+ */
+
+/* ──────────────────────────────────────────────────────
+   Board
+   ──────────────────────────────────────────────────── */
+
+.board {
+  /* Kanban 컬럼 전용 폭 — 공용 space 스케일에 등가 토큰 없음, 로컬 상수로 선언. */
+  --kanban-column-width: 320px; /* lint-hardcoded: ignore */
+  --kanban-column-gap: var(--space-3);
+  --kanban-column-pad: var(--space-3);
+  --kanban-stack-gap: var(--space-2);
+
+  display: flex;
+  gap: var(--kanban-column-gap);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.board.scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: var(--space-1);
+}
+
+/* scroll=false: 가로 스크롤 끄되 wrap하지 않음. 칸반은 무조건 로우. */
+.board.noscroll {
+  overflow: visible;
+}
+
+/* ──────────────────────────────────────────────────────
+   Column — 공통 뼈대
+   ──────────────────────────────────────────────────── */
+
+.column {
+  position: relative;
+  flex: 0 0 var(--kanban-column-width);
+  width: var(--kanban-column-width);
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--fg);
+}
+
+/* scroll=false면 각 컬럼이 남는 공간을 균등 분할. 로우 유지. */
+.board.noscroll .column {
+  flex: 1 1 var(--kanban-column-width);
+}
+
+/* ──────────────────────────────────────────────────────
+   layout=wrap — 컬럼 자체가 chrome 가짐. header/body 공통 쉘.
+   ──────────────────────────────────────────────────── */
+
+.layout-wrap {
+  gap: var(--space-2);
+  padding: var(--kanban-column-pad);
+  border-radius: var(--radius-lg);
+  transition: var(--transition-colors);
+}
+
+/* chrome 축 — layout=wrap. [[feedback_bg_or_stroke_only]]: 배경만 or 테두리만. */
+.layout-wrap.chrome-line {
+  background: transparent;
+  border: 1px solid var(--border);
+}
+.layout-wrap.chrome-filled {
+  background: var(--column-fill, var(--bg-muted));
+}
+.layout-wrap.chrome-plain {
+  background: transparent;
+  padding: 0;
+}
+
+/* tone별 fill 색 — chrome=filled일 때 적용됨.
+   neutral은 중립 bg-muted(기본값), 나머지는 base color 4% opacity.
+   글로벌 *-subtle(8%)보다 더 연하게 — 컬럼은 "면"이라 subtle보다 조용해야 함. */
+.column[data-tone="primary"]  { --column-fill: color-mix(in oklab, var(--primary) 4%, transparent); }
+.column[data-tone="success"]  { --column-fill: color-mix(in oklab, var(--success) 4%, transparent); }
+.column[data-tone="warning"]  { --column-fill: color-mix(in oklab, var(--warning) 4%, transparent); }
+.column[data-tone="danger"]   { --column-fill: color-mix(in oklab, var(--destructive) 4%, transparent); }
+.column[data-tone="info"]     { --column-fill: color-mix(in oklab, var(--info) 4%, transparent); }
+
+/* chrome=filled일 때 header 안 텍스트·아이콘도 tone 색계열로 (fill 색 full opacity).
+   neutral은 기본 fg-strong 유지.
+   action 안 IconButton까지 색이 번지도록 자손 svg·button까지 상속. */
+.chrome-filled[data-tone="primary"]  .columnHeader,
+.chrome-filled[data-tone="primary"]  .columnHeader * { color: var(--primary); }
+.chrome-filled[data-tone="success"]  .columnHeader,
+.chrome-filled[data-tone="success"]  .columnHeader * { color: var(--success); }
+.chrome-filled[data-tone="warning"]  .columnHeader,
+.chrome-filled[data-tone="warning"]  .columnHeader * { color: var(--warning); }
+.chrome-filled[data-tone="danger"]   .columnHeader,
+.chrome-filled[data-tone="danger"]   .columnHeader * { color: var(--destructive); }
+.chrome-filled[data-tone="info"]     .columnHeader,
+.chrome-filled[data-tone="info"]     .columnHeader * { color: var(--info); }
+
+/* ──────────────────────────────────────────────────────
+   layout=stack — header만 chrome. body(카드 스택)는 chrome 없음.
+   header가 그릇 바깥 위에 "얹어진" 모습 — 카드들은 그 아래 분리된 공간.
+   ──────────────────────────────────────────────────── */
+
+.layout-stack {
+  gap: var(--space-2);
+  background: transparent;
+  padding: 0;
+}
+
+/* stack: header만 chrome 보유 */
+.layout-stack .columnHeader {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors);
+  position: relative;
+}
+
+/* stack: body는 chrome 없음. 카드 스택만. */
+.layout-stack .columnBody {
+  padding: 0;
+}
+
+/* chrome 축 — layout=stack: header에만 적용 */
+.layout-stack.chrome-line .columnHeader {
+  background: transparent;
+  border: 1px solid var(--border);
+}
+.layout-stack.chrome-filled .columnHeader {
+  background: var(--column-fill, var(--bg-muted));
+}
+.layout-stack.chrome-plain .columnHeader {
+  padding: 0 var(--space-1);
+}
+
+/* ──────────────────────────────────────────────────────
+   Column header (공통)
+   ──────────────────────────────────────────────────── */
+
+.columnHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding-inline: var(--space-1);
+}
+
+.columnTitle {
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--fg-strong, var(--fg));
+  line-height: var(--lh-base);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.columnCount {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  margin-left: calc(var(--space-2) * -1 + var(--space-1));
+  margin-right: auto;
+}
+
+.columnAction {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+
+/* ──────────────────────────────────────────────────────
+   Accent (tone 색 지점)
+   ──────────────────────────────────────────────────── */
+
+.accentMark {
+  flex-shrink: 0;
+  background: var(--column-accent, var(--fg-muted));
+}
+
+.accentMark[data-accent="dot"] {
+  width: var(--space-2);
+  height: var(--space-2);
+  border-radius: var(--radius-full);
+}
+
+.column[data-tone="neutral"]  { --column-accent: var(--fg-muted); }
+.column[data-tone="primary"]  { --column-accent: var(--primary); }
+.column[data-tone="success"]  { --column-accent: var(--success); }
+.column[data-tone="warning"]  { --column-accent: var(--warning); }
+.column[data-tone="danger"]   { --column-accent: var(--destructive); }
+.column[data-tone="info"]     { --column-accent: var(--info); }
+
+/* ──────────────────────────────────────────────────────
+   Column body (카드 스택)
+   ──────────────────────────────────────────────────── */
+
+.columnBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kanban-stack-gap);
+  min-height: var(--space-8);
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors);
+}
+
+
+.columnFooter {
+  padding-top: var(--space-1);
+  color: var(--fg-muted);
+}
+
+/* ──────────────────────────────────────────────────────
+   Card
+   ──────────────────────────────────────────────────── */
+
+.card {
+  --kanban-card-pad: var(--space-3);
+  --kanban-card-gap: var(--space-2);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--kanban-card-gap);
+  padding: var(--kanban-card-pad);
+  background: color-mix(in oklab, var(--bg) 80%, transparent);
+  border-radius: var(--radius-md);
+  color: var(--fg);
+  text-decoration: none;
+  min-width: 0;
+  transition: var(--transition-colors), transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+.card:hover {
+  background: var(--bg);
+  border-color: var(--border-strong);
+  transform: translateY(calc(var(--space-0_5) * -1));
+  box-shadow: var(--shadow-md);
+}
+
+.cardInteractive {
+  cursor: pointer;
+}
+.cardInteractive:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* ── Card slots ────────────────────────────────────── */
+
+.cover {
+  margin: calc(var(--kanban-card-pad) * -1) calc(var(--kanban-card-pad) * -1) 0;
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  overflow: hidden;
+  display: block;
+}
+.cover > img,
+.cover > video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--fg-muted);
+}
+
+.cardTitle {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-strong, var(--fg));
+  font-weight: var(--font-weight-medium);
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.cardDescription {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--fg-muted);
+  font-weight: var(--font-weight-regular);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* title 바로 뒤의 description — 둘은 한 묶음으로 간주해 gap 좁힘.
+   card의 기본 gap(space-2)에서 space-1만큼 당겨 space-1(=4px)로 유지. */
+.cardTitle + .cardDescription {
+  margin-top: calc(var(--space-1) * -1);
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-sm);
+}

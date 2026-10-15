@@ -1,24 +1,15 @@
 .nora-channel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; min-width: 0; }
 .nora-channel-title { display: grid; gap: var(--space-2); min-width: 0; }
-.nora-channels h2, .nora-channels h3, .nora-channels h4, .nora-channels p { margin: 0; overflow-wrap: anywhere; }
+.nora-channels h2, .nora-channels h3, .nora-channels h4 { margin: 0; overflow-wrap: anywhere; }
+.nora-channels p { overflow-wrap: anywhere; }
 .nora-channels h2 { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--font-weight-semibold); }
 .nora-channels h3, .nora-channels h4 { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--font-weight-semibold); }
-.nora-channel-title p, .nora-channel-help, .nora-channel-entrypoint p, .nora-channel-summary { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.nora-channel-title p, .nora-channel-help, .nora-channel-entrypoint p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .nora-channel-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); min-width: 0; }
-.nora-channel-source-list { display: grid; gap: var(--space-4); min-width: 0; }
 /* CTDS has no general panel primitive; this scoped composition owns the panel inset. */
-.nora-channel-source, .nora-channel-form, .nora-channel-detail { padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg); min-width: 0; }
-.nora-channel-meta { color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
-.nora-channel-summary { display: grid; gap: var(--space-1); }
-.nora-channel-summary code { color: var(--fg); overflow-wrap: anywhere; }
-.nora-channel-entry-summary { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); line-height: var(--lh-sm); }
-.nora-channel-entry-summary > span, .nora-channel-check, .nora-channel-check > span { display: flex; gap: var(--space-2); align-items: center; }
-.nora-channel-entry-summary svg, .nora-channel-check svg { flex-shrink: 0; }
+.nora-channel-form, .nora-channel-detail { padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg); min-width: 0; }
+.nora-channel-check, .nora-channel-check > span { display: flex; gap: var(--space-2); align-items: center; }
+.nora-channel-check svg { flex-shrink: 0; }
 .nora-channel-fields, .nora-channel-entrypoints { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(var(--ains-panel-sm), 100%), 1fr)); gap: var(--space-4); min-width: 0; }
-.nora-channel-entrypoint { min-width: 0; padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg-subtle); }
+.nora-channel-entrypoint { min-width: 0; padding: var(--space-4); border-radius: var(--radius-sm); background: var(--bg-subtle); }
 .nora-channel-check { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--font-weight-medium); }
-.nora-channel-deliveries { display: grid; gap: var(--space-4); margin: 0; padding: 0; list-style: none; min-width: 0; }
-.nora-channel-delivery { display: grid; gap: var(--space-2); min-width: 0; padding-block: var(--space-3); border-top: var(--hairline) solid var(--border); }
-/* CTDS ListItem documented composition: the parent owns row spacing once. */
-.nora-channel-delivery > [data-ctds="list-item"] { padding-block: 0; margin-block: 0; }
-.nora-channel-delivery code { overflow-wrap: anywhere; }

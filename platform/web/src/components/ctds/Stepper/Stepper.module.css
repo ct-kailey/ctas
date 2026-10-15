@@ -1,42 +1,78 @@
 /* Stepper — 다단계 진행 표시 컴포넌트
-   구성: root(container) > item(button) > marker(dot|number) + body(title + hint)
-   축 반응:
-   ─ Density → --space-scale, --font-scale (여백·라벨 크기)
-   ─ Shape   → focus ring radius (marker는 항상 full)
-   ─ Motion  → 상태 전환 duration/easing (transition-colors)
+   구성: root(container) > item(button) > marker + body(title + hint)
+
+   축 (data-* attr):
+   ─ data-orientation      : vertical | horizontal
+   ─ data-marker           : dot | number
+   ─ data-variant          : md | sm
+   ─ data-tone             : primary | neutral
+   ─ data-density          : comfortable | spacious
+   ─ data-hint-placement   : below | inline
+   ─ data-line-style       : dashed | dotted | solid
 
    로컬 색 변수 (root에서 오버라이드 가능):
-   ─ --stepper-fg         : 활성/진행중 스텝 텍스트
+   ─ --stepper-fg         : 활성 스텝 텍스트
    ─ --stepper-fg-muted   : 완료 스텝 텍스트
    ─ --stepper-fg-subtle  : 미도달 스텝 텍스트 · hint
-   ─ --stepper-line       : 스텝 사이 dashed 트리 라인
-   ─ --stepper-dot-idle   : 미도달 dot border
-   ─ --stepper-marker-fg  : done marker 안쪽 텍스트/아이콘 색 (배경 위)
+   ─ --stepper-line       : 스텝 사이 연결선 색
+   ─ --stepper-dot-idle   : 미도달 marker border
+   ─ --stepper-marker     : active/done 공통 강조색 (기본 Primary)
+   ─ --stepper-marker-fg  : done marker 안쪽 글자/아이콘 색
+   ─ --stepper-marker-soft: upcoming·neutral·active 등 soft fill 색
 */
 
 .root {
   --stepper-fg: var(--fg);
   --stepper-fg-muted: var(--fg-muted);
   --stepper-fg-subtle: var(--fg-subtle);
-  --stepper-line: var(--border);
-  --stepper-dot-idle: var(--border);
+  --stepper-line: var(--border-strong);
+  --stepper-dot-idle: var(--border-strong);
+  --stepper-marker: var(--primary);
   --stepper-marker-fg: var(--bg);
+  --stepper-marker-soft: color-mix(in oklab, var(--fg) 8%, transparent);
 
   --stepper-marker-size: var(--space-5);
   --stepper-marker-gap: var(--space-4);
   --stepper-item-gap: var(--space-6);
+  --stepper-title-lh: var(--lh-sm);  /* marker 수직 보정 기준 */
+  --stepper-line-gap: var(--space-1); /* marker ↔ 선 간격 */
 
   display: flex;
   min-width: 0;
   min-height: 0;
 }
 
-/* Orientation ─────────────────────────────────────────── */
+/* ─ Orientation ────────────────────────────────────── */
 
 .vertical { flex-direction: column; }
-.horizontal { flex-direction: row; align-items: flex-start; }
+.horizontal {
+  flex-direction: row;
+  align-items: flex-start;
+  --stepper-line-gap: var(--space-2);
+}
 
-/* Item ─────────────────────────────────────────────────── */
+/* ─ Variant: md (기본, 큰 marker 24px) vs sm (작은 dot 10px) ─ */
+
+.root[data-variant="md"] {
+  --stepper-marker-size: var(--space-6);  /* 24px — 01 Stripe */
+  --stepper-marker-gap: var(--space-4);
+  --stepper-item-gap: var(--space-6);
+  --stepper-title-lh: var(--lh-base);
+}
+.root[data-variant="sm"] {
+  --stepper-marker-size: var(--space-2_5); /* 10px — 02 헤이딜러 */
+  --stepper-marker-gap: var(--space-3);
+  --stepper-item-gap: var(--space-10);     /* 작은 marker는 호흡 넓게 */
+  --stepper-title-lh: var(--lh-sm);
+}
+
+/* ─ Tone: neutral이면 done·marker 색이 모노톤 ──────── */
+
+.root[data-tone="neutral"] {
+  --stepper-marker: var(--fg);
+}
+
+/* ─ Item ───────────────────────────────────────────── */
 
 .item {
   appearance: none;
@@ -61,7 +97,7 @@
   box-shadow: var(--ring-shadow);
 }
 
-/* Vertical item: 2-column grid, 아래로 dashed line */
+/* Vertical item: 2-column grid */
 .vertical .item {
   display: grid;
   grid-template-columns: var(--stepper-marker-size) 1fr;
@@ -70,23 +106,8 @@
   padding-bottom: var(--stepper-item-gap);
 }
 .vertical .item:last-child { padding-bottom: 0; }
-.vertical .item:not(:last-child)::before {
-  content: "";
-  position: absolute;
-  left: calc(var(--stepper-marker-size) / 2 - var(--hairline) / 2);
-  top: var(--stepper-marker-size);
-  bottom: 0;
-  width: var(--hairline);
-  background-image: linear-gradient(
-    to bottom,
-    var(--stepper-line) 50%,
-    transparent 50%
-  );
-  background-size: var(--hairline) var(--space-1_5);
-  background-repeat: repeat-y;
-}
 
-/* Horizontal item: marker 위, body 아래로 쌓임, 옆으로 dashed line */
+/* Horizontal item: marker 위, body 아래 */
 .horizontal .item {
   display: grid;
   grid-template-rows: var(--stepper-marker-size) 1fr;
@@ -100,24 +121,61 @@
   flex: 0 0 auto;
   padding-right: 0;
 }
+
+/* ─ Connecting line (vertical: 기본 dashed) ─ */
+
+.vertical .item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--stepper-marker-size) / 2 - var(--hairline) / 2);
+  /* marker가 margin-top만큼 아래로 밀렸고, 선은 marker 바닥에서
+     --stepper-line-gap 만큼 떨어진 지점부터 시작, 아래쪽도 같은 간격 띄움 */
+  top: calc(
+    (var(--stepper-title-lh) - var(--stepper-marker-size)) / 2 +
+      var(--stepper-marker-size) + var(--stepper-line-gap)
+  );
+  bottom: var(--stepper-line-gap);
+  width: var(--hairline);
+  background-image: linear-gradient(
+    to bottom,
+    var(--stepper-line) 65%,
+    transparent 35%
+  );
+  background-size: var(--hairline) var(--space-1_5);
+  background-repeat: repeat-y;
+}
+
 .horizontal .item:not(:last-child)::before {
   content: "";
   position: absolute;
   top: calc(var(--stepper-marker-size) / 2 - var(--hairline) / 2);
-  left: var(--stepper-marker-size);
-  right: 0;
+  left: calc(var(--stepper-marker-size) + var(--stepper-line-gap));
+  right: var(--stepper-line-gap);
   height: var(--hairline);
   background-image: linear-gradient(
     to right,
-    var(--stepper-line) 50%,
-    transparent 50%
+    var(--stepper-line) 65%,
+    transparent 35%
   );
   background-size: var(--space-1_5) var(--hairline);
   background-repeat: repeat-x;
-  margin-inline: var(--space-2);
 }
 
-/* Marker ───────────────────────────────────────────────── */
+/* line-style: solid (01 — 매끈한 1px) — selector 주의:
+   .vertical/.horizontal과 data-line-style attr가 같은 root element에 붙어 있으므로
+   descendant가 아닌 compound selector로 작성. */
+.vertical[data-line-style="solid"] .item:not(:last-child)::before {
+  background: var(--stepper-line);
+  background-image: none;
+  background-size: auto;
+}
+.horizontal[data-line-style="solid"] .item:not(:last-child)::before {
+  background: var(--stepper-line);
+  background-image: none;
+  background-size: auto;
+}
+
+/* ─ Marker ────────────────────────────────────────── */
 
 .marker {
   width: var(--stepper-marker-size);
@@ -131,34 +189,98 @@
   flex-shrink: 0;
   transition: var(--transition-colors);
   font-size: var(--text-xs);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: 1;
-  color: inherit;
+  color: var(--stepper-fg-subtle);
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  /* vertical일 때 marker가 title 첫 줄 중앙선에 맞도록 아래로 밀기.
+     --stepper-title-lh는 variant별로 공급되는 title line-height. */
+  margin-top: calc(
+    (var(--stepper-title-lh) - var(--stepper-marker-size)) / 2
+  );
+}
+/* horizontal에서는 marker가 body 위에 위치하므로 보정 off */
+.horizontal .marker {
+  margin-top: 0;
 }
 
-/* Active marker: 굵은 링 */
+/* ── variant=md (기본) marker scaling ──
+   24px marker 안의 숫자/check도 균형 잡힌 사이즈. */
+.root[data-variant="md"] .marker {
+  font-size: var(--text-xs);
+}
+
+/* ── variant=sm marker는 solid dot (border 없음, soft fill) ── */
+.root[data-variant="sm"] .marker {
+  border: none;
+  background: var(--stepper-dot-idle);
+}
+
+/* ── Upcoming (md variant): soft bg + muted 숫자 (01 Stripe) ── */
+.root[data-variant="md"] .item[data-state="upcoming"] .marker {
+  background: var(--stepper-marker-soft);
+  border-color: transparent;
+}
+
+/* ── Done marker ── */
+/* md + primary tone (기본): Primary fill */
+.item[data-state="done"] .marker {
+  border-color: transparent;
+  background: var(--stepper-marker);
+  color: var(--stepper-marker-fg);
+}
+/* md + neutral tone (01 Stripe): soft gray fill + muted check */
+.root[data-tone="neutral"] .item[data-state="done"] .marker {
+  background: var(--stepper-marker-soft);
+  color: var(--stepper-fg-muted);
+}
+/* sm variant done: 색만 marker 색, dot 크기 그대로 */
+.root[data-variant="sm"] .item[data-state="done"] .marker {
+  background: var(--stepper-dot-idle);
+  color: transparent;
+}
+.root[data-variant="sm"][data-tone="primary"]
+  .item[data-state="done"]
+  .marker {
+  background: var(--stepper-marker);
+}
+
+/* ── Active marker ──
+   marker 자체가 큰 soft Primary 동그라미 + 중앙에 작은 Primary dot. */
 .item[data-state="active"] .marker {
-  border-color: var(--stepper-fg);
-  border-width: calc(var(--hairline) * 2);
-  color: var(--stepper-fg);
+  background: color-mix(in oklab, var(--stepper-marker) 18%, transparent);
+  border-color: transparent;
+  color: var(--stepper-marker);
+}
+/* sm variant active: marker 자체는 solid Primary dot + 바깥에 soft Primary halo.
+   작은 dot(10px)이라 안쪽 split 대신 외곽 halo로 "지금 여기" 신호를 줌. */
+.root[data-variant="sm"] .item[data-state="active"] .marker {
+  background: var(--stepper-marker);
+  color: var(--stepper-marker-fg);
+  box-shadow: 0 0 0 var(--space-1)
+    color-mix(in oklab, var(--stepper-marker) 22%, transparent);
 }
 
-/* dot marker의 active: 안쪽 작은 점 */
+/* ─ markerInnerDot: active marker 중앙 작은 Primary dot ─ */
 .markerInnerDot {
   width: var(--space-1_5);
   height: var(--space-1_5);
   border-radius: var(--radius-full);
-  background: var(--stepper-fg);
+  background: var(--stepper-marker);
+  flex-shrink: 0;
+}
+/* md (24px marker)에서는 inner dot도 조금 더 크게 */
+.root[data-variant="md"] .markerInnerDot {
+  width: var(--space-2);
+  height: var(--space-2);
+}
+/* sm variant는 marker 자체가 10px dot이라 inner dot 숨김 */
+.root[data-variant="sm"] .markerInnerDot {
+  display: none;
 }
 
-/* Done marker: 배경 채움, 안에 check (dot) 또는 숫자 유지 (number) */
-.item[data-state="done"] .marker {
-  border-color: transparent;
-  background: var(--stepper-fg);
-  color: var(--stepper-marker-fg);
-}
-
-/* Body ─────────────────────────────────────────────────── */
+/* ─ Body ─────────────────────────────────────────── */
 
 .body {
   display: flex;
@@ -168,14 +290,36 @@
   padding-right: var(--space-2);
 }
 
+/* hintPlacement=inline (02): title | hint 가로 배치 */
+.root[data-hint-placement="inline"] .body {
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 .title {
   font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--lh-sm);
+}
+/* md variant는 title 조금 더 큼 (01 Stripe 톤) */
+.root[data-variant="md"] .title {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+.item[data-state="active"] .title {
   font-weight: var(--font-weight-semibold);
 }
+
 .hint {
   font-size: var(--text-xs);
   color: var(--stepper-fg-subtle);
   line-height: var(--lh-xs);
+}
+.root[data-variant="md"] .hint {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
 }
 .item[data-state="active"] .hint {
   color: var(--stepper-fg-muted);

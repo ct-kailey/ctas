@@ -6,7 +6,7 @@ const fs = require('node:fs'), path = require('node:path');
 const { parse } = require('@babel/parser');
 const root = path.resolve(__dirname, '..'), source = path.join(root, 'platform/web/src');
 const adapters = new Set(['ui.jsx', 'ui-controls.jsx']);
-const primitives = new Set(['button', 'input', 'textarea', 'select', 'details', 'dialog']);
+const primitives = new Set(['button', 'input', 'textarea', 'select', 'details', 'dialog', 'ul', 'ol', 'li']);
 const issues = [], counts = {};
 let files = 0, slots = 0;
 const nameOf = node => node?.type === 'JSXIdentifier' ? node.name : node?.type === 'JSXMemberExpression' ? `${nameOf(node.object)}.${nameOf(node.property)}` : '';
@@ -24,7 +24,7 @@ function inspect(file) {
   files++;
   const ast = parse(fs.readFileSync(file, 'utf8'), { sourceType: 'module', plugins: ['jsx'] });
   const ctds = new Set();
-  for (const item of ast.program.body) if (item.type === 'ImportDeclaration' && /(?:components\/ctds\/|\/ui(?:\.jsx)?$)/.test(item.source.value)) {
+  for (const item of ast.program.body) if (item.type === 'ImportDeclaration' && /(?:components\/ctds\/|\/(?:ui|ctds-lists)(?:\.jsx)?$)/.test(item.source.value)) {
     for (const binding of item.specifiers) ctds.add(binding.local.name);
   }
   const isCTDS = name => ctds.has(name.split('.')[0]);
@@ -36,6 +36,9 @@ function inspect(file) {
       const parentOpening = parentElement?.openingElement;
       const asChild = parentOpening && attr(parentOpening, 'asChild');
       const childSlot = asChild && (asChild.value === null || asChild.value?.expression?.value === true) && isCTDS(nameOf(parentOpening.name));
+      if (isCTDS(name) && /(?:^|\.)ListItem$/.test(name)) {
+        for (const legacy of ['asChild', 'layout', 'variant', 'from', 'body', 'time']) if (attr(opening, legacy)) report(opening, `removed CTDS ListItem prop ${legacy}: compose Title/Description/Meta and leading/trailing instead`);
+      }
       if (isCTDS(name)) counts[name] = (counts[name] || 0) + 1;
       if (primitives.has(name)) {
         if (childSlot) slots++;

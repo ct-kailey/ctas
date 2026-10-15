@@ -1,3 +1,4 @@
+import { List, ListItem } from './ctds-lists.jsx';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Copy, Link2, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, dateTime } from './ui.jsx';
@@ -49,7 +50,7 @@ export function SharedViewManager({ projects, currentProject, request, notify, o
       </form>
       {created ? <section className="shared-view-created" aria-label="생성한 공유 링크"><h3>공유 링크가 준비되었습니다</h3><p>{dateTime(created.link.expires_at)}까지 열람 가능합니다. 이 링크는 다시 표시되지 않으므로 복사해 보관하세요.</p><FormField label="공유 링크"><Input value={created.share_url} readOnly onFocus={event => event.target.select()} /></FormField><Button type="button" variant="secondary" icon={Copy} onClick={copy}>링크 복사</Button></section> : null}
       <ErrorNotice error={error} />
-      <section className="shared-view-links" aria-label="공유 링크 이력"><h3>발급한 공유 링크</h3>{links === null ? <Spinner /> : links.length ? links.map(link => <article key={link.id}><div><strong>{link.label}</strong><p>{link.project_ids.map(id => projects.find(project => project.id === id)?.name || '접근 권한이 변경된 프로젝트').join(' · ')}</p><small>{link.source_user_name} · {dateTime(link.expires_at)} 만료</small></div><Badge tone={link.active ? 'green' : 'quiet'}>{link.revoked_at ? '공유 종료' : link.active ? '열람 가능' : '만료'}</Badge>{link.active ? <Button type="button" variant="secondary" disabled={busy} onClick={() => revoke(link)}>공유 종료</Button> : null}</article>) : <Empty compact title="발급한 공유 링크가 없습니다">공유할 프로젝트를 선택해 링크를 만들 수 있습니다.</Empty>}</section>
+      <section className="shared-view-links" aria-label="공유 링크 이력"><h3>발급한 공유 링크</h3>{links === null ? <Spinner /> : links.length ? <List>{links.map(link => <ListItem key={link.id} trailing={<Badge tone={link.active ? 'green' : 'quiet'}>{link.revoked_at ? '공유 종료' : link.active ? '열람 가능' : '만료'}</Badge>}><ListItem.Title>{link.label}</ListItem.Title><ListItem.Description>{link.project_ids.map(id => projects.find(project => project.id === id)?.name || '접근 권한이 변경된 프로젝트').join(', ')}</ListItem.Description><ListItem.Meta><span>{link.source_user_name}</span><ListItem.MetaDivider/><span>{dateTime(link.expires_at)} 만료</span></ListItem.Meta>{link.active ? <ListItem.Meta><Button type="button" variant="secondary" disabled={busy} onClick={() => revoke(link)}>공유 종료</Button></ListItem.Meta> : null}</ListItem>)}</List> : <Empty compact title="발급한 공유 링크가 없습니다">공유할 프로젝트를 선택해 링크를 만들 수 있습니다.</Empty>}</section>
     </div>
     <footer className="modal-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>닫기</Button></footer>
   </Modal>;

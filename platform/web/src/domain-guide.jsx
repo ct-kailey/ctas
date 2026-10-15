@@ -1,7 +1,8 @@
+import { List, ListItem } from './ctds-lists.jsx';
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ArrowDownToLine, BookOpen, Check, FileText, History, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Disclosure, Empty, ErrorNotice, FormField, Input, Notice, Spinner, Textarea, projectPath } from './ui.jsx';
-import { ListItem, ListItemLeadingIcon } from './components/ctds/ListItem';
+import { ListItemLeadingIcon } from './components/ctds/ListItem';
 import { useConfirm } from './confirmation.jsx';
 import { GUIDE_SECTIONS, canReviewGuide, chooseGuideVersion, formatGuideText, guideAuthority, guideContents, guideDate, guideEvidence, guideFlowLayout, guideIsStale, guideNeedsConnection, guidePermissions, guideRunState, guideSourceRevision, guideSourceUrl, guideVersionState } from './domain-guide-state.mjs';
 import './domain-guide.css';
@@ -34,7 +35,7 @@ function FlowDiagram({ workflow, sources, prefix, index }) {
       </div>
       {layout.edges.some(edge => edge.numbered) ? <dl className="domain-guide-flow-legend" aria-label="연결 번호별 전체 설명">{layout.edges.filter(edge => edge.numbered).map(edge => <div key={edge.key}><dt>{edge.displayLabel} {edge.label}</dt><dd>{edge.fromLabel} → {edge.toLabel}</dd></div>)}</dl> : null}
       <Disclosure><summary>단계별 설명과 연결 관계</summary>
-        <ol className="domain-guide-flow-details">{layout.nodes.map(node => <li key={node.id}><strong>{node.label}</strong>{node.kind === 'decision' ? <span> · 판단</span> : null}<Evidence ids={node.evidence_ids} sources={sources} prefix={prefix} /></li>)}</ol>
+        <List className="domain-guide-flow-details">{layout.nodes.map(node => <ListItem key={node.id}><ListItem.Title>{node.label}</ListItem.Title>{node.kind === 'decision' ? <span> · 판단</span> : null}<Evidence ids={node.evidence_ids} sources={sources} prefix={prefix} /></ListItem>)}</List>
         {layout.edges.map(edge => <p key={edge.key}>{nodeLabel(edge.from)} → {edge.label ? `${edge.label} → ` : ''}{nodeLabel(edge.to)}</p>)}
       </Disclosure>
     </> : <p className="domain-guide-help">등록된 흐름 단계가 없습니다.</p>}
@@ -63,23 +64,22 @@ function GuideBody({ version, projectId, prefix, onSourceRevision, navigationDis
     </section>
     <section id={`${prefix}-changes`} className="domain-guide-section" tabIndex={-1}>
       <h3>최근 변경</h3>
-      {guide.changes.length ? <ol className="domain-guide-entry-list">{guide.changes.map((change, index) => <li key={index}><p className="domain-guide-prose">{change.summary}</p><Evidence ids={change.evidence_ids} sources={sources} prefix={prefix} /></li>)}</ol> : <p className="domain-guide-help">이번 버전에 정리된 변경사항이 없습니다.</p>}
+      {guide.changes.length ? <List className="domain-guide-entry-list">{guide.changes.map((change, index) => <ListItem key={index}><ListItem.Title>{change.summary}</ListItem.Title><Evidence ids={change.evidence_ids} sources={sources} prefix={prefix} /></ListItem>)}</List> : <p className="domain-guide-help">이번 버전에 정리된 변경사항이 없습니다.</p>}
     </section>
     <section id={`${prefix}-questions`} className="domain-guide-section" tabIndex={-1}>
       <h3>확인 필요사항</h3>
-      {guide.questions.length ? <ol className="domain-guide-entry-list">{guide.questions.map((question, index) => <li key={index}><h4>{question.question}</h4><p className="domain-guide-prose">{question.reason}</p><Evidence ids={question.evidence_ids} sources={sources} prefix={prefix} status="needs_confirmation" /></li>)}</ol> : <p className="domain-guide-help">가이드에 등록된 확인 항목이 없습니다. 자료 전체에 대한 검증 결과는 아닙니다.</p>}
+      {guide.questions.length ? <List className="domain-guide-entry-list">{guide.questions.map((question, index) => <ListItem key={index}><ListItem.Title>{question.question}</ListItem.Title><ListItem.Description>{question.reason}</ListItem.Description><Evidence ids={question.evidence_ids} sources={sources} prefix={prefix} status="needs_confirmation" /></ListItem>)}</List> : <p className="domain-guide-help">가이드에 등록된 확인 항목이 없습니다. 자료 전체에 대한 검증 결과는 아닙니다.</p>}
     </section>
     <section id={`${prefix}-sources`} className="domain-guide-section" tabIndex={-1}>
       <h3>근거 자료 <span className="domain-guide-help">{sources.length}건</span></h3>
       <p className="domain-guide-help">이 버전을 작성할 때 사용한 자료입니다. 이후 변경된 원문과는 내용이 다를 수 있습니다.</p>
-      {sources.length ? <ol className="domain-guide-source-list">{sources.map((source, index) => {
+      {sources.length ? <List className="domain-guide-source-list">{sources.map((source, index) => {
         const revisionId = guideSourceRevision(source), url = guideSourceUrl(source, projectId);
-        return <li id={`${prefix}-source-${index}`} key={source.id || index} tabIndex={-1}>
-          <ListItem variant="system" layout="stacked" data-ctds="list-item" leading={<ListItemLeadingIcon><FileText size={16} /></ListItemLeadingIcon>} from={`${index + 1}. ${formatGuideText(source.title, sources) || '제목 없는 자료'}`} body={`${formatGuideText(source.domain_name, sources) || '프로젝트 공통'} · ${guideDate(source.occurred_at)}`} trailing={<Badge tone={source.authority === 'confirmed' ? 'green' : 'quiet'}>{source.authority === 'confirmed' ? '확정 근거' : '참고 근거'}</Badge>} />
+        return <ListItem id={`${prefix}-source-${index}`} key={source.id || index} tabIndex={-1} data-ctds="list-item" leading={<ListItemLeadingIcon><FileText size={16} /></ListItemLeadingIcon>} trailing={<Badge tone={source.authority === 'confirmed' ? 'green' : 'quiet'}>{source.authority === 'confirmed' ? '확정 근거' : '참고 근거'}</Badge>}><ListItem.Title>{`${index + 1}. ${formatGuideText(source.title, sources) || '제목 없는 자료'}`}</ListItem.Title><ListItem.Meta>{`${formatGuideText(source.domain_name, sources) || '프로젝트 공통'} · ${guideDate(source.occurred_at)}`}</ListItem.Meta>
           <Disclosure><summary>가이드 작성 시점의 원문 발췌</summary><p className="domain-guide-prose">{formatGuideText(source.body, sources) || '저장된 발췌 내용이 없습니다.'}</p></Disclosure>
           {revisionId && onSourceRevision ? <Button type="button" variant="ghost" disabled={navigationDisabled} onClick={() => onSourceRevision(revisionId)}>원문 버전 열기</Button> : url ? <a href={url} target="_blank" rel="noopener noreferrer">원문 자료 열기 <span className="domain-guide-help">(새 탭)</span></a> : null}
-        </li>;
-      })}</ol> : <p className="domain-guide-help">표시할 원문 근거가 없습니다.</p>}
+        </ListItem>;
+      })}</List> : <p className="domain-guide-help">표시할 원문 근거가 없습니다.</p>}
     </section>
   </article>;
 }
@@ -202,7 +202,7 @@ export function DomainGuide({ project, request, notify, onDirty, onSourceRevisio
       {version || selectedId ? <div className="domain-guide-layout">
         <aside className="domain-guide-sidebar" aria-label="가이드 목차와 버전">
           <nav aria-label="도메인 가이드 목차"><h3>목차</h3>{GUIDE_SECTIONS.map(item => <a key={item.id} href={`#${prefix}-${item.id}`}>{item.label}</a>)}</nav>
-          <Disclosure><summary><History size={16} /> 버전 이력</summary><ul className="domain-guide-version-list">{(data.versions || []).map(item => <li key={item.id}><ListItem variant="system" layout="stacked" data-ctds="list-item" leading={<ListItemLeadingIcon><FileText size={16} /></ListItemLeadingIcon>} from={`v${item.number} · ${guideVersionState(item).label}`} body={guideDate(item.created_at)} trailing={<Button type="button" variant="ghost" aria-pressed={version?.id === item.id} disabled={Boolean(busy) || loadingVersion} onClick={() => selectVersion(item.id)}>{version?.id === item.id ? '읽는 중' : '보기'}</Button>} /></li>)}</ul></Disclosure>
+          <Disclosure><summary><History size={16} /> 버전 이력</summary><List className="domain-guide-version-list">{(data.versions || []).map(item => <ListItem key={item.id} data-ctds="list-item" leading={<ListItemLeadingIcon><FileText size={16} /></ListItemLeadingIcon>} trailing={<Button type="button" variant="ghost" aria-pressed={version?.id === item.id} disabled={Boolean(busy) || loadingVersion} onClick={() => selectVersion(item.id)}>{version?.id === item.id ? '읽는 중' : '보기'}</Button>}><ListItem.Title>{`v${item.number} · ${guideVersionState(item).label}`}</ListItem.Title><ListItem.Meta>{guideDate(item.created_at)}</ListItem.Meta></ListItem>)}</List></Disclosure>
         </aside>
         <div className="domain-guide-reading">
           {loadingVersion ? <Spinner label="선택한 가이드 버전을 불러오고 있습니다" /> : version ? <>

@@ -38,11 +38,18 @@
 
 ### 스크롤바 시각 정책 (전역, globals.css)
 
+핵심은 **overlay 방식 전용** — 스크롤바는 콘텐츠 위에 뜨기만 하고 **공간을 먹지 않는다**. 공간을 먹는 "고정 스크롤바" 는 다크 모드에서 OS·브라우저 조합이 트랙·코너를 흰색으로 강제 렌더해 그 자리가 하얗게 뜨는 함정이 있어 영구 금지 ([[feedback_scrollbar_no_fixed_track]]).
+
 - 평상시: thumb 투명 → 스크롤바 자리는 있지만 안 보임 (overlay)
 - 부모 `:hover` 또는 `:focus-within`: thumb에 `--border-strong` 페이드 인
 - thumb `:hover`: `--fg-muted`로 진해짐
-- 두께: `--scrollbar-size` 토큰 (Density 축 영향 없음, 고정)
+- 두께: `--scrollbar-size` 토큰 — overlay 두께이지 공간 할당 아님. 커지면 overlay 가 더 두껍게 뜰 뿐, 콘텐츠는 안 밀림.
 - macOS 방식(사용 중일 때만 얇게 노출) — Notion/Linear/Figma 스타일
+
+#### Don't (스크롤바)
+- `scrollbar-gutter: stable` 로 트랙 공간 미리 확보하기 — 그게 "고정 스크롤바" 다.
+- 컴포넌트/페이지에서 `::-webkit-scrollbar-*` 또는 `scrollbar-*` 를 재선언해 트랙 폭을 만들기.
+- 평상시에도 트랙·thumb 이 보이는 "always visible" 스타일. 특히 다크 모드에서 흰 띠가 뜸.
 
 ### 스크롤 페이드 (edge fade mask)
 

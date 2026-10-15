@@ -5,6 +5,7 @@ AI 채팅의 입력 영역. **첨부물 바 → 인용 바 → 입력 본문**(t
 
 ### Do
 - Shape은 두 가지 — `multi`(기본, 긴 입력·오버레이 UI), `single`(토픽바·검색봉 느낌).
+- Variant는 두 가지 — `framed`(기본, radius·border·shadow 가진 떠있는 블록), `flush`(radius·border·shadow 모두 제거, shell 바닥에 edge-to-edge).
 - 외곽 radius는 Shape 축 토큰이 직접 결정 — prop으로 받지 않음.
 - `models` + `selectedModel` + `onSelectModel` 셋이 다 있을 때만 모델 selector 노출.
 - 전송은 `Enter`로 — multi에선 `Shift+Enter`가 줄바꿈. 스트리밍 중엔 `Enter`나 send 클릭이 `onStop`을 호출.
@@ -16,9 +17,10 @@ AI 채팅의 입력 영역. **첨부물 바 → 인용 바 → 입력 본문**(t
 - 모델 선택 메뉴를 내부에서 열지 않는다 — 현재는 라벨 클릭 시 다음 모델로 토글만. 실제 ContextMenu는 소비처에서 조립 (ChatInput의 책임 과잉 방지).
 - SingleLine에서 모델 라벨을 끝까지 노출하지 않는다 — 10자 넘으면 자동 compact(아이콘만).
 - Send 버튼 색을 변경하지 않는다 — 비활성=`bg-subtle` / 활성·스트리밍=`primary`로 고정.
+- `flush`를 떠있는 자리(페이지 중앙·오버레이)에 쓰지 않는다 — 외곽선 없이 공중에 뜨면 영역이 흐려짐. 반드시 shell 바닥·바텀바처럼 바깥 경계가 이미 존재하는 자리에만.
 
 ### Fallback
-shape 애매하면 `multi`. maxRows 애매하면 `8`.
+shape 애매하면 `multi`. variant 애매하면 `framed`. maxRows 애매하면 `8`.
 
 ### 관련
 - [[components/file-icon]] / [[components/attachment-thumb]] / [[components/attachment-item]] / [[components/quotation-bar]] — 조립 요소
@@ -30,6 +32,7 @@ shape 애매하면 `multi`. maxRows 애매하면 `8`.
 ```tsx
 <ChatInput
   shape="multi | single"               // default: multi
+  variant="framed | flush"             // default: framed
 
   value={string}
   onChange={(v) => void}
@@ -64,7 +67,8 @@ type ChatAttachment =
 - `kind: "file"`은 AttachmentItem이 filename 확장자로 FileIcon을 자동 결정.
 
 ### 레이아웃
-- 외곽: hairline border, `var(--bg)`, radius=Shape 축 (`--radius-sm`)
+- 외곽(framed): hairline border, `var(--bg)`, radius=Shape 축, `--shadow-md`
+- 외곽(flush): border·radius·shadow 전부 0 — bg만 유지. 바깥 shell(사이드바 바닥·바텀바)이 경계를 책임지는 자리 전용
 - **스크롤 룰**: root `padding: 0; overflow: hidden`. textarea에 상·하·좌·우 padding 전부 → 긴 글 스크롤 시 글이 root border까지 흘러 자연스레 clip. (wrapper에 padding 두면 scroll 시 "빈 띠"가 남아 어색 — [[primitives/scroll]])
 - focus-within에서 ring
 - 내부 세로 gap: `--space-2`, padding: `--space-3`

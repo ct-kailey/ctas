@@ -612,6 +612,7 @@ function Rail({
         className={styles.railSteps}
         activeIndex={stepIdx}
         onStepClick={onStepClick}
+        marker="number"
       >
         {STEPS.map((s, i) => (
           <Stepper.Item

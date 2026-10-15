@@ -96,8 +96,8 @@
 }
 .md {
   height: var(--control-h-md);
-  padding-inline: var(--space-2);
-  gap: var(--space-1);
+  padding-inline: var(--space-3);
+  gap: var(--space-1_5);
   font-size: var(--label-md-size);
   border-radius: var(--radius-sm);
   --btn-icon-size: var(--space-4);

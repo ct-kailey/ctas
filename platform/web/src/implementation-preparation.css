@@ -1,9 +1,5 @@
 .implementation-preparation { display: grid; gap: var(--space-4); margin-top: var(--space-6); padding-top: var(--space-5); border-top: var(--hairline) solid var(--border); }
 .implementation-preparation > p { margin: 0; color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-loose); }
-.implementation-source-review { padding-block: var(--space-4); border-bottom: var(--hairline) solid var(--border); min-width: 0; }
-.implementation-source-review > header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); justify-content: space-between; }
-.implementation-source-review h4 { font-size: var(--text-sm); margin: 0; overflow-wrap: anywhere; }
-.implementation-source-review blockquote { margin: var(--space-3) 0; padding: var(--space-3); border-left: var(--space-1) solid var(--border); background: var(--bg-subtle); color: var(--fg); font-size: var(--text-sm); line-height: var(--lh-loose); white-space: pre-wrap; overflow-wrap: anywhere; }
 .implementation-source-meta { color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-loose); overflow-wrap: anywhere; }
 .implementation-source-blockers { padding-left: var(--space-5); color: var(--fg); font-size: var(--text-sm); line-height: var(--lh-loose); }
 .implementation-source-classification, .project-kind-choices { display: grid; gap: var(--space-3); border: 0; padding: 0; margin: var(--space-4) 0; }

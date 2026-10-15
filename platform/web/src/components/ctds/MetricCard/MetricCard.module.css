@@ -1,11 +1,11 @@
 /*
  * MetricCard — 전부 CTDS 토큰 경유.
  * variant:
- *   line  — border만 (조밀한 그리드, 기본)
+ *   line  — border + 은은한 shadow-sm (조밀한 그리드, 기본)
  *   soft  — bg-subtle 표면 (경계 대신 톤)
  *   bare  — border·bg·padding 모두 제거. pure 좌표 전용.
  *           부모 container가 hairline/톤으로 분리를 담당하는 자리에서만 쓴다.
- * 그림자 금지. interactive: href 있을 때만 hover/focus ring.
+ * interactive: href 있을 때만 hover/focus ring.
  */
 
 .root {
@@ -17,20 +17,20 @@
   min-width: 0;
 }
 
-/* line/soft는 자체 chrome(padding+radius+bg/border)을 가진다. */
+/* line/soft는 자체 chrome(padding+radius)을 가진다.
+   line = hairline만, soft = 톤 배경만 — 둘 다 섞지 않는다. */
 .line,
 .soft {
   padding: var(--space-5) var(--space-5);
   border-radius: var(--radius-md);
-  background: var(--bg);
 }
 
 .line {
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 .soft {
-  border: 1px solid transparent;
   background: var(--bg-subtle);
 }
 

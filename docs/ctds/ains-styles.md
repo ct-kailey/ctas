@@ -1,6 +1,6 @@
 # AINS 화면 스타일 적용
 
-기준: CTDS 0.3.4, Spare / light / calm / hue 100 · chroma 0.05 / standard / default / calm / ko / Lucide.
+기준: CTDS 0.4.4, Spare / light / calm / hue 100 · chroma 0.05 / standard / default / calm / ko / Lucide.
 
 `platform/web/src/styles.css`의 기존 화면 구조와 반응형 분기점을 유지하면서 색상·간격·서체·모서리·동작을 CTDS 토큰으로 교체했다. 오래된 `--ink`, `--line` 등의 별칭은 공식 의미 토큰을 참조한다. `--muted`는 CTDS 표면색과 이름이 충돌하므로 AINS 본문에서는 `--fg-muted`를 사용한다.
 

@@ -42,12 +42,16 @@
 | [Badge](badge.md) | `solid` | `soft` | — | — | `inverse` |
 | [Chip](chip.md) *(필터 선택값 전용)* | — | `soft` | `outline` | — | — |
 | [Callout](callout.md) *(알림 블록)* | — | — | `outline` | — | `fill` |
+| [Hint](hint.md) *(참고 각주)* | — | — | — | — | — *(variant 축 없음, muted 평문 하나)* |
 | [MetricCard](metric-card.md) | — | `soft` | — | `line` | `bare` |
 
 **선택 규칙 (표시)**
 - 상태·카테고리 라벨=`Badge solid`(기본) 또는 `soft`(순한 톤). 선택된 필터 값=`Chip`.
 - Chip은 "선택된 값(X로 제거 가능)" 전용. 카테고리·태그·메타 라벨은 **반드시 Badge** (관련: feedback 메모리 [Chip filter-only](../../memory/feedback_chip_filter_only.md)).
-- 알림·안내 박스는 `Callout fill` *(색 테두리+색 배경 금지 — 메모리 [No outlined Callout](../../memory/feedback_no_outlined_callout.md))*.
+- **안내 자리 3층 구분** — 성격에 따라 분리:
+  - **흐름 속 각주 (1~2줄, 톤 없음)** = `Hint`
+  - **액션 유도 있는 안내 블록 (사이드바·리스트 끝)** = `Callout fill` *(색 테두리+색 배경 금지 — 메모리 [No outlined Callout](../../memory/feedback_no_outlined_callout.md))*
+  - **페이지 폭 상태 바 (공유 모드·만료·권한)** = [[recipes/page-banner]]
 
 ### 입력 컴포넌트 — 매핑
 

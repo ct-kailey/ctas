@@ -95,6 +95,16 @@
   --input-w-md: calc(280px * var(--space-scale));
   --input-w-lg: calc(400px * var(--space-scale));
 
+  /* Breakpoint — 레이아웃 전환 임계점.
+     CSS @media의 feature value는 var() 참조가 불가하므로 변수 자체는 참조용/문서용.
+     실제 미디어쿼리는 아래 값과 동일한 리터럴을 쓴다. 두 자리 뿐이라 흩어뜨리지 않는다.
+       sm = 560px  — 모바일/태블릿 경계. "한 손 조작" vs "두 손 조작"
+       md = 900px  — 태블릿 세로/데스크톱 경계. shell(topbar+sidebar) 축소 전환
+     신규 미디어쿼리를 작성할 땐 이 두 값 중 하나로 통일한다. 다른 값이 필요하면
+     여기 토큰부터 추가. */
+  --bp-sm: 560px;
+  --bp-md: 900px;
+
   --radius-none: 0;
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -241,7 +251,7 @@
   --fg:            oklch(0.22  var(--tone-chroma) var(--tone-hue));
   /* muted/subtle/disabled은 fg 톤의 알파 — 색 있는 배경 위에서도 자연스럽게 섞임.
      라이트: 어두운 잉크(≈0.18)를 낮은 알파로 얹음. */
-  --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.60);
+  --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.82);
   --fg-subtle:     oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.42);
   --fg-disabled:   oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.26);
   /* border는 배경 대비 알파 기반 hairline — 겹치면 자연스럽게 짙어짐.
@@ -306,7 +316,7 @@
 
   /* interactive / overlay
      --hover: 컴포넌트 hover 시 표면·그림자에 얹는 공통 오버레이.
-     라이트=검정 3%, 다크=흰색 3%. 데이터 테이블·리스트 등 반복 행에서
+     라이트=검정 3%, 다크=흰색 4%. 데이터 테이블·리스트 등 반복 행에서
      "너무 두드러지지 않는" 톤. */
   --hover: oklch(0 0 0 / 0.03);
   /* tooltip: Mode 반전. 라이트에선 다크 bg + 밝은 fg, 다크에선 라이트 bg + 어두운 fg.
@@ -324,7 +334,7 @@
   --shadow-color: 0 0 0;
 
   --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
-  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 2px 8px oklch(var(--shadow-color) / 0.03), 0 1px 2px oklch(var(--shadow-color) / 0.018);
   --shadow-md: 0 6px 16px -4px oklch(var(--shadow-color) / 0.07),
     0 2px 6px -2px oklch(var(--shadow-color) / 0.04);
   --shadow-lg: 0 12px 20px -6px oklch(var(--shadow-color) / 0.1),
@@ -496,7 +506,7 @@
   --radius-image-circle: var(--radius-2xl);
 
   --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
-  --shadow-sm: 0 2px 6px -1px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 3px 10px -1px oklch(var(--shadow-color) / 0.032), 0 1px 3px oklch(var(--shadow-color) / 0.018);
   --shadow-md: 0 8px 20px -4px oklch(var(--shadow-color) / 0.08), 0 3px 8px -3px oklch(var(--shadow-color) / 0.04);
   --shadow-lg: 0 16px 32px -8px oklch(var(--shadow-color) / 0.14), 0 6px 12px -6px oklch(var(--shadow-color) / 0.06);
   --shadow-xl: 0 32px 60px -14px oklch(var(--shadow-color) / 0.20);
@@ -513,7 +523,7 @@
   --radius-3xl: 36px;
 
   --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
-  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 2px 8px oklch(var(--shadow-color) / 0.03), 0 1px 2px oklch(var(--shadow-color) / 0.018);
   --shadow-md: 0 6px 16px -4px oklch(var(--shadow-color) / 0.07), 0 2px 6px -2px oklch(var(--shadow-color) / 0.04);
   --shadow-lg: 0 12px 20px -6px oklch(var(--shadow-color) / 0.10), 0 4px 8px -4px oklch(var(--shadow-color) / 0.06);
   --shadow-xl: 0 24px 40px -12px oklch(var(--shadow-color) / 0.16);
@@ -585,7 +595,7 @@
   :root {
     --border:        oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.42);
     --border-strong: oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.60);
-    --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.82);
+    --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.92);
     --fg-subtle:     oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.66);
   }
   :root[data-mode="dark"] {
@@ -608,7 +618,7 @@
     --bg-elev-2:     #ffffff;
     --fg:            #1a1a1a;
     --fg-strong:     #0a0a0a;
-    --fg-muted:      #666666;
+    --fg-muted:      #444444;
     --fg-subtle:     #999999;
     --fg-disabled:   #c0c0c0;
     --border:        rgba(0, 0, 0, 0.08);
@@ -623,7 +633,7 @@
     --bg-elev-2:     #1f1f1f;
     --fg:            #f0f0f0;
     --fg-strong:     #ffffff;
-    --fg-muted:      #a0a0a0;
+    --fg-muted:      #b8b8b8;
     --fg-subtle:     #7a7a7a;
     --fg-disabled:   #4a4a4a;
     --border:        rgba(255, 255, 255, 0.08);
@@ -666,7 +676,7 @@
   --radius-3xl: 22px;
 
   --shadow-xs: 0 1px 0 oklch(var(--shadow-color) / 0.06);
-  --shadow-sm: 0 1px 2px oklch(var(--shadow-color) / 0.08), 0 0 0 1px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.04), 0 0 0 1px oklch(var(--shadow-color) / 0.025);
   --shadow-md: 0 2px 4px oklch(var(--shadow-color) / 0.10), 0 0 0 1px oklch(var(--shadow-color) / 0.06);
   --shadow-lg: 0 4px 8px oklch(var(--shadow-color) / 0.12), 0 0 0 1px oklch(var(--shadow-color) / 0.06);
   --shadow-xl: 0 8px 16px oklch(var(--shadow-color) / 0.16), 0 0 0 1px oklch(var(--shadow-color) / 0.06);
@@ -679,12 +689,15 @@
 :root[data-mode="dark"],
 [data-mode="dark"] {
   --bg:            oklch(0.20 var(--tone-chroma) var(--tone-hue));
-  --bg-subtle:     oklch(0.25 var(--tone-chroma) var(--tone-hue));
-  --bg-muted:      oklch(0.31 var(--tone-chroma) var(--tone-hue));
+  --bg-subtle:     oklch(0.235 var(--tone-chroma) var(--tone-hue));
+  --bg-muted:      oklch(0.27 var(--tone-chroma) var(--tone-hue));
   --fg-strong:     oklch(1.0   var(--tone-chroma) var(--tone-hue));
   --fg:            oklch(0.95  var(--tone-chroma) var(--tone-hue));
-  /* 다크: 밝은 잉크(≈0.95)를 낮은 알파로 얹음. */
-  --fg-muted:      oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.60);
+  /* 다크: 밝은 잉크(≈0.95)를 낮은 알파로 얹음.
+     fg-muted 알파 0.60은 다크 bg(0.20) 위에서 effective L ≈ 0.65, 콘트라스트 ≈ 3.5:1.
+     WCAG AA "normal text" 4.5:1 임계 아래 — 보조 라벨·placeholder 전용.
+     중요한 보조 텍스트에는 --fg를 쓸 것. prefers-contrast: more에서 자동 상향됨. */
+  --fg-muted:      oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.72);
   --fg-subtle:     oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.40);
   --fg-disabled:   oklch(0.95 var(--tone-chroma) var(--tone-hue) / 0.24);
   /* 다크 모드: fg 톤(밝은 잉크)을 낮은 알파로 얹음. */
@@ -693,7 +706,7 @@
 
   /* primary / status는 :root의 정의를 그대로 사용 — --lightness가 아래에서 재정의되어 자동 반영됨 */
 
-  --hover: oklch(1 0 0 / 0.06);
+  --hover: oklch(1 0 0 / 0.04);
   /* tooltip은 Mode 반전 — 다크 모드에선 밝은 bg + 어두운 fg. */
   --tooltip-bg:   oklch(0.95 var(--tone-chroma) var(--tone-hue));
   --tooltip-fg:   oklch(0.18 var(--tone-chroma) var(--tone-hue));
@@ -729,7 +742,7 @@
   --bg-muted:      oklch(0.955 var(--tone-chroma) var(--tone-hue));
   --fg-strong:     oklch(0.12  var(--tone-chroma) var(--tone-hue));
   --fg:            oklch(0.22  var(--tone-chroma) var(--tone-hue));
-  --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.60);
+  --fg-muted:      oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.82);
   --fg-subtle:     oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.42);
   --fg-disabled:   oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.26);
   --border:        oklch(0.18 var(--tone-chroma) var(--tone-hue) / 0.08);
@@ -740,7 +753,7 @@
   --tooltip-fg:   oklch(1 0 0);
 
   --shadow-xs: 0 1px 2px oklch(var(--shadow-color) / 0.04);
-  --shadow-sm: 0 1px 3px oklch(var(--shadow-color) / 0.06), 0 1px 2px oklch(var(--shadow-color) / 0.04);
+  --shadow-sm: 0 2px 8px oklch(var(--shadow-color) / 0.03), 0 1px 2px oklch(var(--shadow-color) / 0.018);
   --shadow-md: 0 6px 16px -4px oklch(var(--shadow-color) / 0.07),
     0 2px 6px -2px oklch(var(--shadow-color) / 0.04);
   --shadow-lg: 0 12px 20px -6px oklch(var(--shadow-color) / 0.1),

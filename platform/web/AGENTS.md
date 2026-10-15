@@ -12,7 +12,7 @@ For spacing, compose explicit AINS recipes using CTDS tokens: parent
 `.ains-section-stack` owns sibling gaps (`--space-4`); the opt-in AINS Button
 extension `layout="card"` owns all four card insets (`--space-3`). Keep existing
 `layout="content"` behavior and ordinary CTDS buttons unchanged. Use
-`.ains-prose-list` for prose lists and pass Notice action buttons through its
+`ctds-lists.jsx` List/ListItem compounds for all lists; `.ains-prose-list` may arrange those vendor rows and pass Notice action buttons through its
 `actions` slot. Do not add global element spacing or duplicate a parent gap
 with child margins. These recipes are opt-in, not a claim that all pages have
 been migrated.

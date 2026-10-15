@@ -1,7 +1,8 @@
+import { List, ListItem } from './ctds-lists.jsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Clock3, Copy, History, Inbox, KeyRound, Link2, Plus, RefreshCw, Zap } from 'lucide-react';
 import { Badge, Button, Disclosure, Empty, ErrorNotice, FormField, Input, Notice, Select, Spinner, dateTime, projectPath } from './ui.jsx';
-import { ListItem, ListItemLeadingIcon } from './components/ctds/ListItem';
+import { ListItemLeadingIcon } from './components/ctds/ListItem';
 import { usableConnectionGrants, selectedGrantResource } from './customer-connections-state.mjs';
 import './nora-channels.css';
 
@@ -110,12 +111,14 @@ export function NoraChannelSources({ project, request, canReview, notify, onChan
     {connection?.ready && !availableGrants.length ? <Notice title="수집 권한을 먼저 승인하세요" actions={<Button asChild type="button" variant="secondary"><a href="#project-collection-access">수집 권한 설정</a></Button>}>고객사를 지정하고 수집할 채널·폴더를 승인하세요.</Notice> : null}
     {creating ? <NoraSourceForm route={route} grants={grants} request={request} onCancel={() => setCreating(false)} onCreated={async source => { setCreating(false); setSelectedId(source.id); await load({ quiet: true }); notify?.('수집 대상을 저장했습니다. 수집 방식을 선택하고 연결을 적용하세요.'); }} /> : null}
     {!loading && !sources.length && connection?.ready && availableGrants.length > 0 && !creating ? <Empty compact icon={Link2} title="Nora 수집 대상을 추가하세요">승인된 채널·폴더를 선택하고 수집 설정을 적용하세요.</Empty> : null}
-    {sources.length ? <div className="nora-channel-source-list">{sources.map(source => {
+    {sources.length ? <List aria-label="Nora 수집 대상">{sources.map(source => {
       const [label, tone] = stopPending(source) ? ['원격 중지 확인 중', 'amber'] : !hasApproval(source) ? ['사용 승인 필요', 'amber'] : sourceStatus(source), sourceBusy = Boolean(busy) || source.status === 'provisioning';
-      return <article className="nora-channel-source ains-section-stack" key={source.id}>
-        <div className="nora-channel-heading"><div className="nora-channel-title"><span className="nora-channel-meta">{PROVIDERS[source.provider] || source.provider}</span><h3>{source.name}</h3></div><Badge tone={tone}>{label}</Badge></div>
-        <div className="nora-channel-summary"><p>수집 대상 <code>{source.external_channel_id}</code></p><p>최근 적재 {source.last_received_at ? dateTime(source.last_received_at) : '아직 없음'}</p></div>
-        <div className="nora-channel-entry-summary" aria-label="저장된 수집 진입점"><span><Clock3 size={15} />일정 수집 {source.schedule_enabled ? `${source.interval_minutes}분 간격${source.status !== 'ready' ? ' · 적용 필요' : ''}` : '꺼짐'}</span><span><Zap size={15} />이벤트 트리거 {source.trigger_enabled ? source.status === 'ready' ? '수신 준비 · Webhook 연동 확인' : '적용 필요' : '꺼짐'}</span></div>
+      return <ListItem key={source.id} trailing={<Badge tone={tone}>{label}</Badge>}>
+        <ListItem.Title>{source.name}</ListItem.Title>
+        <ListItem.Meta><span>{PROVIDERS[source.provider] || source.provider}</span><ListItem.MetaDivider/><span>수집 대상 <code>{source.external_channel_id}</code></span></ListItem.Meta>
+        <ListItem.Meta>최근 적재 {source.last_received_at ? dateTime(source.last_received_at) : '아직 없음'}</ListItem.Meta>
+        <div className="ains-section-stack">
+        <ListItem.Meta aria-label="저장된 수집 진입점"><span><Clock3 size={15} />일정 수집 {source.schedule_enabled ? `${source.interval_minutes}분 간격${source.status !== 'ready' ? ' · 적용 필요' : ''}` : '꺼짐'}</span><ListItem.MetaDivider/><span><Zap size={15} />이벤트 트리거 {source.trigger_enabled ? source.status === 'ready' ? '수신 준비 · Webhook 연동 확인' : '적용 필요' : '꺼짐'}</span></ListItem.Meta>
         {stopPending(source) ? <Notice tone="warning" title={source.remote_stop_status === 'failed' ? 'Nora 원격 중지 확인이 필요합니다' : 'Nora 원격 수집 중지를 확인하고 있습니다'}>새 수집 요청은 차단했습니다. 기존 일정·트리거의 중지를 확인한 뒤 파이프라인을 다시 연결할 수 있습니다.{source.remote_stop_error_code ? <code> {source.remote_stop_error_code}</code> : null}</Notice> : null}
         {!hasApproval(source) ? <Notice tone="warning" title="프로젝트의 사용 승인이 필요합니다">기존 수집 대상과 기록은 보존됩니다. 프로젝트 소유자가 같은 Nora 커넥터와 대상의 사용 범위를 승인한 뒤 설정·수집 이력에서 다시 연결하세요.</Notice> : null}
         {source.authorization_error || source.last_error_code ? <Notice tone="warning" title="최근 수집을 확인해 주세요">{ERRORS[source.authorization_error || source.last_error_code] || '수집 이력에서 실패 원인과 연결 상태를 확인해 주세요.'} <code>{source.authorization_error || source.last_error_code}</code></Notice> : null}
@@ -123,8 +126,9 @@ export function NoraChannelSources({ project, request, canReview, notify, onChan
           {canReview ? <>{source.status !== 'ready' ? <Button type="button" variant="secondary" icon={Link2} disabled={!canOperate(source) || sourceBusy || settingsDirty || creating} busy={busy === `${source.id}:provision`} onClick={() => mutate(source, 'provision', { expected_version: source.version })}>수집 연결 적용</Button> : null}<Button type="button" variant="secondary" icon={RefreshCw} disabled={!canOperate(source) || sourceBusy || source.status !== 'ready' || settingsDirty || creating} busy={busy === `${source.id}:run`} onClick={() => mutate(source, 'run', {})}>지금 수집</Button></> : null}
           <Button type="button" variant="ghost" icon={History} disabled={sourceBusy || settingsDirty || creating} aria-expanded={source.id === selectedId} onClick={() => setSelectedId(source.id === selectedId ? null : source.id)}>{source.id === selectedId ? '설정·이력 닫기' : '설정·이력'}</Button>
         </div>
-      </article>;
-    })}</div> : null}
+        </div>
+      </ListItem>;
+    })}</List> : null}
     {selected ? <section className="nora-channel-detail ains-section-stack" aria-label={`${selected.name} 수집 설정과 이력`}>
       <h3>{selected.name} · 설정 및 수집 이력</h3>
       {/* Distinct sibling keys keep polling from orphaning settings or delivery DOM. */}
@@ -226,11 +230,11 @@ function NoraDeliveries({ source, route, request, canReview, projectId, onNaviga
     </div></Disclosure> : null}
     <div className="nora-channel-heading"><h4>최근 수집 이력</h4><Button type="button" variant="ghost" icon={RefreshCw} disabled={loading} onClick={() => load()}>이력 새로고침</Button></div>
     <ErrorNotice error={error} onRetry={() => load()} />
-    {loading && !result ? <Spinner label="수집 이력을 불러오고 있습니다" /> : result?.deliveries?.length ? <ul className="nora-channel-deliveries">{result.deliveries.map(delivery => {
+    {loading && !result ? <Spinner label="수집 이력을 불러오고 있습니다" /> : result?.deliveries?.length ? <List aria-label="수집 이력">{result.deliveries.map(delivery => {
       const [label, tone] = DELIVERY_STATUS[delivery.status] || [delivery.status, 'quiet'];
       const entry = { manual: '지금 수집 요청', trigger: '이벤트 수집 요청', reconcile: '새 기록 확인' }[delivery.entry_point] || '수집';
       const description = delivery.error_code ? ERRORS[delivery.error_code] || delivery.error_code : delivery.inbox_ids?.length ? `기록 ${delivery.message_count ?? 0}개 · 대화 검토함 ${delivery.inbox_ids.length}건` : delivery.status === 'completed' ? '새로 적재할 기록이 없습니다.' : delivery.status === 'submitted' ? 'Nora 수집 결과는 이후 새 기록 확인 이력에 표시됩니다.' : '수집 및 검토함 적재 결과를 확인하고 있습니다.';
-      return <li key={delivery.id} className="nora-channel-delivery"><ListItem variant="system" layout="stacked" data-ctds="list-item" leading={<ListItemLeadingIcon><Inbox size={16} /></ListItemLeadingIcon>} from={`${dateTime(delivery.created_at)} · ${entry}`} body={description} trailing={<Badge tone={tone}>{label}</Badge>} />{delivery.inbox_ids?.length ? <div className="nora-channel-actions">{delivery.inbox_ids.map((id, index) => <NavigationLink key={id} projectId={projectId} tab="channels" inboxId={id} onNavigate={onNavigate}>검토 기록 {index + 1} 열기</NavigationLink>)}</div> : null}</li>;
-    })}</ul> : !error ? <p className="nora-channel-help">아직 수집 이력이 없습니다. 파이프라인을 연결한 뒤 지금 수집하거나 이벤트를 전달해 주세요.</p> : null}
+      return <ListItem key={delivery.id} leading={<ListItemLeadingIcon><Inbox size={16} /></ListItemLeadingIcon>} trailing={<Badge tone={tone}>{label}</Badge>}><ListItem.Title>{entry}</ListItem.Title><ListItem.Description>{description}</ListItem.Description><ListItem.Meta><time dateTime={delivery.created_at}>{dateTime(delivery.created_at)}</time></ListItem.Meta>{delivery.inbox_ids?.length ? <ListItem.Meta>{delivery.inbox_ids.map((id, index) => <NavigationLink key={id} projectId={projectId} tab="channels" inboxId={id} onNavigate={onNavigate}>검토 기록 {index + 1} 열기</NavigationLink>)}</ListItem.Meta> : null}</ListItem>;
+    })}</List> : !error ? <p className="nora-channel-help">아직 수집 이력이 없습니다. 파이프라인을 연결한 뒤 지금 수집하거나 이벤트를 전달해 주세요.</p> : null}
   </div>;
 }

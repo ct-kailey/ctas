@@ -3,7 +3,7 @@
 .workspace-home-section-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .workspace-home-section-head h2 { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; font-size: var(--text-base); font-weight: var(--font-weight-semibold); line-height: var(--lh-base); color: var(--fg); }
 .workspace-home-heading-count { color: var(--fg-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; font-weight: var(--font-weight-medium); }
-.workspace-home-panel { min-width: 0; padding: var(--space-4); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); }
+.workspace-home-panel { min-width: 0; padding: 0; }
 .workspace-home-flush { padding: 0; }
 .workspace-home-description, .workspace-home-note { margin: 0; color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-loose); }
 .workspace-home-note { font-size: var(--text-xs); }
