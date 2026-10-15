@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, ExternalLink, GitMerge, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
-import { Badge, Button, Disclosure, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, dateTime, projectPath } from './ui.jsx';
+import { Badge, Button, ControlButton, Disclosure, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, dateTime, projectPath } from './ui.jsx';
 import { useSharedView } from './shared-view.jsx';
 import { useConfirm } from './confirmation.jsx';
 import { Modal as CTDSModal } from './components/ctds/Modal/Modal';
@@ -12,6 +12,7 @@ import { journeyTaskSelection } from './project-journey-navigation.mjs';
 import './task-automation.css';
 import { TaskAreasPanel } from './task-areas.jsx';
 import { TaskAutomationKanban } from './task-automation-kanban.jsx';
+import { draftPolicyResultKey, draftPolicyResults, draftPolicySourceState, policyAnalysisRetryPayload } from './draft-policy-preparation-state.mjs';
 
 function useAutomationResource(path, request, poll = automationActive) {
   const [data, setData] = useState(null), [error, setError] = useState(null), [loading, setLoading] = useState(true);
@@ -113,7 +114,7 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
   const draftItems = drafts.data?.items || [];
   const areaTaskIds = tasks.map(task => task.id).sort().join('|');
   useEffect(() => { if (areaTaskIds) void areas.load(); }, [areaTaskIds, areas.load]);
-  async function changed(message) { notify?.(message); await Promise.all([remote.load(), areas.load()]); await onChanged?.({ quiet: true }); }
+  async function changed(message) { if (message) notify?.(message); await Promise.all([remote.load(), areas.load()]); await onChanged?.({ quiet: true }); }
   function areasChanged(value) {
     areas.setData(current => ({ ...(current || {}), items: [...(current?.items || []).filter(item => item.task_id !== value.task_id), { task_id: value.task_id, areas: value.areas, progress: value.progress }] }));
     notify?.('영역별 담당자와 진행 상태를 저장했습니다.');
@@ -161,19 +162,19 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
     {remote.data ? <Disclosure><summary>정책 분석·고객 질문 이력 · {analyses.length}건</summary><div className="task-auto-analysis-list">{analyses.length ? analyses.map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={tasks.filter(task => task.analysis_id === analysis.id).length} onQuestions={onQuestions} />) : <p className="task-auto-help">아직 정책 분석 이력이 없습니다.</p>}</div></Disclosure> : null}
     <ImplementationNotesPanel projectId={projectId} request={request} role={role} notify={notify} onDirty={notesDirty} onChanged={async options => { await remote.load(); await onChanged?.(options); }} onSourceRevision={onSourceRevision} target={noteTarget} analyses={analyses} onRefreshAnalysis={remote.load} refreshKey={[...tasks, ...analyses].map(item => `${item.id}:${item.updated_at}:${item.status}`).join('|')} />
     {selectedId ? <AutomationTaskDetail key={`${projectId}:${selectedId}`} id={selectedId} projectId={projectId} route={route} request={request} permissions={permissions} sharedView={sharedView} settings={remote.data?.settings} capabilities={remote.data?.capabilities} onClose={() => setSelectedId(null)} onDirty={automationDirty} onChanged={changed} onAreasChanged={areasChanged} onOpenNote={openNote} onStart={task => void start(task, true)} startError={startError} /> : null}
-    {selectedDraftId ? <SourceTaskDraftDetail key={selectedDraftId} id={selectedDraftId} projectId={projectId} route={`${projectPath(projectId)}/task-drafts`} request={request} onClose={() => setSelectedDraftId(null)} onDependency={setSelectedDraftId} onSourceRevision={onSourceRevision} onSettings={!sharedView && remote.data?.capabilities?.risk_analysis !== true ? onSettings : undefined} onOpenNote={openNote} onCreateNote={permissions.canWrite ? createNote : undefined} /> : null}
-    {draftStart ? <CTDSModal open title="정책 분석이 먼저 필요합니다" description="이 카드는 정책 원문에서 추출한 작업 초안입니다. 원문을 확인하고 Nora 리스크 분석을 마친 뒤 생성된 할 일을 진행 중으로 옮겨 주세요." onOpenChange={open => { if (!open) setDraftStart(null); }} dismissLabel="취소" data-ctds="modal" footer={<><Button type="button" variant="secondary" onClick={() => setDraftStart(null)}>취소</Button>{onSourceRevision ? <Button type="button" onClick={() => { const revision = draftStart.source_revision_id; setDraftStart(null); onSourceRevision(revision); }}>정책 원문·리스크 분석 열기</Button> : <Button type="button" onClick={() => { setSelectedDraftId(draftStart.id); setDraftStart(null); }}>작업 초안 확인</Button>}</>}><p>{draftStart.title}</p><p className="task-auto-help">아직 개발을 요청하거나 작업 상태를 바꾸지 않았습니다.</p></CTDSModal> : null}
+    {selectedDraftId ? <SourceTaskDraftDetail key={selectedDraftId} id={selectedDraftId} projectId={projectId} route={`${projectPath(projectId)}/task-drafts`} request={request} onClose={() => setSelectedDraftId(null)} onDependency={setSelectedDraftId} onPrepare={item => { setSelectedDraftId(null); setDraftStart(item); }} onSourceRevision={onSourceRevision} onSettings={!sharedView && remote.data?.capabilities?.risk_analysis !== true ? onSettings : undefined} onOpenNote={openNote} onCreateNote={permissions.canWrite ? createNote : undefined} /> : null}
+    {draftStart ? <DraftPolicyPreparation key={`${projectId}:${draftStart.id}`} draft={draftStart} projectId={projectId} request={request} canWrite={permissions.canWrite} onClose={() => setDraftStart(null)} onChanged={() => { void remote.load(); void drafts.load(); void onChanged?.({ quiet: true }); }} onSourceRevision={onSourceRevision ? revisionId => { setDraftStart(null); onSourceRevision(revisionId); } : undefined} onTask={id => { setDraftStart(null); setSelectedId(id); }} onQuestions={onQuestions ? () => { setDraftStart(null); onQuestions(); } : undefined} /> : null}
     {connectionNeeded ? <CTDSModal open title="AI 개발 실행 환경이 연결되지 않았습니다" description="작업을 진행 중으로 옮기려면 실행 환경 연결이 필요합니다. 개발을 요청하거나 작업 상태를 바꾸지 않았습니다." onOpenChange={open => { if (!open) setConnectionNeeded(false); }} dismissLabel="닫기" data-ctds="modal" footer={<><Button type="button" variant="secondary" onClick={() => setConnectionNeeded(false)}>닫기</Button>{onSettings ? <Button type="button" onClick={() => { setConnectionNeeded(false); onSettings(); }}>프로젝트 연결 설정</Button> : null}</>}><CapabilityNotice capabilities={remote.data?.capabilities} /></CTDSModal> : null}
     {startConfirmation ? <ProvisionalStartConfirmation {...startConfirmation} onCancel={() => settleStart(false)} onConfirm={() => settleStart(true)} /> : null}
   </section>;
 }
 
-function SourceTaskDraftDetail({ id, projectId, route, request, onClose, onDependency, onSourceRevision, onSettings, onOpenNote, onCreateNote }) {
+function SourceTaskDraftDetail({ id, projectId, route, request, onClose, onDependency, onPrepare, onSourceRevision, onSettings, onOpenNote, onCreateNote }) {
   const remote = useAutomationResource(`${route}/${encodeURIComponent(id)}`, request, () => false), item = remote.data?.item;
   const sourceUrl = taskDraftSourceUrl(item?.source_url);
   return <Modal title={item?.title || '검토 전 작업 초안'} eyebrow="검토 전 작업 초안" onClose={onClose} wide><div className="modal-body task-auto-detail"><ErrorNotice error={remote.error} onRetry={remote.load} />{!item ? remote.loading ? <Spinner label="작업 초안의 근거와 완료 기준을 불러오고 있습니다" /> : null : <>
     <div className="inline-actions"><Badge tone="quiet">할 일</Badge><Badge tone="amber">Nora 검증 전</Badge><span>{item.key} · 우선순위 {{ high: '높음', normal: '보통', low: '낮음' }[item.priority] || '보통'}</span></div>
-    <Notice tone="warning" title="다음 단계: 원문 검토와 Nora 리스크 분석"><p>정책 원문을 바탕으로 등록한 초안입니다. 원문을 검토하고 Nora 리스크 분석을 요청한 뒤, 분석 결과에서 실행할 작업을 확인하세요. 이 초안에서 AI 개발이나 병합을 직접 실행하지는 않습니다.</p><div className="inline-actions">{onSourceRevision ? <Button type="button" variant="secondary" onClick={() => onSourceRevision(item.source_revision_id)}>정책 원문·Nora 리스크 분석 열기</Button> : null}{onSettings ? <Button type="button" variant="secondary" onClick={onSettings}>Nora 연결 설정</Button> : null}</div></Notice>
+    <Notice tone="warning" title="다음 단계: 정책 리스크 분석" actions={<>{onPrepare ? <Button type="button" variant="secondary" onClick={() => onPrepare(item)}>리스크 분석·Task 준비</Button> : null}{onSettings ? <Button type="button" variant="secondary" onClick={onSettings}>Nora 연결 설정</Button> : null}</>}>정책 원문을 바탕으로 등록한 초안입니다. 리스크 분석 결과에서 생성된 Task를 확인하고 개발을 시작하세요.</Notice>
     <p>{item.description}</p>
     <section><h3>완료 기준</h3><ul>{item.acceptance_criteria?.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul></section>
     <section><h3>출처</h3><dl className="task-auto-facts"><div><dt>문서</dt><dd>{onSourceRevision ? <Button type="button" variant="ghost" onClick={() => onSourceRevision(item.source_revision_id)}>{item.source_title}</Button> : item.source_title}</dd></div><div><dt>등록한 원문 버전</dt><dd><code>{item.source_revision_id}</code></dd></div><div><dt>등록 시각</dt><dd>{dateTime(item.created_at)}</dd></div></dl>{sourceUrl ? <Button type="button" asChild variant="secondary"><a href={sourceUrl} target="_blank" rel="noopener noreferrer">외부 출처 열기<ExternalLink size={15} /></a></Button> : null}</section>
@@ -253,20 +254,78 @@ function AutomationTaskDetail({ id, projectId, route, request, permissions, shar
   </>}</div><footer className="modal-actions"><Button type="button" variant="secondary" disabled={busy || areasBusy} onClick={close}>닫기</Button></footer></Modal>;
 }
 
-export function PolicyRiskAnalysis({ projectId, revisionId, sourceReady, request, canWrite, onDirty, onWorkItems, onQuestions }) {
+export function DraftPolicyPreparation({ draft, projectId, request, canWrite, onClose, onChanged, onSourceRevision, onTask, onQuestions }) {
+  const revisionId = draft.source_revision_id;
+  const source = useAutomationResource(revisionId ? `${projectPath(projectId)}/revisions/${encodeURIComponent(revisionId)}` : null, request, data => draftPolicySourceState(data.revision).pending);
+  const state = draftPolicySourceState(source.data?.revision), [busy, setBusy] = useState(false);
+  return <Modal title="작업 초안을 개발할 Task로 준비" eyebrow="정책 리스크 분석" onClose={() => { if (!busy) onClose(); }} busy={busy} wide>
+    <div className="modal-body task-policy-preparation ains-section-stack"><strong>{draft.title}</strong>
+      <p className="task-auto-help">이 카드는 원문에서 추출한 초안입니다. 리스크 분석 결과로 생성된 Task를 확인한 뒤 개발을 시작할 수 있습니다.</p>
+      <Notice title={draft.source_title || '연결된 정책 원문'} actions={onSourceRevision && revisionId ? <Button type="button" variant="secondary" disabled={busy} onClick={() => onSourceRevision(revisionId)}>정책 원문 보기</Button> : null}>{state.message}</Notice>
+      <ErrorNotice error={source.error} onRetry={source.load} />
+      {!revisionId ? <Notice tone="warning" title="연결된 원문이 없습니다">작업 초안의 출처를 확인해 주세요.</Notice> : <PolicyRiskAnalysis projectId={projectId} revisionId={revisionId} sourceReady={state.ready} request={request} canWrite={canWrite} onBusy={setBusy} onUpdated={onChanged} onTask={onTask} onQuestions={onQuestions} />}
+      <p className="task-auto-help">리스크 분석은 개발 실행이나 기존 분석 결과의 승인을 대신하지 않습니다.</p>
+    </div><footer className="modal-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>닫기</Button></footer>
+  </Modal>;
+}
+
+export function PolicyRiskAnalysis({ projectId, revisionId, sourceReady, request, canWrite, onDirty, onWorkItems, onQuestions, onTask, onUpdated, onBusy }) {
   const sharedView = useSharedView(), route = `${projectPath(projectId)}/task-automation`;
-  const remote = useAutomationResource(route, request), [busy, setBusy] = useState(false), [error, setError] = useState(null), pending = useRef(null);
-  const analyses = remote.data?.analyses?.filter(analysis => analysis.revision_id === revisionId) || [], active = analyses.some(analysis => ['queued', 'running'].includes(analysis.status));
-  useEffect(() => { onDirty?.(busy || Boolean(pending.current)); return () => onDirty?.(false); }, [busy, error, onDirty]);
+  const remote = useAutomationResource(route, request), [busy, setBusy] = useState(false), [retryBusy, setRetryBusy] = useState(false), [error, setError] = useState(null), pending = useRef(null);
+  const { analyses, tasks, active } = draftPolicyResults(remote.data, revisionId), callbacks = useRef({ onUpdated, onDirty, onBusy });
+  callbacks.current = { onUpdated, onDirty, onBusy };
+  const resultKey = draftPolicyResultKey(remote.data, revisionId), previousResult = useRef(null);
+  useEffect(() => {
+    if (!remote.data) return;
+    if (previousResult.current !== null && previousResult.current !== resultKey) callbacks.current.onUpdated?.();
+    previousResult.current = resultKey;
+  }, [resultKey, remote.data]);
+  useEffect(() => { callbacks.current.onBusy?.(busy || retryBusy); return () => callbacks.current.onBusy?.(false); }, [busy, retryBusy]);
+  useEffect(() => { callbacks.current.onDirty?.(busy || retryBusy || Boolean(pending.current)); return () => callbacks.current.onDirty?.(false); }, [busy, retryBusy, error]);
   async function analyze() {
-    if (busy || sharedView || !canWrite) return; setBusy(true); setError(null); pending.current ||= { revision_id: revisionId, request_id: crypto.randomUUID() };
-    try { await request(`${route}/analyze`, { method: 'POST', body: pending.current }); if (remote.lifecycle.current.active) { pending.current = null; await remote.load(); } }
-    catch (err) { if (remote.lifecycle.current.active) { if (!retainProjectRequest(err)) pending.current = null; setError(err); } }
+    if (busy || retryBusy || sharedView || !canWrite || !sourceReady || active || !remote.data?.capabilities?.risk_analysis) return;
+    setBusy(true); setError(null); pending.current ||= { revision_id: revisionId, request_id: crypto.randomUUID() };
+    try {
+      await request(`${route}/analyze`, { method: 'POST', body: pending.current });
+      if (remote.lifecycle.current.active) { pending.current = null; await remote.load(); callbacks.current.onUpdated?.(); }
+    } catch (err) { if (remote.lifecycle.current.active) { if (!retainProjectRequest(err)) pending.current = null; setError(err); } }
     finally { if (remote.lifecycle.current.active) setBusy(false); }
   }
-  return <section className="task-auto-policy"><h3>정책 리스크·개발 작업</h3><p className="task-auto-help">확인할 내용은 고객 질문으로 남기고, 실행 가능한 작업을 등록합니다. 검토가 필요한 작업은 개발 시작 때 임시 구현 여부를 확인합니다.</p><ErrorNotice error={remote.error || error} onRetry={remote.load} />
-    {remote.data ? <><CapabilityNotice capabilities={remote.data.capabilities} /><IntakeNotice items={remote.data.intake?.filter(item => item.revision_id === revisionId)} />{!sourceReady ? <p className="task-auto-help">문서 추출과 원문에서 확인이 필요한 구간을 먼저 검토해 주세요.</p> : null}<div className="inline-actions">{canWrite && !sharedView ? <Button type="button" variant="secondary" icon={Sparkles} busy={busy} disabled={active || !sourceReady || !remote.data.capabilities?.risk_analysis} onClick={analyze}>{pending.current ? '같은 리스크 분석 요청 확인' : 'Nora 리스크 분석'}</Button> : null}{onWorkItems ? <Button type="button" variant="secondary" onClick={onWorkItems}>분석·개발 작업 보기</Button> : null}</div>{analyses.slice(0, 1).map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={remote.data.tasks?.filter(task => task.analysis_id === analysis.id).length || 0} onQuestions={onQuestions} />)}</> : remote.loading ? <Spinner label="정책 리스크 분석 상태를 확인하고 있습니다" /> : null}
+  return <section className="task-auto-policy ains-section-stack" aria-label="현재 프로젝트 정책 리스크 분석"><h3>정책 리스크·개발 작업</h3><p className="task-auto-help">확인할 내용은 고객 질문으로 남기고, 실행 가능한 작업을 등록합니다. 검토가 필요한 작업은 개발 시작 때 임시 구현 여부를 확인합니다.</p><ErrorNotice error={remote.error || error} onRetry={remote.load} />
+    {remote.data ? <>
+      {!remote.data.capabilities?.risk_analysis ? <CapabilityNotice capabilities={remote.data.capabilities} /> : null}
+      <IntakeNotice items={remote.data.intake?.filter(item => item.revision_id === revisionId)} />
+      {!sourceReady ? <p className="task-auto-help">문서 추출과 원문에서 확인이 필요한 구간을 먼저 검토해 주세요.</p> : null}
+      <div className="task-policy-actions">{canWrite && !sharedView && !['failed', 'uncertain'].includes(analyses[0]?.status) ? <Button type="button" variant="secondary" icon={Sparkles} busy={busy} disabled={active || retryBusy || !sourceReady || !remote.data.capabilities?.risk_analysis} onClick={analyze}>{active ? 'Nora 리스크 분석 진행 중' : pending.current ? '같은 리스크 분석 요청 확인' : 'Nora 리스크 분석'}</Button> : null}<Button type="button" variant="ghost" icon={RefreshCw} disabled={busy || retryBusy} onClick={remote.load}>분석 상태 새로고침</Button>{onWorkItems ? <Button type="button" variant="secondary" onClick={onWorkItems}>분석·개발 작업 보기</Button> : null}</div>
+      {analyses.slice(0, 1).map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={tasks.filter(task => task.analysis_id === analysis.id).length} onQuestions={onQuestions} />)}
+      {analyses[0] && ['failed', 'uncertain'].includes(analyses[0].status) ? <PolicyAnalysisRetry key={`${analyses[0].id}:${analyses[0].execution?.id || ''}`} analysis={analyses[0]} route={route} request={request} canWrite={canWrite && !sharedView} disabled={busy || !sourceReady || !remote.data.capabilities?.risk_analysis} onBusy={setRetryBusy} onFreshAnalysis={analyze} onChanged={async () => { await remote.load(); callbacks.current.onUpdated?.(); }} /> : null}
+      {tasks.length ? <section className="ains-section-stack" aria-label="분석으로 생성된 Task"><h4>생성된 Task · {tasks.length}개</h4><div className="task-policy-results">{tasks.map(task => onTask ? <ControlButton key={task.id} type="button" variant="outline" layout="card" className="task-policy-task" disabled={busy || retryBusy} onClick={() => onTask(task.id)}><span><strong>{task.title}</strong><small>{automationExecutionLabel(task)}</small></span></ControlButton> : <p key={task.id}>{task.title} · {automationExecutionLabel(task)}</p>)}</div><p className="task-auto-help">Task를 열어 내용을 확인하세요. 개발은 작업 보드에서 별도로 시작합니다.</p></section> : null}
+      {remote.data.capabilities?.risk_analysis && remote.data.capabilities?.development === false ? <p className="task-auto-help">정책 분석과 Task 생성은 가능합니다. AI 개발 시작 전에는 프로젝트의 실행 환경 연결을 확인해야 합니다.</p> : null}
+    </> : remote.loading ? <Spinner label="정책 리스크 분석 상태를 확인하고 있습니다" /> : null}
   </section>;
+}
+
+function PolicyAnalysisRetry({ analysis, route, request, canWrite, disabled, onBusy, onChanged, onFreshAnalysis }) {
+  const [acknowledged, setAcknowledged] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(null), pending = useRef(null), mounted = useRef(true);
+  const callbacks = useRef({ onBusy, onChanged }); callbacks.current = { onBusy, onChanged };
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { callbacks.current.onBusy?.(busy); return () => callbacks.current.onBusy?.(false); }, [busy]);
+  async function retry() {
+    if (busy || disabled || !canWrite || !analysis.can_retry) return;
+    let body; try { body = pending.current || policyAnalysisRetryPayload(analysis, crypto.randomUUID(), acknowledged); } catch (err) { setError(err); return; }
+    pending.current = body; setBusy(true); setError(null);
+    try {
+      await request(`${route}/analyses/${encodeURIComponent(analysis.id)}/retry`, { method: 'POST', body });
+      if (mounted.current) { pending.current = null; await callbacks.current.onChanged?.(); }
+    } catch (err) {
+      if (mounted.current) { if (!retainProjectRequest(err)) pending.current = null; setError(err); if (err.status === 409) await callbacks.current.onChanged?.(); }
+    } finally { if (mounted.current) setBusy(false); }
+  }
+  const sourceChanged = error?.code === 'TASK_SOURCE_STALE';
+  return <div className="ains-section-stack"><Notice tone="warning" title={sourceChanged ? '분석 당시의 근거가 변경되었습니다' : analysis.status === 'uncertain' ? '분석 실행 결과를 확인해 주세요' : analysis.can_retry ? '리스크 분석을 다시 시도할 수 있습니다' : '리스크 분석 상태를 확인해 주세요'}>{sourceChanged ? '이전 분석의 원문·프로젝트 설정·저장소 정보가 현재 내용과 다릅니다. 최신 근거를 확인한 뒤 현재 내용으로 새 분석을 요청해 주세요.' : analysis.can_retry ? '이전 분석 이력을 보존하고 같은 원문으로 새 분석 시도를 기록합니다. 개발을 시작하거나 기존 결과를 승인하지 않습니다.' : '현재 상태에서는 재시도할 수 없습니다. 최신 분석 상태와 원문 변경 여부를 확인해 주세요.'}</Notice>
+    {sourceChanged && canWrite && onFreshAnalysis ? <div><Button type="button" variant="secondary" icon={Sparkles} disabled={busy || disabled} onClick={onFreshAnalysis}>현재 내용으로 새 분석</Button></div> : analysis.can_retry && canWrite ? <>{analysis.status === 'uncertain' ? <label className="checkbox-label"><Input type="checkbox" checked={acknowledged} disabled={busy || disabled || Boolean(pending.current)} onChange={event => setAcknowledged(event.target.checked)} /><span>이전 Nora 실행 결과를 확인했으며, 새 리스크 분석 시도가 필요합니다.</span></label> : null}<div><Button type="button" variant="secondary" icon={RefreshCw} busy={busy} disabled={disabled || analysis.status === 'uncertain' && !acknowledged && !pending.current} onClick={retry}>{pending.current ? '같은 재시도 요청 확인' : '리스크 분석 다시 시도'}</Button></div></> : null}
+    <ErrorNotice error={error} />
+  </div>;
 }
 
 function SdkExecutionSettings({ route, request, draft, setDraft, owner, disabled, onBusy }) {

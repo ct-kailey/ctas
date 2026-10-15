@@ -9,6 +9,29 @@ test('v3 risk is generated independently and v3 development sends the backend-co
  const result=await f.service.develop(f.input);assert.equal(result.schema_version,'3.0');assert.deepEqual(result.artifact.changed_files,['src/app.js']);
  const request=f.calls.findLast(c=>c.name==='run_flow').arguments.variables.automation_request;assert.deepEqual(request.development_context,f.input.developmentContext);assert.equal(request.development_context_sha256,require('../server/context-contract').hash(f.input.developmentContext));assert.equal(result.implementation_report.contract_version,'3.0');
 });
+test('risk validation failures preserve the verified Nora trace without accepting invalid results',async()=>{
+ for(const contract of [{},{v2:true},{v3:true}]){
+  const f=fixture({...contract,output:result=>{result.unexpected_model_field='invalid';}});
+  await assert.rejects(f.service.analyzeRisk(f.input),{code:'NORA_RISK_RESULT_INVALID',noSideEffects:true,trace_id:TRACE});
+  assert.equal(f.calls.filter(call=>call.name==='run_flow').length,1);
+  assert.equal(f.calls.filter(call=>call.name==='get_trace').length,1);
+ }
+});
+test('revised managed risk flow preserves historical published flows and rejects edits to the new one',async()=>{
+ const f=fixture({v3:true}),slug=defaultSlug(PROJECT,'3'),oldSlug=slug.replace(/-r\d+$/,'');
+ const legacy={id:oldSlug,payload:{historical:'published evidence'},publishState:{publishedVersionId:'historical-version',hasUnpublishedChanges:false}};
+ f.flows.set(oldSlug,structuredClone(legacy));
+ await f.service.analyzeRisk(f.input);
+ assert.deepEqual(f.flows.get(oldSlug),legacy);
+ assert.ok(f.flows.has(slug));
+ assert.equal(f.calls.filter(c=>c.name==='apply_flow').length,1);
+ assert.equal(f.calls.find(c=>c.name==='apply_flow').arguments.slug,slug);
+ f.flows.get(slug).payload.agents[0].prompt='user edit';
+ const count=f.calls.filter(c=>c.name==='run_flow').length;
+ await assert.rejects(f.service.analyzeRisk(f.input),{code:'NORA_RISK_FLOW_CHANGED'});
+ assert.equal(f.calls.filter(c=>c.name==='run_flow').length,count);
+ assert.deepEqual(f.flows.get(oldSlug),legacy);
+});
 test('v3 requires a sequential tool-free history agent and preserves exact confirmed question identity',async()=>{
  const changed=fixture({v3:true,output:r=>{r.development_context_sha256='e'.repeat(64);}});await assert.rejects(changed.service.develop(changed.input),{code:'NORA_DEVELOPMENT_CONTEXT_MISMATCH',noSideEffects:false,trace_id:TRACE});assert.equal(changed.invocations.some(i=>i.operation==='get_pull_request'),false);
  for(const customDevelopment of [f=>f.payload.agents[1].requiresApproval=true,f=>f.payload.agents[1].retry.rules[0].action.target={fromNode:f.payload.agents[0].id},f=>f.payload.edges=[]]){const f=fixture({v3:true,customDevelopment});await assert.rejects(f.service.develop(f.input));assert.equal(f.calls.some(c=>c.name==='run_flow'),false);}

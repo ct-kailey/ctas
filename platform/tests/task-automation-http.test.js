@@ -175,6 +175,7 @@ test('task automation HTTP preserves role, project, shared-view and exact-commit
     for (const [suffix, method, body] of [
       ['/settings', 'PUT', { ...config, expected_version: 2 }],
       ['/analyze', 'POST', { revision_id: revision.id, request_id: randomUUID() }],
+      ['/analyses/' + task.analysis_id + '/retry', 'POST', { request_id: randomUUID(), expected_job_id: randomUUID() }],
       ['/tasks/' + task.id, 'PATCH', { expected_version: task.version, status: 'in_progress' }],
       ['/tasks/' + task.id + '/approve-merge', 'POST', { expected_version: task.version, head_sha: HEAD, note: '공유 세션 시도' }],
       ['/tasks/' + task.id + '/reconcile-merge', 'POST', { expected_version: task.version }],
@@ -204,5 +205,31 @@ test('task automation HTTP preserves role, project, shared-view and exact-commit
     assert.equal(merges.length, 1);
     assert.equal(merges[0][1].expectedHeadSha, HEAD);
     assert.equal(merges[0][1].targetBranch, 'main');
+  });
+  await t.test('risk retry HTTP enforces member, origin, CSRF and project scope and only queues a new attempt', async () => {
+    const retryProject = await project(), retryPath = '/api/projects/' + retryProject + '/task-automation';
+    const record = await ledger.createRecord(retryProject, users.owner, { title: '재시도 정책', document_category: 'policy', text: '승인 조건을 만족해야 한다.' });
+    const rev = (await pool.query('SELECT * FROM revisions WHERE id=$1', [record.revision_id])).rows[0];
+    const parsed = { ...document, project_id: retryProject, document_id: record.document_id, revision_id: rev.id, source: { filename: rev.filename, mime_type: rev.mime_type, sha256: rev.sha256 } };
+    await pool.query("UPDATE revisions SET status='ready',document_json=$2 WHERE id=$1", [rev.id, parsed]);
+    const originalAnalyze = provider.analyzeRisk;
+    provider.analyzeRisk = async () => { throw Object.assign(new Error('Synthetic risk rejection'), { code: 'NORA_RISK_RESULT_INVALID', noSideEffects: true, trace_id: 'trc_http_retry_failure' }); };
+    try { await worker.runOnce(); } finally { provider.analyzeRisk = originalAnalyze; }
+    const first = (await request(retryPath)).analyses[0], target = retryPath + '/analyses/' + first.id + '/retry';
+    assert.equal(first.status, 'failed'); assert.equal(first.can_retry, true); assert.equal(first.trace_id, 'trc_http_retry_failure');
+    const body = { request_id: randomUUID(), expected_job_id: first.execution.id };
+    await request(target, { method: 'POST', body, as: 'viewer', status: 403, code: 'FORBIDDEN' });
+    await request(target, { method: 'POST', body, as: 'outsider', status: 404, code: 'NOT_FOUND' });
+    await request(target, { method: 'POST', body, headers: { ...sessions.member, Origin: 'https://foreign.example.test' }, status: 403, code: 'ORIGIN_REJECTED' });
+    await request(target, { method: 'POST', body, headers: { ...sessions.member, 'X-CSRF-Token': '' }, status: 403, code: 'CSRF_REJECTED' });
+    await request(otherPath + '/analyses/' + first.id + '/retry', { method: 'POST', body, status: 404, code: 'TASK_ANALYSIS_NOT_FOUND' });
+    const before = calls.length;
+    const queued = (await request(target, { method: 'POST', body, as: 'member', status: 202 })).analysis;
+    assert.equal(queued.status, 'queued'); assert.notEqual(queued.execution.id, first.execution.id); assert.equal(calls.length, before);
+    const replay = (await request(target, { method: 'POST', body, as: 'member', status: 202 })).analysis; assert.equal(replay.execution.id, queued.execution.id);
+    await request(target, { method: 'POST', body: { ...body, request_id: randomUUID() }, as: 'member', status: 409, code: 'TASK_RETRY_STALE' });
+    await worker.runOnce();
+    const complete = await request(retryPath); assert.equal(complete.analyses[0].status, 'completed'); assert.equal(complete.tasks.length, 1); assert.equal(complete.tasks[0].created_by, users.member);
+    assert.equal((await pool.query('SELECT status,trace_id FROM task_automation_jobs WHERE id=$1', [first.execution.id])).rows[0].trace_id, 'trc_http_retry_failure');
   });
 });

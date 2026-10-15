@@ -41,3 +41,13 @@
 .task-auto-policy { margin-block: var(--space-4); padding-block: var(--space-4); border-block: var(--hairline) solid var(--border); }
 .task-auto-policy h3 { font-size: var(--text-base); line-height: var(--lh-base); margin: 0; }
 @media (max-width:650px) { .task-auto-heading { flex-direction: column; } }
+/* Policy preparation owns its spacing without the legacy action-row margins. */
+.task-policy-preparation > p, .task-auto-policy.ains-section-stack > p, .task-auto-policy.ains-section-stack h4 { margin: 0; }
+.task-policy-preparation > .task-auto-policy { margin-block: 0; }
+.task-policy-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.task-policy-results { display: grid; gap: var(--space-2); }
+.task-policy-results > p { margin: 0; }
+.task-policy-task { width: 100%; text-align: left; }
+.task-policy-task > span { display: grid; gap: var(--space-1); min-width: 0; width: 100%; }
+.task-policy-task strong, .task-policy-task small { overflow-wrap: anywhere; }
+.task-policy-task small { color: var(--fg-muted); }

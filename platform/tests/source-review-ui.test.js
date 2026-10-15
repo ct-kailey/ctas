@@ -82,3 +82,18 @@ test('source conflicts from the server stay failures and do not trigger fallback
   await assert.rejects(confirmSourceAnalysis({ request, route: '/context', runId: 'run-1', payload }), { code: 'CONTEXT_SOURCE_STALE' });
   assert.equal(writes, 1);
 });
+
+test('expired legacy approval directs policy work to current risk analysis without suggesting a disabled retry', async () => {
+  const { sourceAnalysisDispatch, sourceAnalysisFailure } = await state();
+  const ai = { enabled: false, dispatch_mode: 'project_workspace', disabled_reason: 'NORA_PROJECT_FLOW_SETUP_REQUIRED' };
+  assert.equal(sourceAnalysisDispatch(ai).enabled, false);
+  assert.match(sourceAnalysisDispatch(ai).message, /별도 흐름/);
+  const failure = sourceAnalysisFailure({ status: 'failed', error_code: 'CONTEXT_APPROVAL_EXPIRED' }, ai, true);
+  assert.equal(failure.title, '이전 분석 승인 대기 만료');
+  assert.equal(failure.expired, true);
+  assert.match(failure.message, /현재 프로젝트의 정책 리스크 분석/);
+  assert.doesNotMatch(failure.message, /다시 분석/);
+  assert.equal(sourceAnalysisFailure({ status: 'failed', error_code: 'OTHER' }, ai).expired, false);
+  assert.match(sourceAnalysisFailure({ status: 'failed', error_code: 'CONTEXT_APPROVAL_EXPIRED' }, { enabled: true }, false).message, /다시 분석/);
+  assert.equal(sourceAnalysisDispatch(null).enabled, false);
+});

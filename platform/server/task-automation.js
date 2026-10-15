@@ -32,7 +32,13 @@ function effectiveArtifact(row){
   return {...row.artifact,verification_policy:artifactVerificationPolicy(row),...(row.verification&&row.verification.artifact_sha256===hash(row.artifact)?Object.fromEntries(['kind','pr_number','pr_url','checks','preview_url','ci_status','preview_status','verification_status','verification_policy','observed_at'].filter(k=>Object.hasOwn(row.verification,k)).map(k=>[k,row.verification[k]])):{} )};
 }
 function publicTask(row,detail=false) { const artifact=effectiveArtifact(row);return { ...row, version:Number(row.version), requires_provisional_confirmation:row.status==='todo'&&Boolean(row.input_snapshot?.implementation_notes?.length||row.question_ids?.length), input_snapshot:detail?row.input_snapshot:undefined, artifact:artifact?{...artifact,...(!detail?{diff:undefined,reported_checks:undefined,reported_implementation_report:undefined}:{})}:null }; }
-function publicAnalysis(r) { return { id:r.id,project_id:r.project_id,revision_id:r.revision_id,status:r.status,risks:r.result?.risks||[],question_ids:r.question_ids,error_code:r.error_code,created_at:r.created_at,updated_at:r.updated_at,trace_id:r.result?.trace_id||null,uncertainty_mode:r.input_snapshot?.automation?.uncertainty_mode||'strict',temporary_decisions:r.result?.temporary_decisions||[],work_gaps:r.result?.work_gaps||[],feedback:r.input_snapshot?.feedback?{note_id:r.input_snapshot.feedback.note_id,note_version:r.input_snapshot.feedback.note_version,feedback_id:r.input_snapshot.feedback.feedback_id}:null }; }
+const ANALYSIS_SELECT=`SELECT a.*,j.execution,EXISTS(SELECT 1 FROM automation_tasks t WHERE t.project_id=a.project_id AND t.analysis_id=a.id) has_tasks
+ FROM task_automation_analyses a LEFT JOIN LATERAL
+ (SELECT jsonb_build_object('id',id,'status',status,'error_code',error_code,'trace_id',trace_id,'created_at',created_at,'updated_at',updated_at) execution
+  FROM task_automation_jobs WHERE project_id=a.project_id AND analysis_id=a.id AND kind='risk' ORDER BY created_at DESC,id DESC LIMIT 1) j ON true`;
+function analysisCanRetry(r){return ['failed','uncertain'].includes(r.status)&&r.execution?.status===r.status&&r.result===null&&!r.question_ids?.length&&!r.has_tasks;}
+function publicAnalysis(r) { return { id:r.id,project_id:r.project_id,revision_id:r.revision_id,status:r.status,risks:r.result?.risks||[],question_ids:r.question_ids,error_code:r.error_code,created_at:r.created_at,updated_at:r.updated_at,trace_id:r.result?.trace_id||r.execution?.trace_id||null,execution:r.execution||null,can_retry:analysisCanRetry(r),uncertainty_mode:r.input_snapshot?.automation?.uncertainty_mode||'strict',temporary_decisions:r.result?.temporary_decisions||[],work_gaps:r.result?.work_gaps||[],feedback:r.input_snapshot?.feedback?{note_id:r.input_snapshot.feedback.note_id,note_version:r.input_snapshot.feedback.note_version,feedback_id:r.input_snapshot.feedback.feedback_id}:null }; }
+async function analysis(db,p,aid){const row=(await db.query(ANALYSIS_SELECT+' WHERE a.project_id=$1 AND a.id=$2',[p,aid])).rows[0];if(!row)fail('TASK_ANALYSIS_NOT_FOUND','이 프로젝트의 정책 분석을 찾을 수 없습니다.',404);return row;}
 async function capabilities(provider,p,db=provider.pool) {
   const config=await settings(db,p), n=(await db.query('SELECT workspace_id,status,connector_id FROM project_nora_workspaces WHERE project_id=$1',[p])).rows[0];
   const base={risk_analysis:false,development:false,merge:false,blockers:[]};
@@ -112,11 +118,11 @@ async function queueAnalysis(db,p,u,value,input,fingerprint) {
     await audit(db,p,u,'analysis_requested',row.id,{revision_id:value.revision_id,input_sha256:sha,...(input.feedback?{feedback_id:input.feedback.feedback_id,note_id:input.feedback.note_id}:{})});
   }
   await db.query('INSERT INTO task_automation_requests(id,project_id,analysis_id,request_sha256,created_by) VALUES($1,$2,$3,$4,$5)',[value.request_id,p,row.id,fingerprint,u]);
-  return publicAnalysis(row);
+  return publicAnalysis(await analysis(db,p,row.id));
 }
 function createTaskAutomation({pool,provider={}}) {
   return {
-    async overview(p,u) { await membership(pool,p,u);const [a,t,c,s,i]=await Promise.all([pool.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 ORDER BY created_at DESC LIMIT 100',[p]),pool.query('SELECT * FROM automation_tasks WHERE project_id=$1 ORDER BY created_at DESC,id DESC LIMIT 200',[p]),capabilities(provider,p,pool),settings(pool,p),pool.query('SELECT revision_id,status,error_code,created_at FROM task_automation_intake WHERE project_id=$1 ORDER BY created_at DESC LIMIT 100',[p])]);return {analyses:a.rows.map(publicAnalysis),tasks:t.rows.map(r=>publicTask(r)),settings:s,capabilities:c,intake:i.rows}; },
+    async overview(p,u) { await membership(pool,p,u);const [a,t,c,s,i]=await Promise.all([pool.query(ANALYSIS_SELECT+' WHERE a.project_id=$1 ORDER BY a.created_at DESC,a.id DESC LIMIT 100',[p]),pool.query('SELECT * FROM automation_tasks WHERE project_id=$1 ORDER BY created_at DESC,id DESC LIMIT 200',[p]),capabilities(provider,p,pool),settings(pool,p),pool.query('SELECT revision_id,status,error_code,created_at FROM task_automation_intake WHERE project_id=$1 ORDER BY created_at DESC LIMIT 100',[p])]);return {analyses:a.rows.map(publicAnalysis),tasks:t.rows.map(r=>publicTask(r)),settings:s,capabilities:c,intake:i.rows}; },
     async sdkConnections(p,u){await membership(pool,p,u,['owner']);const n=(await pool.query('SELECT workspace_id FROM project_nora_workspaces WHERE project_id=$1',[p])).rows[0];if(!n||typeof provider.sdkConnections!=='function')fail('TASK_CONNECTION_REQUIRED','Nora 연결을 먼저 완료하세요.');return provider.sdkConnections({projectId:p,workspaceId:n.workspace_id});},
     async connectSdk(p,u,value){object(value,['provider','working_folder']);await membership(pool,p,u,['owner']);require('./nora-task-provider').sdkSettings({sdk_provider:value.provider,sdk_connection_id:null,sdk_working_folder:value.working_folder});const n=(await pool.query('SELECT workspace_id FROM project_nora_workspaces WHERE project_id=$1',[p])).rows[0];if(!n||typeof provider.connectSdk!=='function')fail('TASK_CONNECTION_REQUIRED','Nora SDK 연결을 사용할 수 없습니다.');const request=await provider.connectSdk({projectId:p,workspaceId:n.workspace_id,provider:value.provider,workingFolder:value.working_folder});await audit(pool,p,u,'sdk_connection_requested',p,{provider:value.provider,working_folder:value.working_folder});return {request};},
     async refreshArtifact(p,u,tid,value){
@@ -153,9 +159,31 @@ function createTaskAutomation({pool,provider={}}) {
         const old=(await db.query('SELECT * FROM task_automation_requests WHERE id=$1',[value.request_id])).rows[0];
         if(old){
           if(old.project_id!==p||old.created_by!==u||old.request_sha256!==fingerprint)fail('TASK_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.');
-          return publicAnalysis((await db.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND id=$2',[p,old.analysis_id])).rows[0]);
+          return publicAnalysis(await analysis(db,p,old.analysis_id));
         }
         return queueAnalysis(db,p,u,value,await snapshot(db,p,value.revision_id,value.request_id),fingerprint);
+      });
+    },
+    async retryAnalysis(p,u,aid,value){
+      id(aid);object(value,['request_id','expected_job_id','acknowledge_uncertain']);id(value.request_id);id(value.expected_job_id);
+      if(value.acknowledge_uncertain!==undefined&&typeof value.acknowledge_uncertain!=='boolean')fail('TASK_INPUT_INVALID','불확실한 실행의 확인 여부를 확인하세요.',400);
+      const fingerprint=hash({kind:'risk_retry',analysis_id:aid,...value});
+      return transaction(pool,async db=>{
+        await membership(db,p,u,WRITERS);
+        await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-task-request:' || $1,0))",[value.request_id]);
+        await lock(db,p);await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-context:' || $1,0))",[p]);
+        const old=(await db.query('SELECT * FROM task_automation_requests WHERE id=$1',[value.request_id])).rows[0];
+        if(old){if(old.project_id!==p||old.created_by!==u||old.analysis_id!==aid||old.request_sha256!==fingerprint)fail('TASK_REQUEST_CONFLICT','다른 분석 요청에 사용한 요청 ID입니다.');return publicAnalysis(await analysis(db,p,aid));}
+        const row=await analysis(db,p,aid);
+        if(row.execution?.id!==value.expected_job_id)fail('TASK_RETRY_STALE','분석 실행 상태가 변경되었습니다. 최신 실행 기록을 확인하세요.');
+        if(!analysisCanRetry(row))fail('TASK_RETRY_NOT_ALLOWED','실패하거나 결과가 불확실하고 아직 질문·작업이 생성되지 않은 정책 분석만 다시 실행할 수 있습니다.');
+        if(row.status==='uncertain'&&value.acknowledge_uncertain!==true)fail('TASK_RETRY_CONFIRMATION_REQUIRED','이전 실행 결과가 불확실합니다. Nora 실행 이력을 확인한 뒤 재분석을 선택하세요.');
+        await assertFresh(db,p,row.input_snapshot,row.input_sha256);
+        const attempt=(await db.query("INSERT INTO task_automation_jobs(project_id,kind,analysis_id,created_by,payload) VALUES($1,'risk',$2,$3,$4) RETURNING id",[p,aid,u,{retry_request_id:value.request_id,previous_job_id:row.execution.id,acknowledged_uncertain:row.status==='uncertain'}])).rows[0];
+        await db.query("UPDATE task_automation_analyses SET status='queued',error_code=NULL,updated_at=now() WHERE project_id=$1 AND id=$2",[p,aid]);
+        await db.query('INSERT INTO task_automation_requests(id,project_id,analysis_id,request_sha256,created_by) VALUES($1,$2,$3,$4,$5)',[value.request_id,p,aid,fingerprint,u]);
+        await audit(db,p,u,'analysis_retried',aid,{request_id:value.request_id,job_id:attempt.id,previous_job_id:row.execution.id,previous_status:row.status,previous_error_code:row.error_code,previous_trace_id:row.execution.trace_id,acknowledged_uncertain:row.status==='uncertain'});
+        return publicAnalysis(await analysis(db,p,aid));
       });
     },
     async analyzeFeedback(p,u,value) {
@@ -165,7 +193,7 @@ function createTaskAutomation({pool,provider={}}) {
         await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-task-request:' || $1,0))",[value.request_id]);
         await lock(db,p);await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-context:' || $1,0))",[p]);
         const old=(await db.query('SELECT * FROM task_automation_requests WHERE id=$1',[value.request_id])).rows[0];
-        if(old){if(old.project_id!==p||old.created_by!==u||old.request_sha256!==fingerprint)fail('TASK_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.');return publicAnalysis((await db.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND id=$2',[p,old.analysis_id])).rows[0]);}
+        if(old){if(old.project_id!==p||old.created_by!==u||old.request_sha256!==fingerprint)fail('TASK_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.');return publicAnalysis(await analysis(db,p,old.analysis_id));}
         const frozen=await notes.getFollowupInput(db,{projectId:p,noteId:value.note_id,actorId:u,expectedVersion:value.expected_version});
         const input=await snapshot(db,p,frozen.sourceRevisionId,value.request_id,{feedback:frozen.feedback});
         riskV3.validateRiskRequest(input,{projectId:p,workspaceId:input.nora.workspace_id});

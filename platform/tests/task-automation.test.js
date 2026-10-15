@@ -90,6 +90,67 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   const config=view.settings;await f.service.saveSettings(f.p,users.owner,{expected_version:config.version,enabled:true,risk_flow_slug:null,development_flow_slug:null,preview_origins:[]});
   const missing=(await f.service.overview(f.p,users.owner)).capabilities.blockers;assert.ok(missing.some(b=>b.code==='TASK_DEVELOPMENT_FLOW_REQUIRED'));assert.equal(missing.some(b=>b.code==='TASK_PREVIEW_ORIGIN_REQUIRED'),false);
  });
+ await t.test('explicit risk retry preserves failed attempts and trace, deduplicates requests and attributes results to its actor',async()=>{
+  let attempts=0;const failedTrace='trc_risk_failed_attempt_123';
+  const f=await fixture({provider:remote({async analyzeRisk(input){attempts++;if(attempts===1)throw Object.assign(new Error('Synthetic invalid result'),{code:'NORA_RISK_RESULT_INVALID',noSideEffects:true,trace_id:failedTrace});return remote().analyzeRisk(input);}})});
+  await f.worker.runOnce();const first=(await f.service.overview(f.p,users.owner)).analyses[0];
+  assert.equal(first.status,'failed');assert.equal(first.trace_id,failedTrace);assert.equal(first.execution.trace_id,failedTrace);assert.equal(first.can_retry,true);
+  const original=(await pool.query('SELECT * FROM task_automation_jobs WHERE id=$1',[first.execution.id])).rows[0];
+  const same=await f.service.analyze(f.p,users.member,{revision_id:f.source.revision_id,request_id:randomUUID()});assert.equal(same.execution.id,first.execution.id);assert.equal(attempts,1);
+  const body={request_id:randomUUID(),expected_job_id:first.execution.id};
+  await assert.rejects(f.service.retryAnalysis(f.p,users.viewer,first.id,body),{code:'FORBIDDEN'});
+  const foreign=await fixture({category:'meeting'});await assert.rejects(f.service.retryAnalysis(foreign.p,users.owner,first.id,body),{code:'TASK_ANALYSIS_NOT_FOUND'});
+  const retried=await Promise.all([1,2].map(()=>f.service.retryAnalysis(f.p,users.member,first.id,body)));
+  assert.equal(retried[0].execution.id,retried[1].execution.id);assert.notEqual(retried[0].execution.id,first.execution.id);assert.equal(retried[0].status,'queued');assert.equal(retried[0].can_retry,false);
+  assert.equal((await pool.query('SELECT count(*)::int n FROM task_automation_jobs WHERE analysis_id=$1',[first.id])).rows[0].n,2);
+  assert.deepEqual((await pool.query('SELECT * FROM task_automation_jobs WHERE id=$1',[first.execution.id])).rows[0],original);
+  await assert.rejects(f.service.retryAnalysis(f.p,users.owner,first.id,body),{code:'TASK_REQUEST_CONFLICT'});
+  await assert.rejects(f.service.retryAnalysis(f.p,users.member,first.id,{...body,request_id:randomUUID()}),{code:'TASK_RETRY_STALE'});
+  await assert.rejects(pool.query("UPDATE task_automation_jobs SET trace_id='trc_overwrite_attempt' WHERE id=$1",[first.execution.id]),{code:'23514'});
+  await assert.rejects(pool.query("INSERT INTO task_automation_jobs(project_id,kind,analysis_id,created_by) VALUES($1,'risk',$2,$3)",[f.p,first.id,users.owner]),{code:'23505'});
+  const event=(await pool.query("SELECT * FROM events WHERE project_id=$1 AND kind='task_automation.analysis_retried'",[f.p])).rows;
+  assert.equal(event.length,1);assert.equal(event[0].actor_id,users.member);assert.equal(event[0].detail.previous_trace_id,failedTrace);
+  await f.worker.runOnce();const done=await f.service.overview(f.p,users.owner);assert.equal(done.analyses[0].status,'completed');assert.equal(done.analyses[0].execution.status,'succeeded');assert.equal(done.analyses[0].trace_id,done.analyses[0].execution.trace_id);assert.equal(done.tasks.length,1);assert.equal(done.tasks[0].created_by,users.member);
+  await f.worker.runOnce();assert.equal(attempts,2);assert.equal((await f.service.retryAnalysis(f.p,users.member,first.id,body)).status,'completed');
+  await assert.rejects(f.service.retryAnalysis(f.p,users.member,first.id,{request_id:randomUUID(),expected_job_id:done.analyses[0].execution.id}),{code:'TASK_RETRY_NOT_ALLOWED'});
+ });
+ await t.test('uncertain risk requires explicit acknowledgement and never auto-retries',async()=>{
+  let attempts=0;const f=await fixture({provider:remote({async analyzeRisk(input){attempts++;if(attempts===1)throw Object.assign(new Error('Synthetic interrupted reply'),{code:'NORA_TASK_RUN_INCOMPLETE',trace_id:'trc_risk_uncertain_attempt'});return remote().analyzeRisk(input);}})});
+  await f.worker.runOnce();const first=(await f.service.overview(f.p,users.owner)).analyses[0];assert.equal(first.status,'uncertain');assert.equal(first.can_retry,true);
+  await f.worker.runOnce();assert.equal(attempts,1);
+  const body={request_id:randomUUID(),expected_job_id:first.execution.id};
+  await assert.rejects(f.service.retryAnalysis(f.p,users.owner,first.id,body),{code:'TASK_RETRY_CONFIRMATION_REQUIRED'});
+  await assert.rejects(f.service.retryAnalysis(f.p,users.owner,first.id,{...body,acknowledge_uncertain:false}),{code:'TASK_RETRY_CONFIRMATION_REQUIRED'});
+  await assert.rejects(f.service.retryAnalysis(f.p,users.owner,first.id,{...body,acknowledge_uncertain:'yes'}),{code:'TASK_INPUT_INVALID'});
+  const concurrent=await Promise.allSettled([1,2].map(()=>f.service.retryAnalysis(f.p,users.owner,first.id,{...body,request_id:randomUUID(),acknowledge_uncertain:true})));
+  assert.equal(concurrent.filter(result=>result.status==='fulfilled').length,1);assert.equal(concurrent.find(result=>result.status==='rejected').reason.code,'TASK_RETRY_STALE');
+  await f.worker.runOnce();assert.equal(attempts,2);
+  assert.equal((await pool.query("SELECT detail FROM events WHERE project_id=$1 AND kind='task_automation.analysis_retried'",[f.p])).rows[0].detail.acknowledged_uncertain,true);
+ });
+ await t.test('an expired risk worker cannot overwrite the explicitly retried attempt or duplicate tasks',async()=>{
+  let release,entered,firstInput,attempts=0;const dispatched=new Promise(resolve=>{entered=resolve;});
+  const f=await fixture({provider:remote({async analyzeRisk(input){attempts++;if(attempts===1){firstInput=input;entered();return new Promise(resolve=>{release=resolve;});}return remote().analyzeRisk(input);}})});
+  const oldRun=f.worker.runOnce();await dispatched;
+  const running=(await f.service.overview(f.p,users.owner)).analyses[0];assert.equal(running.status,'running');
+  await pool.query("UPDATE task_automation_jobs SET lease_expires_at=now()-interval '1 second' WHERE id=$1",[running.execution.id]);await f.worker.recover();
+  const uncertain=(await f.service.overview(f.p,users.owner)).analyses[0];assert.equal(uncertain.status,'uncertain');
+  await f.service.retryAnalysis(f.p,users.member,uncertain.id,{request_id:randomUUID(),expected_job_id:uncertain.execution.id,acknowledge_uncertain:true});
+  const replacement=createTaskAutomationWorker({pool,provider:f.provider});await replacement.runOnce();
+  release(await remote().analyzeRisk(firstInput));await oldRun;
+  const finished=await f.service.overview(f.p,users.owner);assert.equal(finished.analyses[0].status,'completed');assert.equal(finished.tasks.length,1);assert.equal(finished.tasks[0].created_by,users.member);
+  const original=(await pool.query('SELECT status,error_code FROM task_automation_jobs WHERE id=$1',[running.execution.id])).rows[0];assert.equal(original.status,'uncertain');assert.equal(original.error_code,'TASK_EXECUTION_INTERRUPTED');
+ });
+ await t.test('risk retry fails closed when planning context changes or an output already exists',async()=>{
+  const failing=remote({async analyzeRisk(){throw Object.assign(new Error('Invalid output'),{code:'NORA_RISK_RESULT_INVALID',noSideEffects:true,trace_id:'trc_risk_stale_attempt'});}}),f=await fixture({provider:failing});
+  await f.worker.runOnce();const view=await f.service.overview(f.p,users.owner),first=view.analyses[0],body={request_id:randomUUID(),expected_job_id:first.execution.id};
+  await pool.query('UPDATE task_automation_analyses SET question_ids=$2 WHERE id=$1',[first.id,JSON.stringify([randomUUID()])]);
+  assert.equal((await f.service.overview(f.p,users.owner)).analyses[0].can_retry,false);
+  await assert.rejects(f.service.retryAnalysis(f.p,users.member,first.id,body),{code:'TASK_RETRY_NOT_ALLOWED'});
+  await pool.query("UPDATE task_automation_analyses SET question_ids='[]' WHERE id=$1",[first.id]);
+  await f.service.saveSettings(f.p,users.owner,{expected_version:view.settings.version,enabled:true,risk_flow_slug:'changed-risk-flow',development_flow_slug:view.settings.development_flow_slug,preview_origins:view.settings.preview_origins});
+  await assert.rejects(f.service.retryAnalysis(f.p,users.member,first.id,body),{code:'TASK_SOURCE_STALE'});
+  assert.equal((await pool.query('SELECT count(*)::int n FROM task_automation_jobs WHERE analysis_id=$1',[first.id])).rows[0].n,1);
+ });
  await t.test('blocking risk or question creates existing question drafts atomically with no tasks or outbound messages',async()=>{
   const provider=remote({async analyzeRisk(i){const result=await remote().analyzeRisk(i);return {...result,risks:[{id:'risk1',blocking:true,description:'승인 담당자가 불명확함',evidence:[{segment_id:'s1',quote:'승인 조건'}]}],questions:[{question:'승인 담당자는 누구인가요?',evidence:[{segment_id:'s1',quote:'승인 조건'}]}]};}});
   const f=await fixture({provider});await f.worker.runOnce();const view=await f.service.overview(f.p,users.owner);assert.equal(view.analyses[0].status,'blocked');assert.equal(view.tasks.length,0);assert.equal(view.analyses[0].question_ids.length,1);

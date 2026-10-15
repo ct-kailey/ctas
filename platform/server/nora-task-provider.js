@@ -12,7 +12,9 @@ const block=(code,message)=>({code,message});
 function values(result,key){const rows=Array.isArray(result)?result:result?.[key];if(!Array.isArray(rows)||rows.length>1000)fail('NORA_FLOW_RESPONSE_INVALID','Nora 목록의 형식을 확인할 수 없습니다.',502);return rows;}
 function parse(value){if(typeof value!=='string')return value;try{return JSON.parse(value);}catch{fail('NORA_TASK_OUTPUT_INVALID','Nora 실행 결과가 JSON 형식이 아닙니다.',502);}}
 function supported(snapshot,name,params){const op=snapshot.operations.get(name);return Boolean(op&&Array.isArray(op.params)&&['repo',...params].every(key=>op.params.includes(key)));}
-function defaultSlug(p,version='1'){return 'ains-policy-risk-v'+version+'-'+createHash('sha256').update(p).digest('hex').slice(0,20);}
+// New prompt revisions get their own managed flow; never overwrite a published
+// historical flow or a user-selected custom flow while recovering an analysis.
+function defaultSlug(p,version='1'){return 'ains-policy-risk-v'+version+'-'+createHash('sha256').update(p).digest('hex').slice(0,20)+(version==='3'?'-r'+require('../../nora/task-automation/risk-flow-v3').FLOW_REVISION:'');}
 function riskContract(snapshot){return snapshot.schema_version==='3.0'?require('../../nora/task-automation/risk-flow-v3'):snapshot.schema_version==='2.0'?require('../../nora/task-automation/risk-flow-v2'):require('../../nora/task-automation/risk-flow');}
 function assertGitScope(s,input){
   if(s.row.workspace_id!==input.workspaceId||s.repo.url!==require('./repository-check').repositoryCoordinates(input.snapshot.repository.url).url||s.settings.base_branch!==input.snapshot.repository.base_branch)fail('NORA_TASK_SCOPE_CHANGED','작업의 프로젝트·저장소·기본 브랜치가 변경되었습니다.');
@@ -234,7 +236,16 @@ function createNoraTaskProvider({pool,provider,git}){
       return verifiedArtifact(input,artifact,{requireReady:false});
     },
     async listFlows(input){await bound(input);const list=values(await call(input,'list_flows'),'flows');const flows=[];for(let i=0;i<list.length;i+=4){const group=await Promise.all(list.slice(i,i+4).filter(f=>SLUG.test(f.id||'')).map(async f=>{const full=await flow(input,f.id);return full.publishState?.publishedVersionId&&!full.publishState.hasUnpublishedChanges?{slug:f.id,name:String(f.name||f.id).slice(0,200),published:true}:null;}));flows.push(...group.filter(Boolean));}return{flows};},
-    async analyzeRisk(input){const contract=riskContract(input.snapshot);contract.validateRiskRequest(input.snapshot,{projectId:input.projectId,workspaceId:input.workspaceId});const selected=await managedRisk(input);assertRiskIsolation(selected.payload);if(selected.memorySpaces?.length)fail('NORA_RISK_FLOW_ISOLATION_REQUIRED','리스크 분석 흐름에서 외부 메모리 연결을 해제하세요.');const result=await run(input,selected,{snapshot:input.snapshot,input_sha256:input.snapshotHash});return contract.validateRiskResult(result,input.snapshot,input.snapshotHash,{expectedTraceId:result.trace_id});},
+    async analyzeRisk(input){
+      const contract=riskContract(input.snapshot);contract.validateRiskRequest(input.snapshot,{projectId:input.projectId,workspaceId:input.workspaceId});const selected=await managedRisk(input);assertRiskIsolation(selected.payload);if(selected.memorySpaces?.length)fail('NORA_RISK_FLOW_ISOLATION_REQUIRED','리스크 분석 흐름에서 외부 메모리 연결을 해제하세요.');
+      const result=await run(input,selected,{snapshot:input.snapshot,input_sha256:input.snapshotHash});
+      try{return contract.validateRiskResult(result,input.snapshot,input.snapshotHash,{expectedTraceId:result.trace_id});}
+      catch(error){
+        // run() has verified this trace against the exact workspace, flow, input
+        // and output. Schema/evidence rejection must not discard that diagnosis.
+        error.trace_id=result.trace_id;throw error;
+      }
+    },
     async develop(input){
       let selected,sdkBefore,sdkContext,sdkCommands;
       try{

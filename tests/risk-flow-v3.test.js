@@ -15,6 +15,29 @@ test('v3 cannot defer sensitive decisions or invented evidence',()=>{
   const forged=result();forged.temporary_decisions[0].evidence=[{segment_id:'s1',quote:'존재하지 않는 원문'}];assert.throws(()=>v3.validateRiskResult(forged,snapshot,hash(snapshot)),{code:'NORA_RISK_EVIDENCE_INVALID'});
   const wrong=result();wrong.project_id='foreign';assert.throws(()=>v3.validateRiskResult(wrong,snapshot,hash(snapshot)),{code:'NORA_RISK_IDENTITY_MISMATCH'});
 });
+test('oversized question results fail closed without dropping questions or relaxing the contract',()=>{
+  const output=result();output.tasks=[];output.temporary_decisions=[];
+  const question={...output.questions[0],category:'authorization',deferred_by:null};
+  output.questions=Array.from({length:30},(_,index)=>({...question,id:'question_'+index}));
+  assert.equal(v3.validateRiskResult(output,snapshot,hash(snapshot)).execution_blocked,true);
+  for(const count of [31,40]){
+    output.questions=Array.from({length:count},(_,index)=>({...question,id:'question_'+index}));
+    const before=structuredClone(output);
+    assert.throws(()=>v3.validateRiskResult(output,snapshot,hash(snapshot)),{code:'NORA_RISK_RESULT_INVALID',noSideEffects:true});
+    assert.deepEqual(output,before);
+  }
+});
+test('bounded prompt revision has a separate flow identity and gives both agents the schema budget',()=>{
+  const flow=v3.buildRiskFlow({projectId:'project',spaceId:'space'});
+  assert.ok(flow.slug.endsWith('-r'+v3.FLOW_REVISION));
+  assert.equal(flow.payload.meta.ains_risk_flow_revision,v3.FLOW_REVISION);
+  for(const agent of flow.payload.agents){
+    for(const field of ['questions','risks','tasks','temporary_decisions','work_gaps'])assert.ok(agent.prompt.includes(`${field} <= ${v3.MODEL_RESULT_SCHEMA.properties[field].maxItems}`));
+    assert.match(agent.prompt,/Do not truncate, silently drop an issue/);
+    assert.match(agent.prompt,/SAME category and deferral status/);
+    assert.match(agent.prompt,/return zero tasks and an explicit non-deferred question/);
+  }
+});
 test('v3 rejects silent question dropping and publishes proposal-only instructions',()=>{
   const missing=result();missing.temporary_decisions=[];assert.throws(()=>v3.validateRiskResult(missing,snapshot,hash(snapshot)),{code:'NORA_RISK_NOTE_LINK_INVALID'});
   const flow=v3.buildRiskFlow({projectId:'project',spaceId:'space'});assert.equal(flow.payload.meta.ains_risk_contract_version,'3');assert.equal(flow.payload.agents.length,2);assert.equal(flow.payload.edges.length,2);assert.equal(flow.payload.triggerBlocks.length,1);const trigger=flow.payload.triggerBlocks[0];assert.equal(trigger.kind,'trigger');assert.equal(trigger.triggerKind,'api');assert.equal(trigger.config.apiSlug,flow.slug);assert.equal(trigger.nameOverride,'정책 위험 분석 요청');assert.equal(flow.payload.edges[0].sourceId,trigger.id);assert.equal(flow.payload.edges[0].targetId,flow.payload.agents[0].id);assert.equal(flow.payload.agents[0].isTrigger,true);assert.match(flow.payload.agents[0].prompt,/not an implementation history/);assert.deepEqual(flow.payload.agents[0].outputRules,[{id:'result-schema-v3',kind:'json',mode:'extract'}]);assert.deepEqual(flow.payload.agents[1].outputRules,[{id:'result-schema-v3',kind:'json',mode:'extract'}]);assert.equal(flow.payload.meta.ains_risk_schema_sha256,hash(v3.MODEL_RESULT_SCHEMA));assert.equal(flow.payload.variables.length,1);const variable=flow.payload.variables[0];assert.equal(variable.name,'automation_request');assert.equal(variable.id,variable.name);assert.equal(variable.source,'form');assert.equal(variable.label,'정책 분석 요청');assert.equal(variable.required,true);assert.match(flow.payload.agents[0].prompt,/\"schema_version\":\{\"const\":\"3\.0\"\}/);
