@@ -2,25 +2,28 @@
 
 const { randomUUID } = require('node:crypto');
 const { transaction } = require('./db');
-const { assertLegacyNoraDispatch } = require('./project-nora');
+const { assertLegacyNoraDispatch, binding } = require('./project-nora');
 const { runChannelTriage, validateChannelTriageRequest, validateChannelTriageResult } = require('../../nora/client/channel-triage-client');
 const manifest = require('../../nora/channel-triage/manifest.json');
 const KNOWN_CODES = new Set(['NORA_PROJECT_FLOW_SETUP_REQUIRED', 'TRIAGE_PROJECT_CONTEXT_REQUIRED', 'PROJECT_MISMATCH', 'TRIAGE_REQUEST_INVALID', 'TRIAGE_REQUEST_TOO_LARGE',
   'TRIAGE_MESSAGES_INVALID', 'TRIAGE_RESULT_INVALID', 'TRIAGE_KIND_MISMATCH', 'TRIAGE_EVIDENCE_MISMATCH', 'TRIAGE_RUN_NOT_SUCCEEDED',
   'TRIAGE_OUTPUTS_INCOMPLETE', 'TRIAGE_OUTPUT_INVALID', 'TRIAGE_OUTPUT_MISMATCH', 'TRIAGE_NOT_PUBLISHED', 'TRIAGE_AUTH_REQUIRED',
-  'TRIAGE_TIMEOUT_INVALID', 'TRIAGE_TRANSPORT_UNKNOWN', 'TRIAGE_RESPONSE_INVALID', 'TRIAGE_RECORD_MISMATCH', 'TRIAGE_LEASE_LOST']);
+  'TRIAGE_TIMEOUT_INVALID', 'TRIAGE_TRANSPORT_UNKNOWN', 'TRIAGE_RESPONSE_INVALID', 'TRIAGE_RECORD_MISMATCH', 'TRIAGE_LEASE_LOST',
+  'TRIAGE_CONNECTION_REQUIRED', 'TRIAGE_FLOW_CHANGED', 'TRIAGE_FLOW_INVALID', 'TRIAGE_FLOW_NOT_PUBLISHED', 'TRIAGE_TRACE_MISMATCH',
+  'NORA_AUTH_REQUIRED', 'NORA_MCP_UNAVAILABLE', 'NORA_MCP_RESPONSE_INVALID', 'NORA_MCP_TOOL_UNAVAILABLE', 'NORA_WORKSPACE_SCOPE_MISMATCH']);
 function safeErrorCode(error) {
   return KNOWN_CODES.has(error?.code) || /^TRIAGE_HTTP_[1-5]\d\d$/.test(error?.code || '') ? error.code : 'TRIAGE_INTERNAL';
 }
 function classifyFailure(error, dispatched) {
   const code = safeErrorCode(error);
-  return { code, status: dispatched && (['TRIAGE_INTERNAL', 'TRIAGE_TRANSPORT_UNKNOWN', 'TRIAGE_RESPONSE_INVALID', 'TRIAGE_RUN_NOT_SUCCEEDED'].includes(code) || /^TRIAGE_HTTP_(5\d\d|408)$/.test(code)) ? 'uncertain' : 'failed' };
+  return { code, status: dispatched && !error?.definiteFailure && error?.noSideEffects !== true &&
+    (['TRIAGE_INTERNAL', 'TRIAGE_TRANSPORT_UNKNOWN', 'TRIAGE_RESPONSE_INVALID', 'TRIAGE_RUN_NOT_SUCCEEDED', 'NORA_MCP_UNAVAILABLE', 'NORA_MCP_RESPONSE_INVALID'].includes(code) || /^TRIAGE_HTTP_(5\d\d|408)$/.test(code)) ? 'uncertain' : 'failed' };
 }
 function safeTrace(value) { return typeof value === 'string' && /^[a-zA-Z0-9_-]{1,200}$/.test(value) ? value : null; }
 function fail(code) { throw Object.assign(new Error(code), { code }); }
 
 /** Durable at-most-once dispatch: expired calls require manual review, never automatic replay. */
-function createChannelWorker({ pool, token, invoke = runChannelTriage, onError = () => {}, pollMs = 2000 } = {}) {
+function createChannelWorker({ pool, token, invoke = runChannelTriage, projectProvider, onError = () => {}, pollMs = 2000 } = {}) {
   if (!pool || typeof pool.connect !== 'function') throw new TypeError('pool is required');
   if (!Number.isFinite(pollMs) || pollMs < 10) throw new TypeError('pollMs must be at least 10');
   let started = false, timer, processing;
@@ -51,14 +54,16 @@ function createChannelWorker({ pool, token, invoke = runChannelTriage, onError =
       return claimed;
     });
   }
-  async function intent(row) {
+  async function intent(row, projectFlow = null) {
     return transaction(pool, async client => {
       const { rows: [fresh] } = await client.query(`SELECT * FROM channel_inbox WHERE id=$1 AND lease_token=$2
         AND status='running' AND lease_expires_at>now() FOR UPDATE`, [row.id, row.lease_token]);
       if (!fresh) fail('TRIAGE_LEASE_LOST');
       if (fresh.evidence_changed) return false;
-      await audit(client, fresh, 'channel.triage_started', { published_version_id: manifest.published_version_id,
-        flow_slug: manifest.slug, agent_id: manifest.agent_id, input_sha256: fresh.input_sha256 });
+      if (projectFlow) await client.query("UPDATE channel_inbox SET lease_expires_at=now()+interval '180 seconds' WHERE id=$1 AND lease_token=$2", [row.id, row.lease_token]);
+      await audit(client, fresh, 'channel.triage_started', { published_version_id: projectFlow?.publishedVersionId || manifest.published_version_id,
+        flow_slug: projectFlow?.flowSlug || manifest.slug, agent_id: projectFlow?.agentId || manifest.agent_id, input_sha256: fresh.input_sha256,
+        ...(projectFlow ? { workspace_id: projectFlow.workspaceId, mode: 'project' } : {}) });
       return true;
     });
   }
@@ -77,11 +82,39 @@ function createChannelWorker({ pool, token, invoke = runChannelTriage, onError =
   async function execute(row) {
     let dispatched = false;
     try {
-      await assertLegacyNoraDispatch(pool, row.project_id);
       if (row.evidence_changed) return await finish(row, 'needs_review', 'EVIDENCE_CHANGED');
       const input = structuredClone(row.input_snapshot);
       validateChannelTriageRequest(input, row.project_id);
       if (input.request_id !== row.id || input.source.id !== row.source_id || input.conversation_key !== row.conversation_key) fail('TRIAGE_RECORD_MISMATCH');
+      const project = await binding(pool, row.project_id);
+      if (project) {
+        if (project.status !== 'ready' || typeof projectProvider?.generate !== 'function') return finish(row, 'needs_review', 'NORA_PROJECT_FLOW_SETUP_REQUIRED');
+        // Flow preparation and trace verification involve several bounded Nora
+        // calls. Keep this owned lease alive, but never revive an expired or
+        // recovered run after a late callback.
+        const heartbeat = setInterval(() => {
+          void pool.query("UPDATE channel_inbox SET lease_expires_at=now()+interval '180 seconds' WHERE id=$1 AND lease_token=$2 AND status='running' AND lease_expires_at>now()", [row.id, row.lease_token])
+            .catch(() => report('TRIAGE_HEARTBEAT_FAILED'));
+        }, 30000);
+        heartbeat.unref?.();
+        try {
+          let dispatchEvidence;
+          const response = await projectProvider.generate({ projectId: row.project_id, workspaceId: project.workspace_id, requestId: row.id, request: structuredClone(input),
+            beforeDispatch: async flow => {
+              if (dispatched || flow?.workspaceId !== project.workspace_id || !safeTrace(flow.flowSlug) || !safeTrace(flow.publishedVersionId) || !safeTrace(flow.agentId)) fail('TRIAGE_RECORD_MISMATCH');
+              if (!(await intent(row, flow))) fail('EVIDENCE_CHANGED');
+              dispatchEvidence = structuredClone(flow);
+              dispatched = true;
+            } });
+          if (!dispatched || ['workspaceId', 'flowSlug', 'publishedVersionId', 'agentId'].some(key => response?.[key] !== dispatchEvidence[key])) fail('TRIAGE_RECORD_MISMATCH');
+          const currentProject = await binding(pool, row.project_id);
+          if (currentProject?.workspace_id !== project.workspace_id || currentProject?.status !== 'ready') fail('TRIAGE_CONNECTION_REQUIRED');
+          const analysis = validateChannelTriageResult(response?.result, input, row.project_id);
+          if (!safeTrace(response?.traceId)) fail('TRIAGE_RUN_NOT_SUCCEEDED');
+          return finish(row, 'needs_review', null, analysis, response.traceId);
+        } finally { clearInterval(heartbeat); }
+      }
+      await assertLegacyNoraDispatch(pool, row.project_id);
       if (typeof token !== 'string' || !token.trim() || manifest.publication_status !== 'published' || !manifest.published_version_id || !manifest.agent_id) {
         return await finish(row, 'needs_review', 'TRIAGE_UNAVAILABLE');
       }
@@ -93,7 +126,7 @@ function createChannelWorker({ pool, token, invoke = runChannelTriage, onError =
       if (!safeTrace(response?.traceId)) fail('TRIAGE_RUN_NOT_SUCCEEDED');
       return await finish(row, 'needs_review', null, analysis, response.traceId);
     } catch (error) {
-      if (error.code === 'NORA_PROJECT_FLOW_SETUP_REQUIRED') return finish(row, 'needs_review', error.code);
+      if (['NORA_PROJECT_FLOW_SETUP_REQUIRED', 'TRIAGE_CONNECTION_REQUIRED', 'NORA_AUTH_REQUIRED', 'EVIDENCE_CHANGED'].includes(error.code) && (!dispatched || error.noSideEffects === true)) return finish(row, 'needs_review', error.code);
       const failure = classifyFailure(error, dispatched);
       return finish(row, failure.status, failure.code, null, error?.traceId);
     }

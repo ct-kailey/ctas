@@ -128,7 +128,7 @@ function createChannelLedger(pool) {
         await audit(client,p,u,'channel.source_updated',src.id,{enabled:updated.enabled,manual_intake_enabled:updated.manual_intake_enabled}); return updated;
       });
     },
-    async ingest(p,sourceId,u,body={}) {
+    async ingest(p,sourceId,u,body={},internal={}) {
       const batch=normalizeBatch(body),batchHash=hash(batch);
       return transaction(pool,async client=>{
         await member(client,p,u,WRITERS);
@@ -140,7 +140,8 @@ function createChannelLedger(pool) {
           if (prior.batch_sha256!==batchHash) fail('BATCH_REPLAY_CONFLICT','같은 배치 ID에 다른 메시지가 입력되었습니다.',409);
           return {...await detail(client,p,prior.id),replayed:true};
         }
-        if (!src.enabled || !src.manual_intake_enabled) fail('CHANNEL_PAUSED','이 채널의 수동 수집이 일시 정지되어 있습니다.',409);
+        if (internal.authorize) await internal.authorize(client);
+        if (!src.enabled || (!internal.authorize && !src.manual_intake_enabled)) fail('CHANNEL_PAUSED','이 채널의 수집이 일시 정지되어 있습니다.',409);
         const collected=[];
         for (const m of batch.messages) {
           const payloadHash=hash({conversation_key:batch.conversation_key,...m});

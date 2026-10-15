@@ -27,6 +27,9 @@ const {createNoraTaskProvider}=require('./nora-task-provider');
 const {createTaskAutomationWorker}=require('./task-automation-worker');
 const {createNoraDomainGuideProvider}=require('./nora-domain-guide-provider');
 const {createDomainGuideWorker}=require('./domain-guide-worker');
+const {createNoraChannelTriageProvider}=require('./nora-channel-triage-provider');
+const {createNoraChannelSourceProvider}=require('./nora-channel-source-provider');
+const {createNoraChannelSourceWorker}=require('./nora-channel-source-worker');
 
 function token(name, filename, production) {
   if (process.env[name]) return process.env[name];
@@ -68,6 +71,9 @@ async function main() {
   await migrate(pool); await bootstrap(pool);
   const noraOAuth=createNoraOAuth({pool,redirectUri:new URL('/api/nora/oauth/callback',appOrigin).href});
   const noraProvider=createNoraMcpProvider({oauth:noraOAuth});
+  const noraChannelSources=createNoraChannelSourceProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:180000})});
+  const noraChannelWorker=createNoraChannelSourceWorker({pool,provider:noraChannelSources});
+  const noraChannelTriage=createNoraChannelTriageProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:180000})});
   const noraGit=createNoraGitHub({pool,provider:noraProvider});
   const noraTasks=createNoraTaskProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:300000}),git:noraGit});
   const taskAutomationWorker=createTaskAutomationWorker({pool,provider:noraTasks,onError:()=>console.error(JSON.stringify({event:'task_automation_worker_error'}))});
@@ -81,7 +87,7 @@ async function main() {
   let workToken=process.env.NORA_WORK_REVIEW_TOKEN,workWebhookSecret=process.env.NORA_WORK_WEBHOOK_SECRET;
   if(!production){const file=path.resolve(__dirname,'../../nora/.secrets/work-review-secret.json');if(fs.existsSync(file)&&(fs.statSync(file).mode&0o077)===0){const local=JSON.parse(fs.readFileSync(file,'utf8'));workToken ||= local.token;workWebhookSecret ||= local.webhookSecret;}}
   const workAI={enabled:Boolean(workToken&&workWebhookSecret?.length>=32),webhookSecret:workWebhookSecret};
-  const app=createApp({pool,appOrigin,production,google:google||{},contextAI,workAI,nora:{oauth:noraOAuth,provider:noraProvider,git:noraGit,tasks:noraTasks,guide:noraGuide},repositoryAccess:{noraGit}});
+  const app=createApp({pool,appOrigin,production,google:google||{},contextAI,workAI,nora:{oauth:noraOAuth,provider:noraProvider,git:noraGit,tasks:noraTasks,guide:noraGuide,channelSources:noraChannelSources},repositoryAccess:{noraGit}});
   const workAIWorker=createWorkAIWorker({pool,token:workToken,enabled:workAI.enabled,onError:()=>console.error(JSON.stringify({event:'work_ai_error'}))});
   const contextWorker=createContextAIWorker({pool,token:contextToken,enabled:contextAI.enabled,onError:()=>console.error(JSON.stringify({event:'context_worker_error'}))});
   const worker=createWorker({pool,pipelineToken,flowToken,python:process.env.PYTHON_BIN||'python3',onError:()=>console.error(JSON.stringify({event:'worker_error'}))});
@@ -90,7 +96,7 @@ async function main() {
     const file=path.resolve(__dirname,'../../nora/.secrets/channel-triage-secret.json');
     if(fs.existsSync(file)&&(fs.statSync(file).mode & 0o077)===0)channelToken=JSON.parse(fs.readFileSync(file,'utf8')).token;
   }
-  const channelWorker=createChannelWorker({pool,token:channelToken,onError:()=>console.error(JSON.stringify({event:'channel_worker_error'}))});
+  const channelWorker=createChannelWorker({pool,token:channelToken,projectProvider:noraChannelTriage,onError:()=>console.error(JSON.stringify({event:'channel_worker_error'}))});
   let implementationToken=process.env.NORA_IMPLEMENTATION_TOKEN;
   if(!implementationToken&&!production){
     const file=path.resolve(__dirname,'../../nora/.secrets/implementation-secret.json');
@@ -108,6 +114,7 @@ async function main() {
   server.requestTimeout=60000; server.headersTimeout=20000;
   await worker.start();
   await channelWorker.start();
+  await noraChannelWorker.start();
   await implementationWorker.start();
   await commercialWorker.start();
   await contextWorker.start();
@@ -132,7 +139,7 @@ async function main() {
   async function stop() {
     if(closing)return; closing=true; clearInterval(maintenance);clearInterval(runnerRecovery);
     const timeout=setTimeout(()=>process.exit(1),280000);timeout.unref();
-    await Promise.all([new Promise(resolve=>server.close(resolve)),worker.stop(),channelWorker.stop(),implementationWorker.stop(),commercialWorker.stop(),contextWorker.stop(),integrationWorker.stop(),transcriptionWorker.stop(),semanticWorker.stop(),insightWorker.stop(),workAIWorker.stop(),questionWorker.stop(),noraWorker.stop(),taskAutomationWorker.stop(),domainGuideWorker.stop()]);
+    await Promise.all([new Promise(resolve=>server.close(resolve)),worker.stop(),channelWorker.stop(),noraChannelWorker.stop(),implementationWorker.stop(),commercialWorker.stop(),contextWorker.stop(),integrationWorker.stop(),transcriptionWorker.stop(),semanticWorker.stop(),insightWorker.stop(),workAIWorker.stop(),questionWorker.stop(),noraWorker.stop(),taskAutomationWorker.stop(),domainGuideWorker.stop()]);
     await pool.end();clearTimeout(timeout);process.exit(0);
   }
   process.on('SIGTERM',stop);process.on('SIGINT',stop);

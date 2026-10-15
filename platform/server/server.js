@@ -39,6 +39,7 @@ const {mountTaskAutomationRoutes}=require('./task-automation-routes');
 const {mountTaskDraftRoutes}=require('./task-draft-routes');
 const {mountImplementationNoteRoutes}=require('./implementation-note-routes');
 const {mountDomainGuideRoutes}=require('./domain-guide-routes');
+const {mountNoraChannelSourceRoutes,mountNoraChannelTrigger}=require('./nora-channel-source-routes');
 const {mountProjectJourneyRoutes}=require('./project-journey-routes');
 
 function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {}, nora = {} }) {
@@ -73,6 +74,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   mountWorkAIWebhook(app,{pool,workAI});
   mountExecutionQueueBridge(app,{pool,appOrigin});
   mountIntegrationBridge(app,{pool,...integration});
+  mountNoraChannelTrigger(app,{pool,provider:nora.channelSources,appOrigin});
   // One-request bearer credentials only. Browser cookies and project-wide access are not accepted here.
   const runnerRoutes=express.Router();
   runnerRoutes.use(express.json({limit:'2mb'}));
@@ -127,6 +129,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   mountContextAIRoutes(project,{pool,write,review,contextAI});
   mountProviderRoutes(project,{providerSettings,owner:roles('owner')});
   mountIntegrationRoutes(project,{pool,review,...integration});
+  mountNoraChannelSourceRoutes(project,{pool,review,provider:nora.channelSources,appOrigin});
   project.get('/integrations/kakao-watcher',review,(_req,res)=>{res.attachment('watch-kakao-export.cjs');res.type('text/plain');res.send(kakaoWatcherScript());});
   mountTranscriptionRoutes(project,{pool,write,review,transcription:{resolveConfig,...transcription}});
   mountSemanticRoutes(project,{service:semanticService,review});
