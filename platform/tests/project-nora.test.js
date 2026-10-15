@@ -98,9 +98,21 @@ test('Nora project bindings and Context outbox preserve project scope and uncert
     const runId = randomUUID();
     await pool.query('INSERT INTO registration_requests(id,project_id,actor_id,input_sha256) VALUES($1,$2,$3,$4)', [runId, p, users.owner, 'a'.repeat(64)]);
     await assert.rejects(service.attach(p, users.owner, { workspace_id: selected(), expected_version: 0 }), { code: 'NORA_LEGACY_RUNS_ACTIVE' });
+    const running = (await service.status(p, users.owner)).legacy_runs;
+    assert.equal(running.blocked, true); assert.equal(running.total, 1);
+    assert.deepEqual(running.counts, { running: 1 }); assert.equal(running.reconcilable, false);
+    assert.equal(running.items[0].kind, 'registration_requests');
+    assert.equal(running.items[0].id, runId); assert.equal(running.items[0].title, '자료 분류 추천');
+    assert.ok(!JSON.stringify(running).includes('input_sha256'));
     await pool.query("UPDATE registration_requests SET status='uncertain' WHERE id=$1", [runId]);
     await assert.rejects(service.attach(p, users.owner, { workspace_id: selected(), expected_version: 0 }), { code: 'NORA_LEGACY_RUNS_ACTIVE' });
     assert.equal((await service.status(p, users.owner)).status, 'legacy');
+    const refreshed = (await service.status(p, users.owner)).legacy_runs;
+    assert.equal(refreshed.blocked, true); assert.deepEqual(refreshed.counts, { uncertain: 1 });
+    const other = await project();
+    assert.equal((await service.status(other, users.owner)).legacy_runs.total, 0);
+    await assert.rejects(service.status(p, users.outsider), { code: 'FORBIDDEN' });
+    await assert.rejects(service.reconcileLegacy(p, users.viewer, {}), { code: 'FORBIDDEN' });
   });
 
   await t.test('bound document intake extracts locally but never calls the global Nora pipeline', async () => {

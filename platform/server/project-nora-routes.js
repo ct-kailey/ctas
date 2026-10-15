@@ -5,6 +5,7 @@ function mountProjectNoraRoutes(router,{pool,owner,provider={},oauth,git,tasks})
   const service=createProjectNora({pool,provider});
   router.get('/nora-workspace',async(req,res)=>res.json({workspace:await service.status(req.params.p,req.user.id)}));
   router.post('/nora-workspace',owner,async(req,res)=>res.status(202).json({workspace:await service.attach(req.params.p,req.user.id,req.body)}));
+  router.post('/nora-workspace/reconcile-legacy',owner,async(req,res)=>res.json(await service.reconcileLegacy(req.params.p,req.user.id,req.body)));
   for(const [path,method] of [['retry','retry'],['reconcile','reconcile'],['retry-sync','retrySync']])
     router.post('/nora-workspace/'+path,owner,async(req,res)=>res.status(202).json({workspace:await service[method](req.params.p,req.user.id,req.body)}));
   router.get('/nora-workspace/connectors',async(req,res)=>res.json(await service.connectors(req.params.p,req.user.id)));

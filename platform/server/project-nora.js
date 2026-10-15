@@ -38,27 +38,44 @@ async function assertLegacyNoraDispatch(db, p, { lock = false } = {}) {
     fail('NORA_PROJECT_FLOW_SETUP_REQUIRED', '이 프로젝트의 Nora 워크스페이스에 분석 흐름을 연결해야 합니다. 프로젝트 설정에서 Nora 연결을 확인하세요.');
   }
 }
+const LEGACY_RUNS = [
+  ['jobs', '문서 추출·변경 검토', ['queued','running','uncertain']],
+  ['registration_requests', '자료 분류 추천', ['running','uncertain']],
+  ['channel_inbox', '수집한 대화 분석', ['queued','running','uncertain']],
+  ['implementation_plans', 'AI 개발 계획', ['queued','running','uncertain']],
+  ['implementation_requests', '코드 변경안 실행', ['awaiting_runner','running','uncertain']],
+  ['commercial_rewrites', '계약 문서 보정', ['queued','running','uncertain']],
+  ['context_ai_runs', '프로젝트 자료 분석', ['queued','running','waiting_approval','finalizing','uncertain']],
+  ['work_ai_runs', '작업 검토 분석', ['queued','running','waiting_approval','finalizing','uncertain']],
+  ['github_deliveries', 'GitHub PR 발행', ['publishing','uncertain']],
+];
+const NO_LEGACY_RUNS = { blocked: false, total: 0, counts: {}, items: [], has_more: false, reconcilable: false };
+// The status panel and registration guard share one predicate. Never expose
+// approval tickets, trace payloads, source content, or credentials here.
+async function legacyRuns(db, p) {
+  const sql = LEGACY_RUNS.map(([table, title, states]) => `SELECT '${table}' AS kind,id::text,'${title}' AS title,status,created_at,
+    COALESCE((to_jsonb(t)->>'updated_at')::timestamptz,(to_jsonb(t)->>'completed_at')::timestamptz,created_at) AS updated_at,
+    to_jsonb(t)->>'error_code' AS error_code,
+    ('${table}'='context_ai_runs' AND status='uncertain' AND to_jsonb(t)->>'approval_id' IS NOT NULL) AS reconcilable
+    FROM ${table} t WHERE project_id=$1 AND status IN (${states.map(s => `'${s}'`).join(',')})`).join(' UNION ALL ');
+  const row = (await db.query(`WITH active AS (${sql}) SELECT
+    (SELECT count(*)::int FROM active) AS total,
+    COALESCE((SELECT jsonb_object_agg(status,n) FROM (SELECT status,count(*)::int n FROM active GROUP BY status) c),'{}'::jsonb) AS counts,
+    COALESCE((SELECT bool_or(reconcilable) FROM active),false) AS reconcilable,
+    COALESCE((SELECT jsonb_agg(to_jsonb(i) - 'reconcilable') FROM (SELECT * FROM active ORDER BY created_at,id,kind LIMIT 50) i),'[]'::jsonb) AS items`, [p])).rows[0];
+  return { ...row, blocked: row.total > 0, has_more: row.total > row.items.length };
+}
 async function assertNoActiveLegacyRuns(db, p) {
-  const result = await db.query(`SELECT EXISTS (
-    SELECT 1 FROM jobs WHERE project_id=$1 AND status IN ('queued','running','uncertain')
-    UNION ALL SELECT 1 FROM registration_requests WHERE project_id=$1 AND status IN ('running','uncertain')
-    UNION ALL SELECT 1 FROM channel_inbox WHERE project_id=$1 AND status IN ('queued','running','uncertain')
-    UNION ALL SELECT 1 FROM implementation_plans WHERE project_id=$1 AND status IN ('queued','running','uncertain')
-    UNION ALL SELECT 1 FROM implementation_requests WHERE project_id=$1 AND status IN ('awaiting_runner','running','uncertain')
-    UNION ALL SELECT 1 FROM commercial_rewrites WHERE project_id=$1 AND status IN ('queued','running','uncertain')
-    UNION ALL SELECT 1 FROM context_ai_runs WHERE project_id=$1 AND status IN ('queued','running','waiting_approval','finalizing','uncertain')
-    UNION ALL SELECT 1 FROM work_ai_runs WHERE project_id=$1 AND status IN ('queued','running','waiting_approval','finalizing','uncertain')
-    UNION ALL SELECT 1 FROM github_deliveries WHERE project_id=$1 AND status IN ('publishing','uncertain')
-  ) AS active`, [p]);
-  if (result.rows[0].active) fail('NORA_LEGACY_RUNS_ACTIVE', '기존 분석·실행과 결과가 불확실한 요청을 먼저 완료하거나 확인한 뒤 Nora 워크스페이스를 등록하세요.');
+  const result = await legacyRuns(db, p);
+  if (result.blocked) fail('NORA_LEGACY_RUNS_ACTIVE', `기존 작업 ${result.total}건의 결과 확인이 필요합니다. 아래 작업 목록에서 상태를 확인한 뒤 Nora 워크스페이스를 등록하세요.`);
 }
 function capabilities(provider) {
   return { verify: typeof provider.inspectWorkspace === 'function', context_space: typeof provider.ensureContextSpace === 'function', connectors: typeof provider.listConnectors === 'function', context_sync: typeof provider.syncContext === 'function' };
 }
-function publicBinding(row, provider = {}, sync = {}) {
+function publicBinding(row, provider = {}, sync = {}, legacy = NO_LEGACY_RUNS) {
   return { mode: row ? 'nora' : 'legacy', status: row?.status || 'legacy', version: Number(row?.version || 0), workspace_id: row?.workspace_id || null,
     space_id: row?.space_id || null, connector_id: row?.connector_id || null, error_code: row?.error_code || null, updated_at: row?.updated_at || null,
-    capabilities: capabilities(provider), context_sync: { pending: Number(sync.pending || 0), syncing: Number(sync.syncing || 0), succeeded: Number(sync.succeeded || 0), failed: Number(sync.failed || 0), last_synced_at: sync.last_synced_at || null, error_code: sync.error_code || null } };
+    capabilities: capabilities(provider), legacy_runs: legacy, context_sync: { pending: Number(sync.pending || 0), syncing: Number(sync.syncing || 0), succeeded: Number(sync.succeeded || 0), failed: Number(sync.failed || 0), last_synced_at: sync.last_synced_at || null, error_code: sync.error_code || null } };
 }
 async function status(db, p, provider) {
   const row = await binding(db, p);
@@ -67,7 +84,7 @@ async function status(db, p, provider) {
     count(*) FILTER (WHERE status='failed') AS failed,max(synced_at) AS last_synced_at,
     (array_agg(error_code ORDER BY sequence) FILTER (WHERE error_code IS NOT NULL AND status<>'succeeded'))[1] AS error_code
     FROM project_nora_context_outbox WHERE project_id=$1`, [p])).rows[0] : {};
-  return publicBinding(row, provider, sync);
+  return publicBinding(row, provider, sync, row ? NO_LEGACY_RUNS : await legacyRuns(db, p));
 }
 
 /** Call within the same transaction as project registration. Never calls Nora. */
@@ -93,7 +110,7 @@ async function queueBinding(db, p, u, selectedWorkspaceId) {
 }
 
 /** Provider owns all authenticated Nora transport; this service never uses a URL supplied by a user. */
-function createProjectNora({ pool, provider = {} }) {
+function createProjectNora({ pool, provider = {}, legacyClient }) {
   async function list(row) {
     if (row?.status !== 'ready') fail('NORA_WORKSPACE_NOT_READY', 'Nora 워크스페이스 연결 확인을 먼저 완료하세요.');
     if (typeof provider.listConnectors !== 'function') fail('NORA_SERVICE_UNAVAILABLE', '서버의 Nora 연결 서비스를 준비 중입니다.', 503);
@@ -112,6 +129,18 @@ function createProjectNora({ pool, provider = {} }) {
     async status(p, u) { await membership(pool, p, u); return status(pool, p, provider); },
     async attach(p, u, value) {
       body(value, ['workspace_id','expected_version']); expectedVersion(value.expected_version); workspaceId(value.workspace_id);
+      // Reconcile only authoritative terminal outcomes before opening the
+      // registration transaction. Pending/unknown work still blocks registration.
+      await owner(pool, p, u);
+      if (value.expected_version === 0 && !(await binding(pool, p))) {
+        try {
+          await require('./legacy-context-reconciliation').reconcileLegacyContextRuns({ pool, projectId: p, userId: u, client: legacyClient });
+        } catch (error) {
+          // A concurrent registration may have won while Nora was being read.
+          // The locked transaction below still verifies the ID and version.
+          if (error.code !== 'NORA_LEGACY_RECONCILE_NOT_ALLOWED') throw error;
+        }
+      }
       return transaction(pool, async db => {
         await owner(db, p, u);
         const old = await binding(db, p, true);
@@ -123,6 +152,11 @@ function createProjectNora({ pool, provider = {} }) {
         await queueBinding(db, p, u, value.workspace_id);
         return status(db, p, provider);
       });
+    },
+    async reconcileLegacy(p, u, value) {
+      body(value, []);
+      const reconciliation = await require('./legacy-context-reconciliation').reconcileLegacyContextRuns({ pool, projectId: p, userId: u, client: legacyClient });
+      return { workspace: await status(pool, p, provider), reconciliation };
     },
     async retry(p, u, value) {
       body(value, ['expected_version']); expectedVersion(value.expected_version);
@@ -186,4 +220,4 @@ function createProjectNora({ pool, provider = {} }) {
     },
   };
 }
-module.exports = { createProjectNora, queueBinding, workspaceId, remoteId, binding, publicBinding, safeError, audit, fail, assertLegacyNoraDispatch, lockProjectDispatch };
+module.exports = { createProjectNora, queueBinding, workspaceId, remoteId, binding, publicBinding, safeError, audit, fail, assertLegacyNoraDispatch, lockProjectDispatch, legacyRuns };

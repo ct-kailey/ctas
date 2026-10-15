@@ -99,3 +99,82 @@ test('OAuth callback feedback uses fixed messages, clears the flag, and preserve
   for (const value of ['raw-secret-value', '__proto__', 'constructor', '<script>']) assert.equal(noraConnectionReturn({ ...location, search: `?nora_connection=${encodeURIComponent(value)}` }).message, null);
   assert.equal(noraConnectionReturn({ ...location, search: '?project=project-one&tab=settings' }), null);
 });
+
+test('legacy blockers remain visible from workspace state without a transient error', async () => {
+  const { noraLegacyRunsView, noraWorkspaceView } = await state();
+  const data = { mode: 'legacy', status: 'legacy', version: 0, legacy_runs: {
+    blocked: true, total: 3, counts: { uncertain: 2, waiting_approval: 1 }, reconcilable: true,
+    items: [{ kind: 'context_ai_runs', id: 'internal-run-id', title: '프로젝트 자료 분석', status: 'uncertain', created_at: '2026-10-14T01:00:00Z', updated_at: '2026-10-15T01:00:00Z', approval_id: 'private-approval', trace_id: 'private-trace', error_code: 'PRIVATE_ERROR_DETAIL' }], has_more: true,
+  } };
+  const view = noraLegacyRunsView(data, { owner: true });
+  assert.equal(view.blocked, true);
+  assert.equal(view.total, 3);
+  assert.equal(view.canReconcile, true);
+  assert.equal(view.hasMore, true);
+  assert.deepEqual(view.counts, [{ label: '결과 확인 필요', count: 2 }, { label: '검토 대기', count: 1 }]);
+  assert.equal(view.items[0].statusLabel, '결과 확인 필요');
+  assert.equal(view.items[0].timestamp, '2026-10-15T01:00:00Z');
+  assert.equal(noraWorkspaceView(data).label, '기존 작업 확인 필요');
+  assert.equal(noraWorkspaceView(data).verified, false);
+  assert.deepEqual(noraLegacyRunsView(structuredClone(data), { owner: true }), view, 'refreshing the same server state preserves the blocker notice');
+  for (const secret of ['internal-run-id', 'private-approval', 'private-trace', 'PRIVATE_ERROR_DETAIL']) assert.ok(!JSON.stringify(view).includes(secret));
+});
+
+test('registration stays blocked until refreshed evidence clears legacy runs and retains the entered ID', async () => {
+  const { canRegisterNoraWorkspace, noraLegacyRunsView } = await state();
+  const enteredId = ' t_entered_workspace ', owner = { owner: true };
+  const blocked = { workspace_id: null, version: 0, legacy_runs: { blocked: true, total: 1, counts: { uncertain: 1 }, items: [], reconcilable: true } };
+  assert.equal(canRegisterNoraWorkspace(blocked, enteredId, owner), false);
+  // Refresh/reconciliation changes only server state, not the text being edited.
+  const cleared = { ...blocked, legacy_runs: { blocked: false, total: 0, counts: {}, items: [], reconcilable: false } };
+  assert.equal(noraLegacyRunsView(cleared, owner).blocked, false);
+  assert.equal(noraLegacyRunsView(cleared, owner).canReconcile, false);
+  assert.equal(canRegisterNoraWorkspace(cleared, enteredId, owner), true);
+  assert.equal(enteredId, ' t_entered_workspace ');
+  assert.equal(canRegisterNoraWorkspace(cleared, enteredId, { owner: false }), false);
+  assert.equal(canRegisterNoraWorkspace(cleared, enteredId, { owner: true, busy: true }), false);
+  assert.equal(canRegisterNoraWorkspace(cleared, enteredId, { owner: true, disabled: true }), false);
+  assert.equal(canRegisterNoraWorkspace(cleared, 'https://platform.nora.my/t_entered_workspace', owner), false);
+  assert.equal(canRegisterNoraWorkspace(null, enteredId, owner), false);
+  assert.equal(canRegisterNoraWorkspace(workspace(), enteredId, owner), false);
+});
+
+test('legacy reconciliation requires an owner and an explicit server capability', async () => {
+  const { noraLegacyRunsView } = await state();
+  const blocked = { workspace_id: null, legacy_runs: { blocked: true, total: 1, reconcilable: true, items: [] } };
+  assert.equal(noraLegacyRunsView(blocked, { owner: true }).canReconcile, true);
+  assert.equal(noraLegacyRunsView(blocked).canReconcile, false);
+  assert.equal(noraLegacyRunsView(blocked, { owner: false }).canReconcile, false);
+  for (const value of [undefined, false, 'true', 1]) assert.equal(noraLegacyRunsView({ ...blocked, legacy_runs: { ...blocked.legacy_runs, reconcilable: value } }, { owner: true }).canReconcile, false);
+  const registered = workspace({ legacy_runs: blocked.legacy_runs });
+  assert.equal(noraLegacyRunsView(registered, { owner: true }).blocked, false);
+  assert.equal(noraLegacyRunsView(registered, { owner: true }).items.length, 0);
+});
+
+test('all legacy dispatch statuses have Korean labels and unknown states do not expose raw values', async () => {
+  const { noraLegacyRunsView } = await state();
+  const statuses = { queued: '처리 대기', running: '처리 중', awaiting_runner: '실행기 대기', waiting_approval: '검토 대기', finalizing: '결과 반영 중', publishing: '발행 중', uncertain: '결과 확인 필요' };
+  const view = noraLegacyRunsView({ legacy_runs: { blocked: true, items: Object.keys(statuses).map(status => ({ kind: 'jobs', status, title: '' })) } });
+  assert.deepEqual(view.items.map(item => item.statusLabel), Object.values(statuses));
+  assert.equal(view.total, 7);
+  const unknown = noraLegacyRunsView({ legacy_runs: { blocked: true, total: -1, counts: { uncertain: -1 }, items: [null, { kind: '__proto__', status: 'private_status_identifier', created_at: 'not-a-date' }] } });
+  assert.equal(unknown.items[0].title, '기존 작업');
+  assert.equal(unknown.items[0].statusLabel, '상태 확인 필요');
+  assert.equal(unknown.items[0].timestamp, null);
+  assert.equal(unknown.total, 1);
+  assert.ok(!JSON.stringify(unknown).includes('private_status_identifier'));
+});
+
+test('positive blockers in a partial response cannot accidentally enable registration', async () => {
+  const { noraLegacyRunsView, canRegisterNoraWorkspace } = await state();
+  for (const legacy_runs of [
+    { blocked: true, total: 0, items: [] },
+    { blocked: false, total: 2, items: [] },
+    { blocked: false, counts: { uncertain: 2 }, items: [] },
+    { blocked: false, items: [{ kind: 'jobs', status: 'queued' }] },
+  ]) {
+    const data = { workspace_id: null, legacy_runs };
+    assert.equal(noraLegacyRunsView(data).blocked, true);
+    assert.equal(canRegisterNoraWorkspace(data, 't_entered_workspace', { owner: true }), false);
+  }
+});

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link2, RefreshCw } from 'lucide-react';
-import { Badge, Button, Disclosure, ErrorNotice, FormField, Input, Select, Spinner, dateTime, projectPath } from './ui.jsx';
-import { canSaveNoraConnector, NORA_WORKSPACE_PATTERN, noraAuthorizeUrl, noraWorkspaceView, selectableNoraConnectors } from './nora-workspace-state.mjs';
+import { Badge, Button, Disclosure, ErrorNotice, FormField, Input, Notice, Select, Spinner, dateTime, projectPath } from './ui.jsx';
+import { ListItem, ListItemLeadingIcon } from './components/ctds/ListItem';
+import { canRegisterNoraWorkspace, canSaveNoraConnector, NORA_WORKSPACE_PATTERN, noraAuthorizeUrl, noraLegacyRunsView, noraWorkspaceView, selectableNoraConnectors } from './nora-workspace-state.mjs';
 
 export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBusy, onChanged, disabled = false }) {
   const route = `${projectPath(project.id)}/nora-workspace`;
@@ -11,6 +12,8 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
   const [authorization, setAuthorization] = useState(null), [authorizationError, setAuthorizationError] = useState(null), [authorizing, setAuthorizing] = useState(false);
   const lifecycle = useRef({ active: true, sequence: 0 });
   const owner = project.role === 'owner', view = noraWorkspaceView(workspace, authorization);
+  const legacy = noraLegacyRunsView(workspace, { owner });
+  const canRegister = canRegisterNoraWorkspace(workspace, workspaceId, { owner, disabled, busy });
   const dirty = Boolean(!view.registered && workspaceId.trim() || view.registered && connectorId !== (workspace?.connector_id || ''));
 
   const load = useCallback(async ({ signal } = {}) => {
@@ -51,8 +54,9 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
     if (busy) return;
     setBusy(true); setError(null);
     try {
-      await request(`${route}${suffix}`, { method, body });
+      const response = await request(`${route}${suffix}`, { method, body });
       if (!lifecycle.current.active) return;
+      if (response.workspace) setWorkspace(response.workspace);
       await load(); await onChanged?.(); notify?.(message);
     } catch (err) {
       if (lifecycle.current.active) { await load(); if (lifecycle.current.active) setError(err); }
@@ -82,6 +86,23 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
     {!workspace ? !error ? <Spinner label="Nora 연결 상태를 불러오고 있습니다" /> : null : <>
       <Badge tone={view.tone}>{view.label}</Badge>
       <p>{view.description}</p>
+      {!view.registered ? <>
+        {legacy.blocked ? <section aria-label="워크스페이스 등록 전 확인할 작업">
+          <Notice tone="warning" title={legacy.total ? `기존 작업 ${legacy.total}건 확인 필요` : '기존 작업 확인 필요'}>
+            {legacy.counts.length ? <p>{legacy.counts.map(item => `${item.label} ${item.count}건`).join(' · ')}</p> : null}
+            <p>결과 확인이 끝나지 않은 작업이 있습니다. 아래 상태를 확인해 주세요.</p>
+          </Notice>
+          {legacy.items.length ? <ul aria-label="등록을 기다리는 기존 작업" style={{ display: 'grid', gap: 'var(--space-4)', padding: 0, listStyle: 'none' }}>
+            {legacy.items.map(item => <li key={item.key}><ListItem variant="system" layout="stacked" data-ctds="list-item" leading={<ListItemLeadingIcon><RefreshCw size={16} /></ListItemLeadingIcon>} from={item.title} body={`${item.kindLabel} · ${item.timestamp ? dateTime(item.timestamp) : '시각 미확인'}`} trailing={<Badge tone={item.tone}>{item.statusLabel}</Badge>} /></li>)}
+          </ul> : <p>작업 목록을 다시 불러와 주세요.</p>}
+          {legacy.hasMore ? <p>전체 {legacy.total}건 중 {legacy.items.length}건을 표시합니다.</p> : null}
+          {legacy.canReconcile ? <>
+            <Button type="button" variant="secondary" busy={busy} disabled={disabled} onClick={() => mutate('/reconcile-legacy', {}, '이전 분석 결과를 확인했습니다. 남은 작업 상태를 확인해 주세요.')}>이전 분석 결과 확인</Button>
+            <p>이전 분석의 처리 결과를 Nora에서 읽어 현재 상태에 반영합니다.</p>
+          </> : !owner ? <p>프로젝트 관리자에게 이전 분석 결과 확인을 요청해 주세요.</p> : <p>진행 중인 작업이 끝나거나 각 작업의 검토가 완료된 뒤 상태를 새로고침해 주세요.</p>}
+        </section> : null}
+        <Button type="button" variant="secondary" icon={RefreshCw} disabled={busy} onClick={() => load()}>기존 작업 상태 새로고침</Button>
+      </> : null}
       {view.registered ? <>
         <p><strong>등록한 워크스페이스 ID</strong><br /><code>{workspace.workspace_id}</code></p>
         <p>이 워크스페이스에서 사용할 분석·실행 기능은 연결과 별도로 준비해야 합니다.</p>
@@ -121,11 +142,12 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
           </>}
         </Disclosure>
         {workspace.error_code ? <Disclosure><summary>연결 오류 세부정보</summary><code>{workspace.error_code}</code></Disclosure> : null}
-      </> : owner ? <form onSubmit={event => { event.preventDefault(); void mutate('', { workspace_id: workspaceId.trim(), expected_version: workspace.version }, 'Nora 워크스페이스 ID를 등록했습니다. 연결 상태를 확인해 주세요.'); }}>
+      </> : owner ? <form onSubmit={event => { event.preventDefault(); if (canRegister) void mutate('', { workspace_id: workspaceId.trim(), expected_version: workspace.version }, 'Nora 워크스페이스 ID를 등록했습니다. 연결 상태를 확인해 주세요.'); }}>
         <FormField label="Nora 워크스페이스 ID" hint="Nora에서 이 프로젝트의 워크스페이스를 만들고 t_로 시작하는 ID를 복사하세요. 등록 후에는 이 프로젝트에 고정됩니다.">
           <Input value={workspaceId} required pattern={NORA_WORKSPACE_PATTERN} maxLength={130} autoComplete="off" spellCheck={false} placeholder="t_…" disabled={locked} onChange={event => setWorkspaceId(event.target.value)} />
         </FormField>
-        <Button type="submit" variant="secondary" busy={busy} disabled={disabled || !workspaceId.trim()}>워크스페이스 ID 등록</Button>
+        <Button type="submit" variant="secondary" busy={busy} disabled={!canRegister}>워크스페이스 ID 등록</Button>
+        {legacy.blocked ? <p>입력한 ID는 유지됩니다. 기존 작업 확인 후 등록해 주세요.</p> : null}
       </form> : <p>프로젝트 관리자가 Nora 워크스페이스 ID를 등록할 수 있습니다.</p>}
       {disabled ? <small>작성 중인 프로젝트 설정과 읽기 연결을 먼저 저장해 주세요.</small> : null}
     </>}
