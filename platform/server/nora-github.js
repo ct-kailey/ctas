@@ -3,6 +3,20 @@ const {binding,fail}=require('./project-nora');
 const {membership}=require('./context-ledger');
 const {repositoryCoordinates}=require('./repository-check');
 const SHA=/^[a-f0-9]{40}$/;
+function commitUrl(commit,fullName,status=409){
+  if(!commit||!SHA.test(commit.sha||''))fail('NORA_GITHUB_REPOSITORY_MISMATCH','커밋의 저장소와 식별자를 확인할 수 없습니다.',status);
+  const expected=`https://github.com/${fullName}/commit/${commit.sha}`,api=`https://api.github.com/repos/${fullName}/commits/${commit.sha}`;
+  const hasHtml=Object.hasOwn(commit,'html_url'),hasUrl=Object.hasOwn(commit,'url');
+  // GitHub raw uses html_url + API url. Nora's normalized connector returns
+  // only url (the web link). Validate every supplied URL; never hide conflicts
+  // by choosing one field with ?? or ||.
+  if(hasHtml?commit.html_url!==expected||hasUrl&&commit.url!==expected&&commit.url!==api:!hasUrl||commit.url!==expected)
+    fail('NORA_GITHUB_REPOSITORY_MISMATCH','커밋의 저장소가 프로젝트 설정과 다릅니다.',status);
+  return expected;
+}
+function commitText(raw,normalized,max){return (typeof raw==='string'?raw:typeof normalized==='string'?normalized:'').slice(0,max);}
+function commitDate(commit){const value=typeof commit.commit?.author?.date==='string'?commit.commit.author.date:commit.date;return typeof value==='string'&&Number.isFinite(Date.parse(value))?value:null;}
+
 
 /** Every operation is scoped to the persisted workspace, connector and repository.
  * No GitHub PAT fallback and no caller-supplied operation/URL are accepted. */
@@ -43,7 +57,7 @@ function createNoraGitHub({pool,provider={}}){
     const commits=await invoke(s,'list_commits',{branch:'refs/heads/'+branch,per_page:1},['branch','per_page']);
     if(!Array.isArray(commits)||!commits.length||!SHA.test(commits[0]?.sha||''))fail('NORA_GITHUB_BRANCH_UNVERIFIED','설정한 기본 브랜치의 커밋을 확인할 수 없습니다.');
     const result=commits[0];
-    if(result.html_url!==`https://github.com/${s.fullName}/commit/${result.sha}`)fail('NORA_GITHUB_REPOSITORY_MISMATCH','커밋의 저장소가 프로젝트 설정과 다릅니다.');
+    commitUrl(result,s.fullName);
     await unchanged(s);return result.sha;
   }
   return{
@@ -54,8 +68,8 @@ function createNoraGitHub({pool,provider={}}){
       const commits=await invoke(s,'list_commits',{branch:'refs/heads/'+s.settings.base_branch,per_page:10},['branch','per_page']);
       if(!Array.isArray(commits)||commits.length>100)fail('NORA_GITHUB_RESPONSE_INVALID','Git 이력의 형식을 확인할 수 없습니다.',502);
       const safe=commits.map(c=>{
-        if(!SHA.test(c?.sha||'')||c.html_url!==`https://github.com/${s.fullName}/commit/${c.sha}`)fail('NORA_GITHUB_REPOSITORY_MISMATCH','다른 저장소의 이력이 반환되었습니다.',502);
-        return{sha:c.sha,url:c.html_url,message:String(c.commit?.message||'').slice(0,3000),author:String(c.commit?.author?.name||'').slice(0,200),created_at:c.commit?.author?.date||null};
+        const url=commitUrl(c,s.fullName,502);
+        return{sha:c.sha,url,message:commitText(c.commit?.message,c.message,3000),author:commitText(c.commit?.author?.name,c.author,200),created_at:commitDate(c)};
       });
       await unchanged(s);return{workspace_id:s.row.workspace_id,repository_url:s.repo.url,base_branch:s.settings.base_branch,commits:safe};
     },

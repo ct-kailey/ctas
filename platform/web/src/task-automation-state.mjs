@@ -5,6 +5,11 @@ export const AUTOMATION_EXECUTION = { idle: '개발 시작 전', queued: '개발
 export const RISK_STATES = { queued: '분석 대기', running: '리스크 분석 중', completed: '분석 완료', blocked: '고객 확인 필요', awaiting_connection: '분석 연결 필요', failed: '분석 실패', uncertain: '분석 결과 확인 필요' };
 export function automationUncertaintyMode(value) { return value === 'provisional' ? 'provisional' : 'strict'; }
 const BLOCKERS = {
+  TASK_PROVISIONAL_CONTEXT_CHANGED: '질문·답변이 변경되어 최신 내용으로 다시 확인 필요', TASK_PROVISIONAL_CONFIRMATION_REQUIRED: '고객 확인 사항을 보고 임시 구현 진행 여부 확인',
+  NORA_DEVELOPMENT_HISTORY_FLOW_REQUIRED: '개발 다음에 자동 이력을 기록하는 Nora 흐름 연결', NORA_DEVELOPMENT_NOTES_CONTRACT_REQUIRED: '임시 구현·작업 공백을 기록하는 개발 흐름 연결',
+  NORA_DEVELOPMENT_HISTORY_TRACE_INVALID: '개발·이력 에이전트의 실행 순서와 결과 확인 필요', NORA_DEVELOPMENT_HISTORY_CHANGED: '실제 개발 결과와 이력 내용이 달라 실행 이력 검토 필요',
+  NORA_DEVELOPMENT_QUESTION_MISMATCH: '고객 질문과 개발 기록의 연결 확인 필요', NORA_DEVELOPMENT_QUESTION_MISSING: '개발 기록에서 빠진 고객 질문 처리 결과 확인 필요',
+  NORA_TASK_RUN_INCOMPLETE: 'Nora 실행이 완료되지 않아 실행 이력 확인 필요',
   NORA_WORKSPACE_REQUIRED: 'Nora 워크스페이스 ID 등록', NORA_WORKSPACE_NOT_READY: 'Nora 워크스페이스 접근 확인', NORA_AUTH_REQUIRED: 'Nora 계정 연결',
   NORA_SERVICE_UNAVAILABLE: 'Nora 서비스 연결', NORA_RISK_ANALYSIS_UNAVAILABLE: 'Nora 리스크 분석 연결', NORA_RISK_FLOW_REQUIRED: '프로젝트 리스크 분석 흐름 준비',
   NORA_DEVELOPMENT_FLOW_REQUIRED: '게시된 AI 개발 흐름 선택', NORA_DEVELOPMENT_UNAVAILABLE: 'AI 개발 실행 연결', NORA_PREVIEW_ORIGIN_REQUIRED: '웹 미리보기 주소 허용',
@@ -52,6 +57,7 @@ export function automationColumn(task) {
   return AUTOMATION_COLUMNS.some(([id]) => id === task.status) ? task.status : 'blocked';
 }
 export function automationExecutionLabel(task) {
+  if (task?.status === 'blocked' && task?.execution_status === 'ready') return '보완 필요 · 결과·이력 확인';
   if (task?.status === 'qa' && task?.execution_status === 'ready' && task?.artifact?.implementation_report?.completion === 'partial') return '부분 구현 · 검수 대기';
   return task?.status === 'done' ? '승인한 변경 병합 완료' : AUTOMATION_EXECUTION[task?.execution_status] || '상태 확인 필요';
 }
