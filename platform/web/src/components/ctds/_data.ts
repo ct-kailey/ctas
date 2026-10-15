@@ -488,7 +488,7 @@ export const shadows: [string, string, string][] = [
   ["shadow-sm", "var(--shadow-sm)", "Card 기본"],
   ["shadow-md", "var(--shadow-md)", "Dropdown, Popover"],
   ["shadow-lg", "var(--shadow-lg)", "Modal"],
-  ["shadow-xl", "var(--shadow-xl)",],
+  ["shadow-xl", "var(--shadow-xl)", "Command Palette"],
   ["shadow-inner", "var(--shadow-inner)", "눌린 상태"],
 ];
 
@@ -527,6 +527,7 @@ export const componentSlugs: Record<string, string> = {
   "Menu Item": "general/menu-item",
   Badge: "general/badge",
   Avatar: "general/avatar",
+  "Avatar Upload": "general/avatar-upload",
   Tooltip: "general/tooltip",
   Shortcut: "general/shortcut",
   "Filter Button": "general/filter-button",
@@ -552,9 +553,13 @@ export const componentSlugs: Record<string, string> = {
   "Identity Button": "nav/identity-button",
   Pagination: "nav/pagination",
   "App Frame": "layout/app-frame",
+  "Page Header": "nav/page-header",
   Stepper: "nav/stepper",
   "Context Menu": "overlay/context-menu",
+  "Dropdown Menu": "overlay/dropdown-menu",
+  Disclosure: "overlay/disclosure",
   Callout: "feedback/callout",
+  Hint: "feedback/hint",
   Modal: "feedback/modal",
   Drawer: "feedback/drawer",
   Toast: "feedback/toast",
@@ -562,9 +567,11 @@ export const componentSlugs: Record<string, string> = {
   "Table Row": "data/table-row",
   "Table Row Select": "data/table-row-select",
   "Table Row Edit": "data/table-row-edit",
+  "Event List Item": "data/event-list-item",
   "Event Chip": "data/event-chip",
   "List Item": "data/list-item",
   "Metric Card": "data/metric-card",
+  "Kanban": "data/kanban",
   "Gallery Item": "data/gallery-item",
   "Empty State": "data/empty-state",
   "Progress Bar": "feedback/progress-bar",
@@ -596,7 +603,7 @@ export const components: { id: string; title: string; items: string[] }[] = [
     id: "general",
     title: "General",
     items: [
-      "Button", "Split Button", "Icon Button", "Menu Item", "Toolbar", "Badge", "Avatar",
+      "Button", "Split Button", "Icon Button", "Menu Item", "Toolbar", "Badge", "Avatar", "Avatar Upload",
       "Tooltip", "Shortcut", "Filter Button", "Chip", "Separator", "Skeleton", "Aspect Ratio",
       "Code Block",
     ],
@@ -616,7 +623,8 @@ export const components: { id: string; title: string; items: string[] }[] = [
     title: "Data Display",
     items: [
       "Table Header", "Table Row", "Table Row Select", "Table Row Edit",
-      "List Item", "Metric Card", "Gallery Item", "File Icon", "Attachment Item", "Event Chip",
+      "List Item", "Metric Card", "Gallery Item", "File Icon", "Attachment Item", "Event Chip", "Event List Item",
+      "Kanban",
       "Empty State", "Description List", "Timeline",
     ],
   },
@@ -624,7 +632,7 @@ export const components: { id: string; title: string; items: string[] }[] = [
     id: "nav",
     title: "Navigation",
     items: [
-      "App Frame", "Tabs", "Breadcrumb", "Sidebar", "Sidebar Split", "Topbar", "Identity Button", "Pagination",
+      "App Frame", "Page Header", "Tabs", "Breadcrumb", "Sidebar", "Sidebar Split", "Topbar", "Identity Button", "Pagination",
       "Stepper",
     ],
   },
@@ -633,14 +641,15 @@ export const components: { id: string; title: string; items: string[] }[] = [
     title: "Feedback",
     items: [
       "Modal", "Alert Dialog", "Drawer", "Popover", "Hover Card",
-      "Toast", "Callout", "Progress Bar", "Spinner",
+      "Toast", "Callout", "Hint", "Progress Bar", "Spinner",
     ],
   },
   {
     id: "overlay",
     title: "Overlay / Menu",
     items: [
-      "Context Menu", "Collapsible", "Toggle Group",
+      "Context Menu", "Dropdown Menu",
+ "Disclosure", "Collapsible", "Toggle Group",
     ],
   },
   {

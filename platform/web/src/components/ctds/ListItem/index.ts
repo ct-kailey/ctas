@@ -1,8 +1,8 @@
 export { ListItem, ListItemLeadingIcon } from "./ListItem";
 export type {
   ListItemProps,
-  ListItemVariant,
-  ListItemLayout,
+  ListItemSize,
+  ListItemAlign,
   ListItemLeadingIconProps,
   ListItemLeadingIconSize,
   ListItemLeadingIconTone,

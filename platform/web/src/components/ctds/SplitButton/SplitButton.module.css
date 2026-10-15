@@ -94,9 +94,9 @@
 .sm .menu { padding-inline: var(--space-1_5); }
 
 .md { --split-h: var(--control-h-md); --btn-icon-size: var(--space-4); }
-.md .part { font-size: var(--text-sm); gap: var(--space-1); }
-.md .main { padding-inline: var(--space-2); }
-.md .menu { padding-inline: var(--space-1_5); }
+.md .part { font-size: var(--text-sm); gap: var(--space-1_5); }
+.md .main { padding-inline: var(--space-3); }
+.md .menu { padding-inline: var(--space-2); }
 
 .lg { --split-h: var(--control-h-lg); --btn-icon-size: var(--space-4); }
 .lg .part { font-size: var(--text-sm); gap: var(--space-1_5); }

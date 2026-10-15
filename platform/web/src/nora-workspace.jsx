@@ -1,7 +1,8 @@
+import { List, ListItem } from './ctds-lists.jsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link2, RefreshCw } from 'lucide-react';
 import { Badge, Button, Disclosure, ErrorNotice, FormField, Input, Notice, Select, Spinner, dateTime, projectPath } from './ui.jsx';
-import { ListItem, ListItemLeadingIcon } from './components/ctds/ListItem';
+import { ListItemLeadingIcon } from './components/ctds/ListItem';
 import { canRegisterNoraWorkspace, canSaveNoraConnector, NORA_WORKSPACE_PATTERN, noraAuthorizeUrl, noraLegacyRunsView, noraWorkspaceView, selectableNoraConnectors } from './nora-workspace-state.mjs';
 
 export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBusy, onChanged, disabled = false }) {
@@ -92,9 +93,9 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
             {legacy.counts.length ? <p>{legacy.counts.map(item => `${item.label} ${item.count}건`).join(' · ')}</p> : null}
             <p>결과 확인이 끝나지 않은 작업이 있습니다. 아래 상태를 확인해 주세요.</p>
           </Notice>
-          {legacy.items.length ? <ul aria-label="등록을 기다리는 기존 작업" style={{ display: 'grid', gap: 'var(--space-4)', padding: 0, listStyle: 'none' }}>
-            {legacy.items.map(item => <li key={item.key}><ListItem variant="system" layout="stacked" data-ctds="list-item" leading={<ListItemLeadingIcon><RefreshCw size={16} /></ListItemLeadingIcon>} from={item.title} body={`${item.kindLabel} · ${item.timestamp ? dateTime(item.timestamp) : '시각 미확인'}`} trailing={<Badge tone={item.tone}>{item.statusLabel}</Badge>} /></li>)}
-          </ul> : <p>작업 목록을 다시 불러와 주세요.</p>}
+          {legacy.items.length ? <List aria-label="등록을 기다리는 기존 작업">
+            {legacy.items.map(item => <ListItem key={item.key} leading={<ListItemLeadingIcon><RefreshCw size={16} /></ListItemLeadingIcon>} trailing={<Badge tone={item.tone}>{item.statusLabel}</Badge>}><ListItem.Title>{item.title}</ListItem.Title><ListItem.Meta><span>{item.kindLabel}</span><ListItem.MetaDivider /><span>{item.timestamp ? dateTime(item.timestamp) : '시각 미확인'}</span></ListItem.Meta></ListItem>)}
+          </List> : <p>작업 목록을 다시 불러와 주세요.</p>}
           {legacy.hasMore ? <p>전체 {legacy.total}건 중 {legacy.items.length}건을 표시합니다.</p> : null}
           {legacy.canReconcile ? <>
             <Button type="button" variant="secondary" busy={busy} disabled={disabled} onClick={() => mutate('/reconcile-legacy', {}, '이전 분석 결과를 확인했습니다. 남은 작업 상태를 확인해 주세요.')}>이전 분석 결과 확인</Button>
@@ -143,7 +144,7 @@ export function NoraWorkspaceSettings({ project, request, notify, onDirty, onBus
         {workspace.error_code ? <Disclosure><summary>연결 오류 세부정보</summary><code>{workspace.error_code}</code></Disclosure> : null}
       </> : owner ? <form onSubmit={event => { event.preventDefault(); if (canRegister) void mutate('', { workspace_id: workspaceId.trim(), expected_version: workspace.version }, 'Nora 워크스페이스 ID를 등록했습니다. 연결 상태를 확인해 주세요.'); }}>
         <FormField label="Nora 워크스페이스 ID" hint="Nora에서 이 프로젝트의 워크스페이스를 만들고 t_로 시작하는 ID를 복사하세요. 등록 후에는 이 프로젝트에 고정됩니다.">
-          <Input value={workspaceId} required pattern={NORA_WORKSPACE_PATTERN} maxLength={130} autoComplete="off" spellCheck={false} placeholder="t_…" disabled={locked} onChange={event => setWorkspaceId(event.target.value)} />
+          <Input value={workspaceId} required pattern={NORA_WORKSPACE_PATTERN} maxLength={130} autoComplete="off" spellCheck={false} placeholder="t_로 시작하는 ID" disabled={locked} onChange={event => setWorkspaceId(event.target.value)} />
         </FormField>
         <Button type="submit" variant="secondary" busy={busy} disabled={!canRegister}>워크스페이스 ID 등록</Button>
         {legacy.blocked ? <p>입력한 ID는 유지됩니다. 기존 작업 확인 후 등록해 주세요.</p> : null}

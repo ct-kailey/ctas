@@ -73,9 +73,9 @@
      Body 안쪽 콘텐츠 래퍼(nav/섹션 리스트 등)에 깐다. */
   /* padding-top·padding-bottom도 두지 않음 — Header 아래 숨돌림, Footer 위
      마지막 항목 숨돌림 모두 소비처가 안쪽 래퍼의 padding-block으로 공급. */
-  /* mask-image 금지 — Body 안에 "고정 상단 블록(railTop 등 primary CTA + 검색)"을
-     꽂는 소비처가 많아서 fade가 걸리면 그 블록 상단이 흐려져 "밝은 입체 바"
-     착시를 만듦(특히 primary solid 버튼에서 심함). */
+  /* mask-image 기본 off. 켜고 싶으면 Sidebar.Body의 `fade` prop 사용.
+     top fade는 Body 안에 "고정 상단 블록(primary CTA + 검색)"을 꽂는 소비처에선
+     그 블록 상단이 흐려져 "밝은 입체 바" 착시를 만들므로 주의. */
 }
 
 /* Body 자식이 flex column에서 수축돼 header가 뭉개지는 걸 방지.
@@ -84,15 +84,92 @@
   flex: 0 0 auto;
 }
 
+/* fade mask opt-in — Body에 `fade="top|bottom|both"` prop을 주면 켜짐.
+   페이드 크기는 `--sidebar-body-fade-size` 토큰(기본 --space-3). 소비처가 늘릴 수 있음.
+   주의: top fade는 Body 안에 고정 상단 블록(primary CTA 등)이 없을 때만 안전.
+   있으면 그 블록 상단이 깎여 "흰 입체 바" 착시가 생김. */
+.body[data-fade] {
+  --sidebar-body-fade-size: var(--space-3);
+}
+
+/* mask-image의 #000은 색이 아니라 "완전 불투명" alpha marker — lint-hardcoded ignore. */
+.body[data-fade="top"] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--sidebar-body-fade-size), /* lint-hardcoded: ignore */
+    #000 100% /* lint-hardcoded: ignore */
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--sidebar-body-fade-size), /* lint-hardcoded: ignore */
+    #000 100% /* lint-hardcoded: ignore */
+  );
+}
+
+.body[data-fade="bottom"] {
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0, /* lint-hardcoded: ignore */
+    #000 calc(100% - var(--sidebar-body-fade-size)), /* lint-hardcoded: ignore */
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0, /* lint-hardcoded: ignore */
+    #000 calc(100% - var(--sidebar-body-fade-size)), /* lint-hardcoded: ignore */
+    transparent 100%
+  );
+}
+
+.body[data-fade="both"] {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--sidebar-body-fade-size), /* lint-hardcoded: ignore */
+    #000 calc(100% - var(--sidebar-body-fade-size)), /* lint-hardcoded: ignore */
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 var(--sidebar-body-fade-size), /* lint-hardcoded: ignore */
+    #000 calc(100% - var(--sidebar-body-fade-size)), /* lint-hardcoded: ignore */
+    transparent 100%
+  );
+}
+
 /* Brand preset ─────────────────────────────────────────
    Header 안에 꽂히는 preset. symbol은 항상, wordmark는 expanded일 때만 렌더.
    상한선 토큰으로 max-height 강제 — 사용처가 그 안에서 자유롭게 크기 지정.
-   좌우/상하 padding은 소비처가 공급. */
+   Header 자체 좌우/상하 padding은 소비처가 공급(래퍼 축).
+   Brand 안쪽 좌우 padding은 벤더가 공급 — MenuItem이 자체 padding-inline을
+   가지므로 Brand symbol이 아래 MenuItem 아이콘과 같은 X축에 서려면
+   Brand도 동일한 inner padding을 가져야 함(아니면 symbol이 라벨 영역과 anti-flush).
+   width: 100% + collapsed 중앙 정렬: Brand가 Header 폭을 전부 받아야 collapsed일 때
+   justify-content: center가 "Header 가로 중앙"으로 유효해짐. */
 .brand {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: var(--control-h-md);
+  /* MenuItem이 자체 padding-inline(space-2)을 가지므로 Brand symbol이 아래
+     라벨들의 아이콘과 같은 X축에 서려면 Brand도 동일한 inner padding을 가져야 함.
+     Header 안에 Brand + 다른 자식이 공존하는 소비처가 있으므로 width는 건드리지
+     않고 inner padding만 공급. */
+  padding-inline: var(--space-2);
+  box-sizing: border-box;
+}
+
+/* collapsed일 땐 wordmark가 사라져 symbol 하나만 남으므로 Header 폭을 전부 받아
+   가로 중앙 정렬. 안 그러면 Brand가 symbol 폭에만 머물러 Header 좌측에 붙음.
+   inner padding도 제거 — collapsed Header는 자체적으로 좁고 symbol 1개만 있어
+   추가 안쪽 여백이 필요 없음. */
+.root[data-collapsed] .brand {
+  width: 100%;
+  justify-content: center;
+  padding-inline: 0;
 }
 
 .brandSymbol {

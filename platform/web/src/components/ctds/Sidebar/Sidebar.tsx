@@ -75,8 +75,16 @@ function SidebarHeader({ children, className, ...rest }: HTMLAttributes<HTMLDivE
    Header와 Footer 사이의 세로 스크롤 영역.
    여러 개를 두면 각각 독립적인 스크롤 트랙이 됨.
    ResizeObserver로 scrollHeight > clientHeight 감지 → Footer가 자동으로
-   상단 hairline을 켬. 메뉴가 적으면 선 없음, 많으면 자연스럽게 분리선 등장. */
-function SidebarBody({ children, className, ...rest }: HTMLAttributes<HTMLDivElement>) {
+   상단 hairline을 켬. 메뉴가 적으면 선 없음, 많으면 자연스럽게 분리선 등장.
+
+   fade: 스크롤 트랙 상/하단 소프트 fade mask. "top" | "bottom" | "both" | "none".
+   기본 "none" — 켤 때만 켠다(소비처가 Body 안에 고정 상단 블록을 두면 top fade가
+   그 블록을 깎아 "흰 입체 바" 착시를 만드므로 opt-in). */
+export interface SidebarBodyProps extends HTMLAttributes<HTMLDivElement> {
+  fade?: "top" | "bottom" | "both" | "none";
+}
+
+function SidebarBody({ children, className, fade = "none", ...rest }: SidebarBodyProps) {
   const ref = useRef<HTMLDivElement>(null);
   const { setBodyOverflow } = useSidebar();
 
@@ -100,6 +108,7 @@ function SidebarBody({ children, className, ...rest }: HTMLAttributes<HTMLDivEle
     <div
       ref={ref}
       data-sidebar-slot="body"
+      data-fade={fade !== "none" ? fade : undefined}
       className={[styles.body, className ?? ""].filter(Boolean).join(" ")}
       {...rest}
     >

@@ -1,235 +1,235 @@
 # ListItem
 
 ### 원칙
-피드·알림·인박스·활동 로그에 반복해서 등장하는 "누가 뭘 했다" 한 줄의 최소 단위. GitHub Timeline · Linear Activity · Jira Issue history · Slack Notification · Notion Updates가 모두 이 형태다. 시각 구조와 상태 신호(unread/urgent)만 담당하고, 그룹핑·필터·무한스크롤·mark-as-read 같은 흐름은 상위 컨테이너가 책임진다.
+리스트에 반복되는 **한 줄 단위**의 범용 anatomy. 피드·알림·활동 로그·작업 리스트·자원 목록이 전부 이 형태다. GitHub Timeline · Linear Inbox · Jira Issue history · Notion Updates · Figma Comments 모두 같은 뼈대 위에 서식과 톤만 바뀐다.
 
-같은 anatomy 안에서 **variant로 자리의 성격만 바꾼다** — `activity`(과거 서술), `notification`(처리 필요), `mention`(인용), `system`(사람 아님). variant를 늘리기 전에 slot(`leading`/`trailing`/`hoverActions`)으로 조립이 되는지 먼저 본다.
+**3구역 뼈대**: `[leading] [content] [trailing]`. 가로축은 이 셋이 전부고 세 구역 전부 `ReactNode`라 **자유 조립**. content 안쪽은 자주 쓰는 조립을 위한 편의 서브컴포넌트(`Title · Description · Meta · MetaDivider`)가 세로 리듬을 자동 공급하지만 강제는 아님 — 아바타 그룹·프로그레스·커스텀 차트 등 아무거나 넣을 수 있다.
 
-컴포넌트 자신은 **단일 row**다. border/divider/카드 chrome을 자체적으로 지지 않는다 — 리스트로 묶는 건 부모 레이아웃이 결정한다. 운영 콘솔은 border로, pure 좌표는 hairline으로, 카드 안 리스트는 Callout이 담당. ([[components/metric-card]]의 `bare` variant와 같은 원리.)
+**일정·이벤트처럼 날짜가 leading 아이덴티티인 자리는 [[components/event-list-item]] 사용** — ListItem은 범용 한 줄, EventListItem은 시간축 중심 전용.
 
-**단, "chrome 없음"은 완전한 공간 없음을 뜻하지 않는다** — ListItem은 `padding-block: var(--space-3) + margin-block: -var(--space-3)`의 **self-contained 상쇄 공식**을 가진다. 부모가 세로 padding을 안 걸어도 row hover hit area가 보장되게 하려는 안전장치다. 하지만 flex item 레이아웃에서는 음의 margin이 레이아웃 박스를 축소하지 못해 **ListItem이 "상쇄된 자리"를 실제로 차지한다** — 부모 li가 padding을 또 걸면 두 번 공간이 쌓여 과하게 보인다. 자세한 공식·완화법은 아래 "조립 — 부모 wrapper 공식" 섹션.
+**chrome 없음** — bg·border·radius를 자체 공급하지 않는다. ListItem은 "리스트에 녹는 한 줄"이지, 블록이 아니다. 배경·테두리로 상태를 신호해야 하는 블록이 필요하면 [[components/callout]]로 승격한다.
 
-### Do
-- **anatomy는 네 자리로 고정**: `[leading] [who] [body / verb+target] [meta/trailing]`. 어떤 variant든 이 뼈대를 깨지 않는다.
-- **layout은 두 형태**: `inline`(한 줄, 기본) · `stacked`(두 줄 — from이 1줄, body가 2줄). 서술 모드 둘 다에서 작동 — action 모드 stacked는 "from · verb · target" + body 2줄째, 서술 모드 stacked는 from + body 2줄째. 긴 서술/인용/멘션은 stacked.
-- **서술은 두 모드 중 하나로**: 자유 서술은 `from` + `body`("회계팀 — 외주비 결재 요청"), 액션 서술은 `from` + `verb` + `target`("박지훈 · 댓글 남김 · ERP 2.0 사이드바"). 둘 다 넘기지 않는다.
-- **unread는 텍스트 톤으로만 신호** (dot/badge 없음): `unread={true}`면 body/from이 가장 진하고 meta는 `--primary` 컬러로 "지금"을 강조. `unread={false}`면 전체 톤이 한두 단계 뒤로 물러나 "이미 처리됨"을 시사. `unread` 생략(undefined)이면 중립 — **리드/언리드 개념 자체가 없는 자리**(활동 로그·히스토리·타임라인)에서 자유롭게 사용.
-- **surface는 작은 inline 토큰**: `surface="GitHub"` 같은 서비스명은 target 뒤 작게 inline. [[components/badge]] variant="soft"로 렌더되지만 text-only로 유지.
-- **meta는 상대시간 한 토큰**: "방금", "12분", "어제". ISO 날짜는 Tooltip으로 보조.
-- **hover-only 액션은 명시적으로**: `hoverActions={[<IconButton name="archive"/>, ...]}` — Linear Inbox의 archive/snooze/mark-read 패턴. 평상시 숨김, row hover/focus/focus-within에서 등장. [[components/menu-item]]의 hoverOnly와 같은 메커니즘.
-- **row 전체 클릭은 `href`로**: 라우팅 아이템이면 asChild로 `<Link>`에 위임. target만 링크로 쓰고 row는 비활성인 자리도 OK.
-- **leading 정책은 리스트 단위로 통일**: 일부엔 Avatar, 일부엔 Icon처럼 섞으면 "누구"의 자리가 어긋난다. system 메시지가 섞이는 리스트면 전부 Avatar fallback(이니셜) + system은 서비스 로고 Avatar.
-- **leading 타입은 세 종류**: Avatar(사람·팀), Icon(단색 글리프), `ListItemLeadingIcon`(배경색 + 아이콘 마크). 세 번째는 "서비스/시스템이 상태를 색으로 신호"하는 자리 — tone 프리셋(`primary · success · warning · danger · info · neutral`)으로 bg/fg 쌍을 한 번에, 혹은 `--leading-icon-bg` · `--leading-icon-fg` 변수로 세밀 조절. Avatar와 같은 사이즈 트랙(xs/sm/md/lg)이라 섞여도 정렬 유지. 추가로 `size="auto"`는 `layout="stacked"`와 짝 — content 두 줄 전체 높이에 맞춰 정사각으로 stretch, 상태 마크를 크게 보여야 하는 알림/시스템 메시지 자리.
-- **density는 컨테이너에 맡긴다**: ListItem 자체는 size prop 없이, 부모 리스트의 density(또는 Density 축) 토큰을 상속한다.
+변주 축은 두 개: `size`(md/sm)가 세로 여백감을, `align`(center/top)이 leading 세로 정렬을 담당. 기본은 `md`(작업·자원 리스트 밀도), `sm`은 활동 로그·추출 완료처럼 분리선 없이 조밀하게 쌓이는 스트림 자리. row hover bg는 전 리스트 기본, href/onClick이 있으면 cursor pointer + focus ring 추가.
 
-### Don't
-- `verb` + `body` 동시 사용 금지 — 서술 중복. 액션 모드와 서술 모드는 배타.
-- 채팅뷰처럼 긴 메시지 본문을 그대로 노출하지 않는다 — ListItem은 "누가 어디서 뭘 했다" 요약 라인이지, 메시지 내용의 복사본이 아니다. 멘션/댓글이어도 `verb` + `target`("어디/뭐에")로 축약하고 상세는 target 클릭 뒤 전체 뷰에서. 인용부호를 둘러친 긴 body도 금지.
-- `leading`을 생략하고 unread dot만 두지 않는다 — dot 혼자 떠서 "누구"의 자리가 사라진다. system 메시지는 서비스 로고/아이콘 Avatar를 세운다.
-- body를 두 줄 이상으로 늘리지 않는다 — 길면 `layout="stacked"`로 자동 승격해 target 라인과 서술 라인을 분리하거나, [[components/callout]] 영역으로 넘긴다.
-- `trailing` + `hoverActions`를 둘 다 넘기지 않는다 — 메타 자리 하나뿐. 상시 메타(카운트·시간)와 hover 액션이 공존해야 하면 `trailing`에 배열로.
-- unread/urgent를 색으로 중복 신호하지 않는다 — dot만. body 색을 fg-strong으로 올리거나 배경을 깔면 과잉.
-- 자체적으로 padding·border·bg는 두지 않지만 **hover bg는 예외** — row 레벨 상호작용 피드백은 "가두는 chrome"이 아니라 "지금 이 줄" 신호이므로 default로 켜져 있다. pure 좌표에서 끄려면 색상 훅 `--list-item-hover-bg: transparent`.
-- "댓글 남김" 같은 동사를 긴 서술로 늘이지 않는다. verb는 **동사 토큰** 하나. 긴 설명은 target 아래 2줄 body로 승격.
+---
 
-### Fallback
-variant 애매하면 `activity`. layout 애매하면 `inline`. leading 애매하면 `from` 기반 Avatar(이니셜).
+## 결정 가이드 — 뭘 만들려는 거지?
 
-### 색상 훅 (컨테이너 단위 톤 조절)
-MenuItem과 같은 패턴. 리스트 wrapper에 변수를 얹으면 안쪽 ListItem이 일괄 반응.
+### 1. 자원·문서 목록 (내가 열어볼 것들)
+문서·프로젝트·설정 항목처럼 **"열람 가능한 것들"의 목록**. 액션보다 네비게이션이 주.
+
+```tsx
+<ListItem
+  href="/docs/abc"
+  leading={<ListItemLeadingIcon size="md"><Icon name="file-text" /></ListItemLeadingIcon>}
+  trailing={<Icon name="caret-right" />}
+>
+  <ListItem.Title>채용 파이프라인 QBR</ListItem.Title>
+  <ListItem.Meta><time>2029년 7월 8일 작성</time></ListItem.Meta>
+</ListItem>
+```
+
+- **leading**: `ListItemLeadingIcon`(배경색 아이콘) → 자원의 "타입 아이덴티티"
+- **content**: `Title` + `Meta`(생성/수정 날짜). Description은 생략 — 자원의 "본문 요약"이 필요한 자리면 그건 ListItem이 아니라 Card
+- **trailing**: `caret-right` → "클릭하면 열림" 신호
+- **size**: `md`, **align**: `center`
+
+### 2. 작업·할 일 리스트 (내가 처리해야 할 것들)
+요청·승인 대기·검토 필요처럼 **상태가 있는 작업 단위**.
+
+```tsx
+<ListItem
+  align="top"
+  leading={<Icon name="list-dashes" />}
+  trailing={
+    <>
+      <Badge variant="soft" status="warning">검토 필요</Badge>
+      <IconButton size="sm" variant="ghost" icon={<Icon name="caret-right" />} aria-label="열기" />
+    </>
+  }
+>
+  <ListItem.Title>개발 대상과 문서 범위 확인</ListItem.Title>
+  <ListItem.Meta><time>22분 전 요청</time></ListItem.Meta>
+</ListItem>
+```
+
+- **leading**: raw `<Icon>` → 체크리스트·태스크의 "종류"만 가볍게
+- **content**: `Title` + `Meta`(요청 시각·요청자). Description은 선택 — 제목이 짧으면 추가
+- **trailing**: 상태 `Badge` + chevron. Badge가 "지금 상태"를 shout, chevron이 "열어서 처리하라"
+- **size**: `md`, **align**: `top`
+
+### 3. 피드·활동 로그 (지나간 이벤트 스트림)
+알림·활동 기록·이력처럼 **읽을 뿐 처리는 거의 없는 흐름**.
+
+```tsx
+<ListItem align="top" size="sm" leading={<Avatar size="sm" name="박지훈" />}>
+  <ListItem.Title>박지훈 — ERP 2.0 사이드바 티켓에 코멘트</ListItem.Title>
+  <ListItem.Meta><time>12분 전</time></ListItem.Meta>
+</ListItem>
+```
+
+- **leading**: Avatar(사람 이벤트) 또는 raw `<Icon>`(시스템 이벤트)
+- **content**: `Title`에 "누가/뭘 했다"를 한 줄로. 긴 설명은 target 클릭 뒤 상세 뷰로
+- **trailing**: 보통 없음 (hover-only 액션은 archive/mark-read 패턴)
+- **size**: `sm` (스트림은 조밀하게), **align**: `top`
+
+### 4. 멘션·댓글 (내가 응답해야 할 메시지)
+멘션·@·댓글 리스트. 피드와 비슷하지만 **"응답 가능"이 핵심**.
+
+```tsx
+<ListItem
+  href="/thread/123"
+  align="top"
+  leading={<Avatar size="sm" name="장대표" />}
+>
+  <ListItem.Title>장대표</ListItem.Title>
+  <ListItem.Description>@희영 1:1 전에 자료 공유 부탁</ListItem.Description>
+  <ListItem.Meta><time>오전 9:12</time></ListItem.Meta>
+</ListItem>
+```
+
+- **content**: `Title`에 이름, `Description`에 **인용 한 줄**(전체 메시지 복사 금지), `Meta`에 시각
+- **href**: row 전체가 thread 열기
+- **align**: `top`
+
+### 5. 데이터 레코드 (내가 보고 비교할 숫자)
+가격·수량·기간이 핵심인 리스트. 숫자가 Title보다 중요한 자리.
+
+→ **ListItem이 아니라 [[components/table]]의 자리**. ListItem은 "자원·텍스트 중심 한 줄", 숫자 비교·정렬·집계는 Table.
+
+### 6. 상태 공지·보류 블록 (지금 당장 봐야 하는 알림)
+"작업 보류", "다운타임 예정", "결제 실패"처럼 **배경 톤으로 shouts** 해야 하는 블록.
+
+→ **ListItem이 아니라 [[components/callout]]의 자리**. ListItem은 chrome 없이 흐름에 녹는 한 줄이지, 상태 블록이 아니다.
+
+### 7. 선택 가능한 목록 (여러 개 체크·drag)
+멀티 셀렉션·drag reorder·bulk 작업 리스트.
+
+→ **ListItem leading에 `<Checkbox />`** 꽂아서 시작. drag handle은 leading 왼쪽에 추가 자리로. 복잡해지면 Table로 승격.
+
+---
+
+## 서브컴포넌트 역할
+
+| 서브컴포넌트 | 뭘 담나 | 언제 쓰나 |
+|---|---|---|
+| `ListItem.Title` | 메인 제목·행위 요약 | 항상. Title 없는 ListItem은 거의 없음. Badge를 inline으로 Title 앞에 섞어도 OK |
+| `ListItem.Description` | 제목으로 안 담기는 **인용·부제** | 멘션/댓글 본문, 설명이 1줄 더 필요한 자리. 생성일 같은 메타는 절대 Description 아님 |
+| `ListItem.Meta` | **메타데이터** (시각·작성자·버전·상태 텍스트) | 작성일·수정일·요청자·"n개 참여" 같은 보조 수치 전부 여기 |
+| `ListItem.MetaDivider` | Meta 안 토큰 사이 hairline 구분자 | `<span>작성 10일 전</span><Divider /><span>박지훈</span>` 같을 때 |
+
+### Description vs Meta
+가장 자주 실수하는 자리. 구분 공식:
+- **Description** = "제목으로 안 들어간 **본문 성격의 한 줄**" (댓글 본문, 부제, 요약)
+- **Meta** = "**누가/언제/몇 개** 같은 메타데이터" (날짜·사람·수치·상태 텍스트)
+
+"2029년 7월 8일 작성"은 **Meta**. "@희영 1:1 전에 자료 공유 부탁"은 **Description**.
+
+---
+
+## Do
+- **anatomy는 3구역 고정**: leading / children(content) / trailing.
+- **세 구역은 전부 ReactNode — 완전 자유**: 전용 서브컴포넌트는 리듬 토큰을 자동 공급하는 **편의 레이어**지 강제가 아님.
+- **leading 타입은 리스트 단위로 통일**: 자원 리스트는 전부 IconMark, 피드는 전부 Avatar 식.
+- **2줄 이상 본문이면 `align="top"`**: leading이 Title 라인에 top-align.
+- **스트림 자리는 `size="sm"`**: 활동 로그·알림 스트림은 조밀하게.
+- **row 전체 클릭은 `href`/`onClick`**: cursor pointer + focus ring 자동.
+- **Meta 안 토큰 사이는 MetaDivider**: 가운뎃점·bullet·파이프 금지. [[feedback_no_bullet_separator]].
+- **날짜는 [[feedback_date_writing]] 규칙 준수**: "10월 13일" 또는 "12분 전", 숫자 패턴(10. 13) 금지.
+
+## Don't
+- **Description에 메타데이터 쓰기 금지**: "2029년 7월 8일 작성" 같은 날짜·사람·수치는 전부 `Meta`로.
+- **Title에 전체 메시지/긴 서술 넣기 금지**: ListItem은 요약 라인, 메시지 뷰어가 아님.
+- **content에 여러 Title 금지**: 메인 제목은 하나.
+- **Description은 2줄 안쪽**: 3줄 이상이면 외부 Callout·Card로.
+- **bg·border·radius 자체 공급 금지**: 블록 외형이 필요하면 [[components/callout]].
+- **leading에 inline `<svg>` 금지**: 반드시 `<Icon />`/Badge/Avatar 경유. [[feedback_no_inline_svg]].
+- **한 리스트 안 size 혼용 금지**: sm 리스트는 전부 sm.
+- **자리마다 세로 간격 손 조정 금지**: 균형 안 맞으면 `size` 또는 리듬 토큰(`--li-gap-title`·`--li-gap-body`)으로.
+- **[HARD] `border-bottom` 있는 li 에 세로 padding 생략 금지** ([[feedback_no_touching_edges]]) — 콘텐츠가 선에 붙으면 무조건 문제. 최소 `--space-3` 유지. border + padding 을 다른 레이어가 공급해도 결과적으로 접촉 금지는 소비처가 책임.
+
+## Fallback
+leading 애매하면 Icon. size 애매하면 md. align 애매하면 center(한 줄)·top(2줄 이상).
+
+## 축 (CSS 변수)
 
 | 훅 | 대상 | 폴백 |
 |---|---|---|
-| `--list-item-fg` | 본문 서술 색 | `--fg` |
-| `--list-item-from-fg` | from(누구) 색 | `--fg-strong` |
-| `--list-item-meta-fg` | meta/상대시간 색 | `--fg-muted` |
-| `--list-item-hover-bg` | row hover bg | `--hover` |
+| `--li-pad-y` | 세로 padding (hit area) | `var(--space-3)` |
+| `--li-gap-x` | leading↔content↔trailing | `var(--space-3)` |
+| `--li-gap-title` | Title↔Description·Meta ("제목+부제" 유닛감) | `var(--space-0_5)` |
+| `--li-gap-body` | 큰 블록 간 간격 | `var(--space-2)` |
+| `--li-gap-meta` | Meta 라인 아이템 간 가로 gap | `var(--space-2)` |
+
+### MetaDivider 스펙
+
+가운뎃점·bullet·파이프 대신 쓰는 짧고 연한 세로 hairline. 가운뎃점·`|`·`•` 전부 금지 ([[feedback_no_bullet_separator]]).
 
 ```css
-/* 예: 조용한 활동 로그 — 메타·본문 전부 한 단계 뒤로 */
-.quiet-activity {
-  --list-item-fg: var(--fg-muted);
-  --list-item-meta-fg: var(--fg-subtle);
-}
-
-/* 예: 긴급 알림 리스트 — unread dot을 warning 톤으로 */
-.urgent-notifications {
-  --list-item-unread: var(--warning);
+.metaDivider {
+  display: inline-block;
+  width: 1px;
+  height: calc(var(--text-xs) * 0.8);   /* Meta 텍스트 높이 대비 약간 짧게 */
+  background: var(--fg);
+  opacity: 0.2;                          /* hairline 톤 */
+  margin-inline: var(--space-1);        /* 좌우 작게 — Meta 토큰 간격은 --li-gap-meta 가 담당 */
+  vertical-align: baseline;
 }
 ```
 
-### Props 시그니처
+핵심 원칙:
+- 색은 `--fg` × 낮은 알파 (fg 톤 유지, bg 와 섞이지 않음) — 다크/라이트 모드 전환 자동 반응.
+- 높이는 Meta 폰트 크기(`--text-xs`) 기준 상대값 — Density 축 스왑에 자동 반응.
+- 좌우 margin 은 `--space-1` 로 고정, Meta 토큰 간 가로 gap 은 상위 Meta wrapper 의 `gap` (`--li-gap-meta`)이 담당.
+
+## Props 시그니처
 ```tsx
 <ListItem
-  // 왼쪽
-  leading={ReactNode}             // Avatar | Icon | 커스텀. 생략 가능 (system에서도 가능하면 Avatar fallback 권장)
-  unread={boolean}                // 명시해야 톤 신호. undefined=중립, true=강조, false=뒤로
+  leading={ReactNode}             // Icon | Avatar | Badge | ListItemLeadingIcon | 자유
+  trailing={ReactNode}            // Badge | Button | IconButton | 조합 | 자유
+  size="md | sm"                  // default: md (sm은 스트림 자리)
+  align="center | top"            // default: center. 2줄 이상이면 top.
+  href={string}                   // row 전체 링크 (클릭 가능)
+  onClick={(e) => void}           // row 선택 핸들러 (클릭 가능)
+>
+  <ListItem.Title>...</ListItem.Title>
+  <ListItem.Description>...</ListItem.Description>
+  <ListItem.Meta>
+    <time>...</time>
+    <ListItem.MetaDivider />
+    <span>...</span>
+  </ListItem.Meta>
+</ListItem>
 
-  // 본문 — 두 모드
-  from={ReactNode}                // "회계팀" / "박지훈" / "ERP"
-  body={ReactNode}                // 자유 서술 모드
-  verb={ReactNode}                // "댓글 남김" — 액션 모드
-  target={ReactNode}              // 대상. 링크 자리로 자주 쓰임
-  surface={ReactNode}             // "Figma" · "GitHub" — target 뒤 작게 inline
-
-  // 메타
-  meta={ReactNode}                // "방금" · "12분". 오른쪽 끝 default
-  trailing={ReactNode}            // meta 자리 커스텀 (ReactNode 또는 배열)
-  hoverActions={ReactNode[]}      // row hover 시 등장. archive/snooze/⋯
-
-  // 레이아웃·상호작용
-  variant="activity | notification | mention | system"  // default: activity
-  layout="inline | stacked"       // default: inline. stacked는 body 2줄.
-  href={string}                   // row 전체 링크. asChild로 Link 위임.
-  onClick={(e) => void}           // row 선택 핸들러
-  asChild={boolean}               // <Link> 등에 위임
-/>
 ```
 
-### Variant 매트릭스
-같은 anatomy, 다른 **기본 성격**. slot으로 못 바꾸는 자리만 variant로 바꾼다.
-`unread`는 variant가 강제하지 않는다 — 명시해야 신호. 리드 개념이 없는 자리면 생략.
-
-| variant | leading 기본 | hoverActions 전제 | 서술 모드 선호 | 쓰임 |
-|---|---|---|---|---|
-| `activity` | Avatar(from) | 없음 | verb+target | 최근 활동·히스토리 로그. GitHub/Linear timeline. 보통 unread 생략 |
-| `notification` | Avatar(from) | archive/mark-read | from+body | 알림 센터·bell 드롭다운. unread 명시 권장 |
-| `mention` | Avatar(from) | reply/resolve | from+body(인용) | 멘션·댓글 피드. body에 인용부호 자연스러움 |
-| `system` | Icon(서비스 로고) | 없음 | from+body | ERP/CI/빌드 등 시스템 이벤트. 보통 unread 생략 |
-
-### 금지 조합
-- `verb` + `body` 동시 — 서술 중복
-- `leading=null` + `unread=true` — dot이 혼자 떠서 "누구" 자리가 사라짐
-- `trailing` + `hoverActions` — 메타 자리 충돌 (상시+hover면 trailing에 배열)
-- `layout="inline"` + body 2줄 이상 — stacked로 승격
-- `variant="system"` + Avatar(사람 이름) — system은 서비스 아이덴티티
-- 한 리스트 안에 variant 혼용 — 리스트 톤은 하나로. 섞어야 하면 섹션으로 분리
-
-### 조합 예시
-
-```tsx
-// 1) 최근 활동 피드 — verb+target 액션 서술
-<ListItem
-  leading={<Avatar name="박지훈" />}
-  from="박지훈"
-  verb="댓글 남김"
-  target="ERP 2.0 사이드바 구조 확정"
-  surface="Figma"
-  meta="방금"
-/>
-
-// 2) 알림 센터 — unread + hoverActions
-<ListItem
-  variant="notification"
-  leading={<Avatar name="회계팀" />}
-  from="회계팀"
-  body="외주비 세금계산서 결재 요청"
-  meta="방금"
-  unread
-  hoverActions={[
-    <IconButton name="archive" aria-label="보관" />,
-    <IconButton name="check" aria-label="읽음 처리" />,
-  ]}
-/>
-
-// 3) 멘션 — body에 인용 (stacked로 2줄)
-<ListItem
-  variant="mention"
-  layout="stacked"
-  leading={<Avatar name="장대표" />}
-  from="장대표"
-  body={<>&ldquo;@김희영 1:1 전에 자료 공유 부탁&rdquo;</>}
-  meta="오전 9:12"
-  unread
-/>
-
-// 4) 시스템 이벤트 — Icon leading, 사람 아님
-<ListItem
-  variant="system"
-  leading={<Icon name="chart-line" />}
-  from="ERP"
-  body="주간 리포트 생성 완료"
-  meta="3시간"
-/>
-
-// 4-b) 상태 색을 띤 아이콘 마크 leading — 성공/경고/실패 신호
-<ListItem
-  variant="system"
-  leading={
-    <ListItemLeadingIcon tone="success">
-      <Icon name="seal-check" />
-    </ListItemLeadingIcon>
-  }
-  from="CI"
-  body="main 브랜치 배포 성공"
-  meta="방금"
-/>
-
-// 5) pure 좌표 — 부모 리스트가 hairline으로 분리 (조립 공식 "패턴 C" 참고)
-// li에 세로 padding + ListItem self-space 중화 둘 다 필요하다.
-<ul className="pureFeed">
-  {feed.map((f) => (
-    <li key={f.id}>
-      <ListItem
-        leading={<Avatar name={f.from} />}
-        from={f.from}
-        body={f.body}
-        meta={f.ago}
-        unread={f.unread}
-      />
-    </li>
-  ))}
-</ul>
-```
-
-### 조립 — 부모 wrapper 공식
-ListItem은 **self-contained 상쇄 공식**(`padding-block: --space-3` + `margin-block: -(--space-3)`)을 들고 있다. 부모가 공간을 안 걸어도 보장되는 안전장치지만, 조립할 때 아래 세 패턴을 혼동하면 세로가 과하거나 콘텐츠가 선에 붙는다.
-
-**패턴 A — 부모가 간격 아예 안 걸음 (단독 사용):**
-그대로 둬도 ListItem이 자체 공간을 가진다. hover hit area는 보장되지만 **리스트처럼 세로로 쌓이면 아이템끼리 바로 붙는다** — 리스트 자리면 패턴 B/C로.
-
-**패턴 B — 부모 li에 padding만 걸고 ListItem self-space는 그대로:**
-flex item 레이아웃에서 ListItem의 음의 margin이 레이아웃 박스를 축소시키지 못해 **공간이 두 번 쌓인다** (li padding + ListItem self-padding). 겉보기엔 세로가 과하게 커진다 — hairline과 콘텐츠 사이 호흡은 보이지만 리스트가 전반적으로 숨 막혀 보이면 이 상태다.
-
-**패턴 C — li padding + ListItem self-space 중화 (권장, pure 좌표):**
-부모 wrapper가 세로 공식을 완전히 책임지는 자리에서는 자식 선택자로 ListItem self-padding·margin을 둘 다 0으로 눌러 공식을 **하나로 통일**한다. 이게 "콘텐츠가 hairline에 붙지 않으면서도 세로가 과하지 않은" 유일한 조립.
+## 조립 — 부모 wrapper
+리스트로 묶을 때는 부모 ul에 hairline border만 공급.
 
 ```css
-/* pure 좌표 — hairline 리스트 */
-.activityList {
+.feed {
   list-style: none;
-  margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  --list-item-hover-bg: transparent; /* 가두는 chrome 회피 */
+  margin: 0;
 }
-.activityList > li {
-  padding-block: var(--space-3);     /* 세로 호흡은 li가 전담 */
-  border-top: 1px solid var(--border-subtle, var(--border));
+.feed > li {
+  border-bottom: var(--hairline) solid var(--border);
 }
-.activityList > li:last-child {
-  border-bottom: 1px solid var(--border-subtle, var(--border));
-}
-/* ListItem self-space 중화 — 자식 선택자로 */
-.activityList > li > * {
-  padding-block: 0;
-  margin-block: 0;
-}
+.feed > li:last-child { border-bottom: none; }
 ```
 
-**조립 체크리스트 — 리스트에 쓰기 전 아래를 순서대로:**
-1. 리스트인가? (하나만이면 그대로 둬도 OK)
-2. 부모 wrapper가 세로 padding을 책임질 것인가? (hairline 리스트면 반드시 YES)
-3. YES면 자식 선택자로 ListItem self-padding·margin을 중화했는가?
-4. 완성 후 콘텐츠가 hairline/테두리에 **padding 없이 붙어 있지 않은가** 눈으로 확인.
+**interactive ListItem**(`href`/`onClick`)은 cursor pointer + focus ring 자동, hit area는 좌우 `space-2`만큼 자동 확장(negative margin으로 정렬 유지).
 
-### 관련
-- [[components/avatar]] — leading의 default 렌더. system variant에서는 서비스 로고 Avatar.
-- [[components/menu-item]] — hoverOnly 패턴을 동일한 메커니즘으로 재사용.
-- [[components/badge]] — surface가 inline soft Badge로 렌더되는 경우.
-- [[components/callout]] — body가 2줄을 넘고 CTA가 필요하면 Callout 영역.
-- [[components/metric-card]] — 자신이 chrome을 지지 않고 부모가 분리를 담당하는 원칙(`bare` variant)과 같은 설계 철학.
-- [[axes/density]] — compact에선 수직 padding/gap이 줄어 timeline이 조밀해짐.
-- [[tokens/color]] — `--primary`(unread meta) · `--fg` · `--fg-strong` · `--fg-muted` · `--fg-subtle`만 사용.
-- [[feedback_no_uppercase]] — verb·surface·meta 어디에도 uppercase 금지.
+## 관련
+- [[components/avatar]] — leading의 "사람" 자리.
+- [[components/badge]] — Title 앞 inline 상태, leading 상태, trailing 상태 전부.
+- [[components/button]] — trailing CTA.
+- [[components/icon-button]] — trailing chevron/dots.
+- [[components/callout]] — 배경·테두리로 상태 신호가 필요한 블록은 Callout.
+- [[components/event-list-item]] — 날짜가 leading 아이덴티티인 일정·이벤트 리스트는 EventListItem.
+- [[components/table]] — 숫자 비교·정렬이 핵심이면 Table.
+- [[components/metric-card]] — chrome 없이 부모가 분리 담당하는 설계 철학 공유.
+- [[axes/density]] — 전역 Density 축은 테마 레벨, ListItem의 size는 리스트 자리별 조절.
+- [[feedback_no_bullet_separator]] — Meta 라인 구분자는 MetaDivider.
+- [[feedback_no_inline_svg]] — leading 아이콘은 Icon 컴포넌트.
+- [[feedback_date_writing]] — Meta 안 날짜는 "10월 13일" / "12분 전" 형식.

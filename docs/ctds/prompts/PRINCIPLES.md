@@ -93,7 +93,48 @@ CTDS는 9개 축(Mode, Palette, Hue, Shape, Icon, Density, Motion, Font, Voice)�
 - 컴포넌트의 variant/size/prop이 요구를 못 맞춘다고 생각되면: (1) 먼저 **기존 variant·size 안에서 맞출 수 있는지** 재검토, (2) 그래도 안 되면 **기존 사용처 영향을 주지 않는 선에서 새 variant/size 추가**(예: `size="xs"` 신설), (3) 로컬 하드코딩은 **마지막 수단**이고 그 자리에 반드시 "왜 로컬인지" 주석.
 - 기존 size/variant의 수치·간격을 "이번 자리에서만 조금 다르게" 바꾸는 로컬 override 금지 — 다른 사용처가 다 영향 받는다. 수정이 필요하면 새 variant·size로.
 
+**[HARD] 리스트 자리는 무조건 벤더 — 수제 조립 영구 금지:**
+반복되는 아이템 N개를 수직/수평 나열하는 **모든 리스트 자리**는 다음 중 하나를 **반드시** 사용. `<ul>`/`<li>` + 자체 className으로 짜는 "수제 리스트" 전면 금지.
+- **표 역할 (열 공통 축이 있는 격자)** → [[components/table-row]] + [[components/table-header]]
+- **단건 반복 (알림·활동·작업·자원 목록 등)** → [[components/list-item]]
+- **일정·이벤트 (날짜 중심)** → [[components/event-list-item]]
+- **메뉴 아이템 (팝오버·사이드바 등)** → [[components/menu-item]] / [[components/sidebar-item]]
+
+"카드처럼 보이게 하고 싶다"는 생김새 요구이지 자리 변경이 아니다 — ListItem은 chrome 없음 설계가 공식(블록 신호가 필요하면 Callout으로 승격). border/bg 두른 "카드 리스트"가 꼭 필요하면 (1) 레시피/수제 조립 금지, (2) ListItem 벤더에 `surface="card"` 등 **새 variant 신설 후 사용**. 수제 `<ul className="cardList"><li><a>...</a></li></ul>` 패턴은 즉시 리뷰 반려.
+
 관련: §6(하드코딩 금지)은 "값"의 하드코딩, 이 조항은 "컴포넌트 역할"의 하드코딩.
+
+---
+
+## 5b. 배경 또는 테두리 — 둘 다는 금지 [HARD]
+
+한 요소에 "배경색"과 "테두리"를 **동시에** 쓰지 않는다. 특히 **"안 연한 배경(= `--bg`보다 눈에 띄게 진한 톤) + 진한 스트로크"** 조합은 영구 금지.
+
+**왜 중요한가:**
+- "연한 배경 + 진한 스트로크"는 UI를 싸구려·시끄럽게 만든다 — CTDS의 밝은 중성 톤·hairline border 전제와 정면충돌
+- Callout/Badge/Chip/Pill/Banner/Card 류에서 반복되는 전형적 함정 — 디자인이 "안전해 보이려고" 둘 다 집어넣는 자리
+
+**OK:**
+- hairline border만, 배경은 `transparent` 또는 `var(--bg)`
+- 살짝 톤 다른 배경만(`--bg-subtle` 등), 테두리 없음
+- `--primary-*` 같은 solid-fill variant도 배경만 — border는 `transparent` 처리 ([[feedback-solid-fill-no-matching-border]] 참조)
+
+**NG:**
+- `background: var(--bg-subtle|muted|...)` + `border: 1px solid var(--border|strong|...)` 공존
+- 색 테두리 + 색 배경 조합의 outlined Callout류
+- 평소엔 테두리 없다가 hover/active에서만 "급작스런 스트로크" 생기는 패턴
+
+**적용 범위:**
+- 신규 CSS 규칙 블록·TSX 인라인 style 둘 다
+- 벤더 코드(`web/components/**`), 설치 템플릿(`packages/ctds-cli/assets/**`), 사용처 페이지 모두 동일 — "컴포넌트 안이라 괜찮다" 예외 없음
+- hover/active 상태에서도 동일 — 상태 전환으로 테두리가 새로 생기는 것도 금지
+
+**영역 분리가 필요하면:**
+- 선으로 구분해야 할 자리 → 테두리만, 배경은 투명
+- 톤 차이로 구분해야 할 자리 → 배경만, 테두리 없음
+- 둘 다 필요해 보이면 레이아웃이 잘못됐을 가능성 → gap·padding으로 먼저 풀어본다
+
+**자동화:** `.claude/hooks/check_bg_stroke_combo.py`가 Write/Edit 시점에 차단한다.
 
 ---
 
@@ -155,3 +196,32 @@ CTDS는 9개 축(Mode, Palette, Hue, Shape, Icon, Density, Motion, Font, Voice)�
 - 프롬프트 문서는 한국어로 쓴다 (팀 언어).
 - 코드 식별자·토큰명·축명은 영어 (`space-6`, `data-density="compact"`).
 - 컴포넌트가 화면에 표시하는 문구는 프로젝트별 `data-lang`을 따른다 — CTDS 프롬프트에는 화면 문구를 하드코딩하지 않는다.
+
+## 10. 날짜·시간 표기 [HARD]
+
+사람이 읽는 UI 자리(ListItem.Meta, Table 셀, 알림 등)에서 숫자 패턴(`10. 13`, `2026-10-13`, `10/13`)은 금지. 기계 값은 `datetime` 속성이 담당하고, 사람 눈에 보이는 라벨은 아래 셋 중 하나.
+
+### A. 사람 표기 (default)
+- 한국어: **"10월 13일"**, 올해면 연도 생략. 연도가 필요하면 "2026년 10월 13일".
+- 영어: **"Oct 13"**, 올해면 연도 생략. "Oct 13, 2026".
+- 월명은 축약(Oct) 또는 전체(October), 리스트 안이면 축약을 쓴다.
+
+### B. 상대 비교급 (최근 시간)
+- 최근 48시간은 숫자 날짜 대신 **상대어**: "방금", "12분 전", "3시간 전", "어제", "내일", "오늘 오후 3시".
+- 영어: "just now", "12 min ago", "3 h ago", "yesterday", "tomorrow", "today at 3 pm".
+- 기준점은 "지금"이지 "오늘 00시"가 아니다 — 23시간 전은 "어제"가 아니라 "23시간 전".
+
+### C. 기계 값 (Tooltip·`datetime`·스크린리더용)
+- ISO 8601: `datetime="2026-10-13T22:25:00+09:00"`.
+- 사용자에게 직접 보이는 자리 금지. `<time>` 태그의 속성이나 Tooltip 안으로.
+
+### 선택 규칙
+- 48시간 안 → **상대어 (B)**
+- 48시간 밖 ~ 올해 안 → **"10월 13일" / "Oct 13" (A, 연도 생략)**
+- 작년 이전 → **"2024년 10월 13일" / "Oct 13, 2024" (A, 연도 포함)**
+- 정확한 시각이 필요하면 Tooltip에 ISO (C)
+
+### 금지
+- 숫자 전용 패턴: `10. 13`, `2026-10-13`, `10/13`, `10.13.`
+- 혼합: "2026. 10. 13 오전 06:00" (한국어 서식 + 숫자 형태) — "2026년 10월 13일 오전 6시"로.
+- 한 리스트 안에서 A/B 섞기 — 리스트 전체는 하나의 전략 (스트림 피드면 B, 정적 리스트면 A).

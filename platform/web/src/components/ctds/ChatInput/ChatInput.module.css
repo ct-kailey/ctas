@@ -24,6 +24,19 @@
 .root:focus-within {
   box-shadow: var(--ring), var(--shadow-md);
 }
+
+/* variant=flush — shell(사이드바 바닥·바텀바 등)에 edge-to-edge로 들러붙는 형태.
+   외곽 radius·shadow·border 제거, overflow만 유지해 scroll clip은 보장. focus ring도 없음
+   (바깥 shell이 focus signal을 책임지는 자리이거나 입력이 늘 활성인 맥락). */
+.variant-flush {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.variant-flush:focus-within {
+  box-shadow: none;
+}
+
 .disabled {
   opacity: 0.5;
   pointer-events: none;

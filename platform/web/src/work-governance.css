@@ -1,16 +1,11 @@
 /* Responsive breakpoints remain structural constants: CSS custom properties do not resolve in media queries. */
 /* AINS page column widths and scroll limits; CTDS controls visual tokens. */
-:root { --ains-work-governance-measure-292: 292px; --ains-work-governance-measure-230: 230px; --ains-work-governance-measure-100: 100px }
+:root { --ains-work-governance-measure-292: 292px; --ains-work-governance-measure-100: 100px }
 .wg-workspace { min-width: 0 }
 .wg-heading, .wg-section-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-5) }
 .wg-heading { margin-bottom: var(--space-6) }
 .wg-heading h2 { font-size: var(--text-2xl); line-height: var(--lh-2xl); letter-spacing: var(--type-2xl-tracking); margin: var(--space-2) 0 }
 .wg-heading p, .wg-help { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); margin: var(--space-1_5) 0; letter-spacing: var(--type-sm-tracking) }
-.wg-process { padding: 0; margin: 0 0 var(--space-6); list-style: none; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--bg) }
-.wg-process li { padding: var(--space-4) var(--space-5); display: flex; gap: var(--space-3); align-items: center; border-right: var(--hairline) solid var(--border) }
-.wg-process li:last-child { border: 0 }
-.wg-process li>span { font-family: var(--font-normal); font-size: var(--text-2xl); line-height: var(--lh-2xl); color: var(--fg-muted); letter-spacing: var(--type-2xl-tracking) }
-.wg-process strong { font-size: var(--text-sm); color: var(--fg); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-tabs { display: flex; gap: var(--space-6); margin-bottom: var(--space-6) }
 .wg-tabs:where(:not([data-ctds]):not([data-ctds-control])) { border-bottom: var(--hairline) solid var(--border) }
 .wg-tabs button { cursor: pointer }
@@ -19,23 +14,7 @@
 .wg-section-heading { margin: var(--space-5) 0 var(--space-4) }
 .wg-section-heading h3 { display: flex; gap: var(--space-2); align-items: center; font-size: var(--text-base); margin: 0; line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .wg-section-heading>span { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-item-list { border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); background: var(--bg); overflow: hidden }
-.wg-item-list>button { display: flex; align-items: center; gap: var(--space-4); width: 100%; text-align: left; cursor: pointer }
-.wg-item-list>button:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; border-bottom: var(--hairline) solid var(--border); padding: var(--space-5); background: none; font: inherit; color: inherit }
-.wg-item-list>button:last-child:where(:not([data-ctds]):not([data-ctds-control])) { border: 0 }
-.wg-item-list>button:hover:where(:not([data-ctds]):not([data-ctds-control])) { background: var(--hover) }
-.wg-item-list>button>div { flex: 1; min-width: 0 }
-.wg-item-list strong { font-size: var(--text-sm); line-height: var(--lh-sm); display: block; overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
-.wg-item-list small { font-size: var(--text-2xs); color: var(--fg-muted); display: block; margin-top: var(--space-1); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-list-icon { width: var(--space-10); height: var(--control-h-lg); background: var(--bg-subtle); border: var(--hairline) solid var(--border); display: grid; place-items: center; flex-shrink: 0; border-radius: var(--radius-xs); color: var(--fg) }
 .wg-lock-overview { margin-top: var(--space-8) }
-.wg-lock-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-3) }
-.wg-lock-grid article { background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-4) }
-.wg-lock-grid article>strong { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-resources { display: flex; gap: var(--space-1_5); flex-wrap: wrap; margin: var(--space-3) 0 }
-.wg-resources>span { display: flex; align-items: center; gap: var(--space-1_5); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-1) var(--space-2); min-width: 0; max-width: 100% }
-.wg-resources small { color: var(--fg-muted); font-size: var(--text-2xs); flex-shrink: 0; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-resources code { font-size: var(--text-2xs); line-height: var(--lh-2xs); overflow-wrap: anywhere; white-space: pre-wrap; color: var(--fg); letter-spacing: var(--type-2xs-tracking) }
 .wg-fieldset { border: 0; padding: 0; margin: 0; min-width: 0 }
 .wg-fieldset .field, .wg-review-form .field, .wg-artifact-form .field { margin-bottom: var(--space-4) }
 .wg-source-picker { margin: var(--space-6) 0; border-top: var(--hairline) solid var(--border); padding-top: var(--space-4) }
@@ -43,12 +22,6 @@
 .wg-source-picker>small { font-size: var(--text-2xs); color: var(--fg-muted); display: block; margin: var(--space-3) 0; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-search { display: flex; gap: var(--space-2); margin-top: var(--space-3) }
 .wg-search input:where(:not([data-ctds]):not([data-ctds-control])) { min-width: 0; flex: 1 }
-.wg-source-option { display: flex; align-items: flex-start; gap: var(--space-2_5); padding: var(--space-3) 0; border-bottom: var(--hairline) solid var(--border); cursor: pointer }
-.wg-source-option input:where(:not([data-ctds]):not([data-ctds-control])) { margin-top: var(--space-0_5) }
-.wg-source-option input:where(:not([data-ctds]):not([data-ctds-control])) { accent-color: var(--primary) }
-.wg-source-option span { min-width: 0 }
-.wg-source-option strong { font-size: var(--text-sm); font-weight: var(--font-weight-medium); line-height: var(--lh-sm); overflow-wrap: anywhere; letter-spacing: var(--type-sm-tracking) }
-.wg-source-option small { display: block; font-size: var(--text-2xs); color: var(--fg-muted); margin-top: var(--space-1); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-pagination { display: flex; gap: var(--space-3); align-items: center; justify-content: center; margin-top: var(--space-4); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-pagination button { cursor: pointer }
 .wg-pagination button:where(:not([data-ctds]):not([data-ctds-control])) { background: var(--bg); border: var(--hairline) solid var(--border); padding: var(--space-1_5) var(--space-3); border-radius: var(--radius-xs); font: inherit }
@@ -71,31 +44,6 @@
 .wg-review-result.is-blocked { background: var(--warning-subtle); border-color: var(--warning-border-color) }
 .wg-review-result h3 { font-size: var(--text-sm); display: flex; gap: var(--space-2); align-items: center; margin: 0; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-review-result p { font-size: var(--text-sm); line-height: var(--lh-sm); margin: var(--space-2) 0 0; letter-spacing: var(--type-sm-tracking) }
-.wg-checks { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: var(--space-2_5) }
-.wg-check { background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-4) }
-.wg-check>span { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-check strong { display: block; margin-top: var(--space-2); color: var(--fg); font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
-.wg-check.is-no strong { color: var(--warning) }
-.wg-findings { display: grid; gap: var(--space-2_5) }
-.wg-finding { padding: var(--space-4); background: var(--warning-subtle); border: var(--hairline) solid var(--warning-border-color); border-left: calc(var(--hairline) * 3) solid var(--warning-border-color); border-radius: var(--radius-xs) }
-.wg-finding.blocking { border-left-color: var(--destructive-border-color); background: var(--destructive-subtle); border-color: var(--destructive-border-color) }
-.wg-finding>div { display: flex; align-items: center; gap: var(--space-2) }
-.wg-finding strong { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-finding .wg-body-text { margin: var(--space-2) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-finding small { font-size: var(--text-2xs); color: var(--warning); overflow-wrap: anywhere; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-evidence-labels { display: flex; gap: var(--space-1_5); flex-wrap: wrap; font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-evidence-labels span { border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-0_5) var(--space-1_5); max-width: 100%; overflow-wrap: anywhere }
-.wg-question-list { padding-left: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); letter-spacing: var(--type-sm-tracking) }
-.wg-question-list li { padding: var(--space-1_5) 0 }
-.wg-question-list .badge { margin-right: var(--space-1_5) }
-.wg-sources { display: grid; gap: var(--space-2_5) }
-.wg-sources article { padding: var(--space-4); border: var(--hairline) solid var(--border); background: var(--bg-subtle); border-radius: var(--radius-xs); min-width: 0 }
-.wg-sources article>div { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap }
-.wg-sources strong { font-size: var(--text-sm); overflow-wrap: anywhere; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-sources .wg-body-text { max-height: var(--ains-work-governance-measure-230); overflow: auto }
-.wg-sources article>small { display: block; font-size: var(--text-2xs); color: var(--fg-muted); overflow-wrap: anywhere; margin: var(--space-2) 0; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-sources a { display: inline-flex; align-items: center; gap: var(--space-1); margin: var(--space-2) 0 }
-.wg-sources a:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); color: var(--ains-primary-text); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-decision-box { padding: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs) }
 .wg-decision-box h3 { font-size: var(--text-base); margin: 0 0 var(--space-3); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .wg-decision-box .field { margin: var(--space-4) 0 }
@@ -104,35 +52,10 @@
 .wg-decision-box .checkbox-label { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-decision-box .checkbox-label input:where(:not([data-ctds]):not([data-ctds-control])) { flex-shrink: 0 }
 .wg-detail-aside>section { margin-bottom: var(--space-4) }
-.wg-next-links { border-top: var(--hairline) solid var(--border); margin-top: var(--space-4); padding-top: var(--space-3); display: grid; gap: var(--space-2_5) }
-.wg-next-links button { justify-content: flex-start }
-.wg-next-links button:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-artifact-list { display: grid; gap: var(--space-2_5) }
-.wg-artifact-card { padding: var(--space-4); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs) }
-.wg-artifact-card header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2_5) }
-.wg-artifact-card strong { font-size: var(--text-sm); overflow-wrap: anywhere; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-artifact-card a { display: inline-flex; gap: var(--space-1); align-items: center; max-width: 100%; overflow-wrap: anywhere; margin: var(--space-2_5) 0 }
-.wg-artifact-card a:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); color: var(--ains-primary-text); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-artifact-card small { display: block; font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-artifact-card details { margin-top: var(--space-2_5) }
-.wg-artifact-card details:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-artifact-card summary { cursor: pointer }
 .wg-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) }
 .wg-form-grid .full { grid-column: 1/-1 }
 .wg-inline-check { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); margin: var(--space-3) 0; letter-spacing: var(--type-sm-tracking) }
 .wg-inline-check input:where(:not([data-ctds]):not([data-ctds-control])) { margin-top: var(--space-1) }
-.wg-validation { border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-4); margin-top: var(--space-3); background: var(--bg) }
-.wg-validation header { display: flex; gap: var(--space-3); align-items: center; justify-content: space-between }
-.wg-validation h4 { font-size: var(--text-sm); margin: 0; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-validation .wg-review-form { margin-top: var(--space-4); border-top: var(--hairline) solid var(--border); padding-top: var(--space-4) }
-.wg-requirements { padding-left: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-requirements li { padding: var(--space-1) 0; overflow-wrap: anywhere }
-.wg-trace { list-style: none; padding: 0; margin: 0 }
-.wg-trace li { padding: 0 0 var(--space-5) var(--space-5); border-left: var(--hairline) solid var(--border); position: relative }
-.wg-trace li:before { content: ''; position: absolute; width: var(--space-1_5); height: var(--space-1_5); background: var(--border-strong); border-radius: var(--radius-full); left: calc(var(--space-1) * -1); top: var(--space-1) }
-.wg-trace li:last-child { padding-bottom: 0 }
-.wg-trace strong { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-trace small { display: block; color: var(--fg-muted); font-size: var(--text-2xs); margin: var(--space-1) 0; line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-maintenance-form { background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); padding: var(--space-6); margin-bottom: var(--space-6) }
 .wg-maintenance-form .field { margin-bottom: var(--space-4) }
 .wg-maintenance-card { border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); padding: var(--space-5); background: var(--bg); margin-bottom: var(--space-4) }
@@ -149,37 +72,20 @@
 @media(max-width:1050px){
 .wg-detail-grid { grid-template-columns: minmax(0,1fr) }
 .wg-detail-aside { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4) }
-.wg-process li { padding: var(--space-4) var(--space-3); gap: var(--space-2) }
-.wg-process strong { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 }
 @media(max-width:650px){
 .wg-heading, .wg-section-heading { align-items: flex-start; flex-direction: column; gap: var(--space-3) }
 .wg-heading h2, .wg-detail-title h2 { font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: var(--type-xl-tracking) }
-.wg-process { grid-template-columns: 1fr 1fr }
-.wg-process li:nth-child(2) { border-right: 0 }
-.wg-process li:nth-child(-n+2) { border-bottom: var(--hairline) solid var(--border) }
 .wg-tabs { gap: var(--space-4) }
 .wg-tabs button:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-item-list>button { gap: var(--space-2_5); flex-wrap: wrap }
-.wg-item-list>button:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-4) var(--space-3) }
-.wg-item-list>button>div { flex-basis: calc(100% - var(--space-12)) }
-.wg-item-list>button>.badge { margin-left: var(--space-12) }
-.wg-item-list>button>svg { margin-left: auto }
-.wg-lock-grid, .wg-detail-aside, .wg-form-grid { grid-template-columns: 1fr }
-.wg-checks { gap: var(--space-1_5) }
-.wg-check { padding: var(--space-3) var(--space-2) }
-.wg-check>span { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-check strong { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
+.wg-detail-aside, .wg-form-grid { grid-template-columns: 1fr }
 .wg-decision-box, .wg-maintenance-card, .wg-maintenance-form { padding: var(--space-4) }
-.wg-artifact-card header, .wg-validation header { align-items: flex-start; flex-wrap: wrap }
 .wg-detail-meta { gap: var(--space-2) }
-.wg-resources>span { max-width: 100% }
 .wg-summary-actions { align-items: stretch; flex-direction: column }
 .wg-summary-actions>.button { justify-content: center }
 .wg-search { gap: var(--space-1_5) }
 .wg-search .button:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-2_5) }
 .wg-form-grid .full { grid-column: auto }
-.wg-sources article>div>strong { max-width: calc(100% - var(--space-6)) }
 }
 .wg-ai { margin: var(--space-6) 0; padding: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs); min-width: 0 }
 .wg-ai>.inline-actions { flex-wrap: wrap }
@@ -188,10 +94,8 @@
 .wg-ai .field { margin: var(--space-4) 0 }
 .wg-ai .checkbox-label { font-size: var(--text-sm); line-height: var(--lh-sm); margin: var(--space-3) 0; letter-spacing: var(--type-sm-tracking) }
 .wg-ai .notice:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.wg-ai ul { padding-left: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .wg-ai summary { cursor: pointer; margin: var(--space-3) 0 }
 .wg-ai summary:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.wg-ai>article>.button { margin-top: var(--space-4) }
 .wg-ai .inline-actions { gap: var(--space-2_5) }
 .wg-ai .inline-actions>.button:where(:not([data-ctds]):not([data-ctds-control])) { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .wg-matrix-row { margin-top: var(--space-4); padding: var(--space-3); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-xs) }
@@ -201,4 +105,15 @@
 .wg-ai .inline-actions>.button { white-space: normal }
 .wg-ai .inline-actions>.button:where(:not([data-ctds]):not([data-ctds-control])) { line-height: var(--lh-loose) }
 .wg-matrix-row { padding: var(--space-2_5) }
+}
+
+/* CTDS ListItem supplies row spacing and interaction chrome. */
+.wg-process { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--space-4); }
+.wg-item-list, .wg-lock-list, .wg-resources, .wg-sources { min-width: 0; }
+.wg-resources code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.wg-source-option { display: inline-flex; align-items: flex-start; gap: var(--space-2); min-width: 0; cursor: pointer; }
+.wg-source-option span { min-width: 0; overflow-wrap: anywhere; }
+.wg-list-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+@media (max-width: 650px) {
+  .wg-process { grid-template-columns: minmax(0, 1fr); }
 }

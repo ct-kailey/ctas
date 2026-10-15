@@ -56,11 +56,9 @@
   width: var(--_track-w);
   height: var(--_track-h);
   background: var(--bg-muted);
-  border: var(--hairline) solid var(--border);
   border-radius: var(--radius-full);
   transition:
     background var(--duration-slow) var(--ease-out),
-    border-color var(--duration-slow) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
@@ -82,19 +80,14 @@
 /* Checked — 트랙은 primary로 채우고, 썸을 우측 끝 - pad로 이동. */
 .input:checked + .track {
   background: var(--primary);
-  border-color: var(--primary);
 }
 .input:checked + .track .thumb {
-  left: calc(var(--_track-w) - var(--_thumb) - var(--_pad) - var(--hairline) * 2);
+  left: calc(var(--_track-w) - var(--_thumb) - var(--_pad));
 }
 
 /* Hover */
-.root:hover .input:not(:disabled) + .track {
-  border-color: var(--border-strong);
-}
 .root:hover .input:not(:disabled):checked + .track {
   background: var(--primary-hover);
-  border-color: var(--primary-hover);
 }
 
 /* Focus — 트랙에 링 표시 */
@@ -108,7 +101,6 @@
 }
 .input:disabled + .track {
   background: var(--bg-muted);
-  border-color: transparent;
 }
 .input:disabled + .track .thumb {
   background: var(--fg-disabled);

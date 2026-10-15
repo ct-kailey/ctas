@@ -24,6 +24,7 @@
 - 비동기 로딩 상태(spinner Toast)로 쓰지 않는다 — Toast는 완료 신호 전용.
 - 플로팅이지만 `data-side` 기반 `.m-float` 유틸은 쓰지 않는다 — Toast는 placement별 slide-in 전용 애니.
 - 영구 안내·설명·FAQ 유도에 쓰지 않는다 — [[components/callout]] 영역.
+- `duration`을 [[axes/motion]] 스케일로 조절하지 않는다 — motion은 애니메이션 속도 축이고, duration은 "사용자 읽는 시간" 축. 둘은 독립. motion=`none`이어도 duration은 그대로(툭 나타나 4초 보고 툭 사라짐이 정상).
 
 ### Fallback
 `tone` 애매하면 `neutral`. `surface` 애매하면 `inverse`. `placement` 애매하면 `bottom-right`. `duration` 애매하면 `4000`.

@@ -68,7 +68,7 @@ Textarea는 기존 rows·ref·수동 크기 조절을 보존한다. Disclosure�
 
 ## Icon 수정
 
-공식 Lucide 매핑과 미지원 이름의 fallback을 유지하고 Phosphor·Solar 런타임 import를 제거했다. 별도 family·weight prop은 호환성 타입으로 남아 있지만 AINS는 Lucide regular만 렌더한다. 새 아이콘은 이미 지원되는 Lucide 이름을 사용하거나 기존 앱의 `lucide-react` 아이콘을 CTDS 슬롯에 전달한다. 설정에서 아이콘 라이브러리를 바꾸는 기능은 제공하지 않는다.
+0.4.4 공식 Icon을 적용하여 Phosphor 의미 이름을 기준으로 Phosphor·Solar·Lucide 전체 매핑과 family·weight 동작을 복원했다. AINS 화면의 기본 계열은 Lucide regular로 유지한다. 새 아이콘은 이미 지원되는 Lucide 이름을 사용하거나 기존 앱의 `lucide-react` 아이콘을 CTDS 슬롯에 전달한다. 설정에서 아이콘 라이브러리를 바꾸는 기능은 제공하지 않는다.
 
 ## 검증할 동작
 
@@ -76,7 +76,7 @@ Textarea는 기존 rows·ref·수동 크기 조절을 보존한다. Disclosure�
 - 명시적 label과 도움말, 파일 선택·select·checkbox의 기존 동작
 - 모달의 ESC·바깥 클릭·닫기, 저장 중 차단, 미저장 변경 확인, 포커스 복구
 - 실제 업무 화면의 데스크톱·모바일 배치와 테마 축 변경
-- 외부 Lottie 요청이나 사용하지 않는 아이콘 라이브러리가 번들에 포함되지 않는지 확인
+- 외부 Lottie 요청이 없는지, vendor의 세 아이콘 family 매핑이 유효한지 확인
 
 ## 팔레트 대비 보정
 
@@ -94,7 +94,7 @@ Textarea는 기존 rows·ref·수동 크기 조절을 보존한다. Disclosure�
 
 ## 통합 탐색
 
-vara의 Sidebar·Topbar·MenuItem·Tabs를 Vite 업무 화면에서 재사용한다. Shortcut의 키 아이콘도 AINS 고정 아이콘 계열인 Lucide로 연결해 별도 Phosphor 런타임이 필요하지 않다. 원본 크기·키 매핑·접근성 동작은 유지한다.
+vara의 Sidebar·Topbar·MenuItem·Tabs를 Vite 업무 화면에서 재사용한다. Shortcut의 키 아이콘도 AINS 고정 아이콘 계열인 Lucide로 연결해 Shortcut의 기존 키 표시는 유지한다. 원본 크기·키 매핑·접근성 동작은 유지한다.
 
 ## 적용 검사
 
@@ -103,3 +103,11 @@ vara의 Sidebar·Topbar·MenuItem·Tabs를 Vite 업무 화면에서 재사용한
 ## CTDS 0.3.4 업데이트
 
 수정하지 않은 MenuItem·Sidebar와 관련 문서는 공식 버전으로 갱신했다. 메뉴 라벨 말줄임 툴팁의 `@radix-ui/react-tooltip`을 production 의존성으로 등록했다. 기존 AINS 폼 어댑터는 유지하며 Checkbox·Radio에는 upstream의 root 위치 기준 보정을 병합했다.
+
+## CTDS 0.4.4 업데이트
+
+- 리스트는 actual ListItem compound로 전환했다. 앱 어댑터는 role=list/listitem, 조밀한 기본값, 긴 한국어/ID 줄바꿈만 공급한다. Meta는 긴 메타·액션이 좁은 화면에서 줄바꿈하도록 구성한다.
+- Topbar.Spacer와 ListItem의 이전 from/body/layout API는 제거했다. 컴포넌트 검사에서 native ul/ol/li 및 폐기된 ListItem prop도 차단한다.
+- Kanban은 공식 시각 구조를 쓰며, 이동→확인→개발 시작과 읽기 전용 권한은 앱의 기존 상태 머신에 둔다.
+- Sidebar.Item에 label/onClick을 직접 전달한다. asChild 버튼 자식은 벤더의 말줄임 측정 span을 우회하므로 사용하지 않는다. MenuItem의 키보드 처리는 유지된다.
+- tokens.css와 Button.module.css는 0.3.4 원본을 기준으로 0.4.4를 3-way 병합했다. 자체 제공 폰트, 대비 보정, 폼/ref/ESC/포커스 복원 수정은 보존한다.

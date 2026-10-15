@@ -1,8 +1,8 @@
 /* Responsive breakpoints remain structural constants: CSS custom properties do not resolve in media queries. */
 /* AINS page column widths and scroll limits; CTDS controls visual tokens. */
-:root { --ains-questions-measure-1280: 1280px; --ains-questions-measure-290: 290px; --ains-questions-measure-190: 190px; --ains-questions-measure-200: 200px; --ains-questions-measure-220: 220px; --ains-questions-measure-300: 300px }
+:root { --ains-questions-measure-1280: 1280px; --ains-questions-measure-190: 190px; --ains-questions-measure-220: 220px; --ains-questions-measure-300: 300px }
 .questions-page { max-width: var(--ains-questions-measure-1280); margin: 0 auto }
-.q-heading, .q-toolbar, .q-actions, .q-detail-status, .q-delivery header { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap }
+.q-heading, .q-toolbar, .q-actions, .q-detail-status { display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap }
 .q-heading, .q-toolbar { justify-content: space-between; margin-bottom: var(--space-6) }
 .q-heading h2 { margin: var(--space-2) 0 }
 .q-language-settings { padding: var(--space-4); margin-bottom: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-md) }
@@ -14,13 +14,6 @@
 .q-translation-draft h3, .q-translation-draft p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere }
 .q-translation-draft h3 { font-size: var(--text-base); line-height: var(--lh-base) }
 .q-heading p, .q-help, .q-settings:where(:not([data-ctds]):not([data-ctds-control]))>p { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-reminders { display: flex; gap: var(--space-4); background: var(--warning-subtle); border: var(--hairline) solid var(--warning-border-color); border-radius: var(--radius-lg); padding: var(--space-5); margin: var(--space-5) 0 }
-.q-reminders>div { min-width: 0; flex: 1 }
-.q-reminders h3 { margin: 0 0 var(--space-1_5); font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
-.q-reminders p { font-size: var(--text-sm); margin: 0 0 var(--space-2); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-reminders button { display: flex; gap: var(--space-5); justify-content: space-between; width: 100%; text-align: left }
-.q-reminders button:where(:not([data-ctds]):not([data-ctds-control])) { border: 0; background: transparent; padding: var(--space-2) 0; color: inherit }
-.q-reminders span { font-size: var(--text-2xs); color: var(--warning); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .q-settings { margin: var(--space-5) 0 }
 .q-settings:where(:not([data-ctds]):not([data-ctds-control])) { border: var(--hairline) solid var(--border); border-radius: var(--radius-lg); padding: var(--space-4) }
 .q-settings summary, .q-evidence summary, .q-history summary { cursor: pointer }
@@ -28,28 +21,12 @@
 .q-outbound-settings { margin: var(--space-4) 0; padding: var(--space-4); background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-md) }
 .q-outbound-settings h3 { font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .q-outbound-settings small { font-size: var(--text-2xs); font-weight: var(--font-weight-regular); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-cards { display: grid; grid-template-columns: repeat(auto-fill,minmax(var(--ains-questions-measure-290),1fr)); gap: var(--space-4) }
-.q-card { text-align: left; cursor: pointer }
-.q-card:where(:not([data-ctds]):not([data-ctds-control])) { padding: var(--space-5); color: inherit; background: var(--bg); border: var(--hairline) solid var(--border); border-radius: var(--radius-lg) }
-.q-card:where(:not([data-ctds]):not([data-ctds-control])):hover { border-color: var(--border-strong) }
-.q-card>div { display: flex; gap: var(--space-1_5) }
-.q-card h3 { margin: var(--space-4) 0 var(--space-2_5) }
-.q-card:where(:not([data-ctds]):not([data-ctds-control])) h3 { font-size: var(--text-base); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
-.q-card>p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere }
-.q-card:where(:not([data-ctds]):not([data-ctds-control]))>p { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-card:where(:not([data-ctds]):not([data-ctds-control])) dl { font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-card dl>div, .q-metadata>div { display: flex; gap: var(--space-2_5); margin: var(--space-1_5) 0 }
-.q-card dt { min-width: var(--space-16) }
-.q-card:where(:not([data-ctds]):not([data-ctds-control])) dt { color: var(--fg-muted) }
-.q-card dd, .q-metadata dd { margin: 0; overflow-wrap: anywhere }
-.q-card footer { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: space-between }
-.q-card:where(:not([data-ctds]):not([data-ctds-control])) footer { font-size: var(--text-2xs); border-top: var(--hairline) solid var(--border); padding-top: var(--space-3); color: var(--warning); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
+.q-metadata>div { display: flex; gap: var(--space-2_5); margin: var(--space-1_5) 0 }
+.q-metadata dd { margin: 0; overflow-wrap: anywhere }
 .q-form, .q-detail { padding: var(--space-6) }
 .q-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--space-4) }
 .q-work-select { padding: var(--space-3); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); max-height: var(--ains-questions-measure-190); overflow: auto; margin: var(--space-4) 0 }
 .q-work-select legend { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-work-select label { display: flex; align-items: center; gap: var(--space-2_5); padding: var(--space-1_5) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-work-select label span { flex: 1 }
 .q-check { display: flex; gap: var(--space-2); align-items: flex-start; margin: var(--space-3) 0; font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-check input:where(:not([data-ctds]):not([data-ctds-control])), .q-work-select input:where(:not([data-ctds]):not([data-ctds-control])) { width: var(--space-4)!important; min-width: var(--space-4); margin-top: var(--space-0_5) }
 .q-check input:where(:not([data-ctds]):not([data-ctds-control])), .q-work-select input:where(:not([data-ctds]):not([data-ctds-control])) { height: var(--space-4) }
@@ -60,42 +37,26 @@
 .q-inline { display: flex; gap: var(--space-2); margin: var(--space-3) 0 }
 .q-inline input:where(:not([data-ctds]):not([data-ctds-control])) { flex: 1; min-width: 0 }
 .q-detail-status>span:last-child { margin-left: auto; font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-question-text, .q-answer>p, .q-source p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-loose) }
+.q-question-text, .q-answer>p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-loose) }
 .q-question-text { font-size: var(--text-base); margin: var(--space-6) 0; line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .q-metadata { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-1_5) var(--space-5); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-metadata>div { display: block }
 .q-metadata dt { font-size: var(--text-2xs); color: var(--fg-muted); margin-bottom: var(--space-1); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-linked { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin: var(--space-4) 0; font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-linked span { background: var(--bg-subtle); padding: var(--space-1_5) var(--space-2_5); border-radius: var(--radius-xs) }
 .q-answer { border-left: calc(var(--hairline) * 3) solid var(--border); padding: var(--space-2) var(--space-4); background: var(--bg-subtle); margin: var(--space-5) 0 }
 .q-answer h3 { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-answer small { color: var(--fg-muted) }
 .q-edit { padding: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); margin: var(--space-5) 0 }
 .q-edit h3, .q-deliveries h3 { font-size: var(--text-base); margin: 0 0 var(--space-4); line-height: var(--lh-base); letter-spacing: var(--type-base-tracking) }
 .q-actions { margin: var(--space-4) 0 }
-.q-delivery { border: var(--hairline) solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); margin: var(--space-3) 0 }
-.q-delivery header { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-delivery pre { font: inherit; font-size: var(--text-sm); line-height: var(--lh-sm); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-subtle); padding: var(--space-3); border-radius: var(--radius-xs); letter-spacing: var(--type-sm-tracking) }
-.q-delivery small { display: block; color: var(--fg-muted); overflow-wrap: anywhere }
 .q-history { margin-top: var(--space-6) }
 .q-history:where(:not([data-ctds]):not([data-ctds-control])) { border-top: var(--hairline) solid var(--border); padding-top: var(--space-4) }
-.q-history:where(:not([data-ctds]):not([data-ctds-control])) article { padding: var(--space-3) 0; border-bottom: var(--hairline) solid var(--border); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-history time { float: right }
-.q-history:where(:not([data-ctds]):not([data-ctds-control])) time { font-size: var(--text-2xs); color: var(--fg-muted); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
-.q-history p { white-space: pre-wrap; overflow-wrap: anywhere }
-.q-source { margin: var(--space-3) 0 }
-.q-source p { font-size: var(--text-sm); max-height: var(--ains-questions-measure-200); overflow: auto; line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-toolbar select:where(:not([data-ctds]):not([data-ctds-control])) { max-width: var(--ains-questions-measure-220) }
 @media(max-width:650px){
 .q-form, .q-detail { padding: var(--space-4) }
 .q-form-grid, .q-metadata { grid-template-columns: 1fr }
-.q-cards { grid-template-columns: 1fr }
 .q-heading { align-items: flex-start }
-.q-reminders button { flex-direction: column; gap: var(--space-0_5) }
 .q-edit { padding: var(--space-3) }
-.q-history time { float: none; display: block }
 .q-actions .btn { flex: 1 }
-.q-delivery header { align-items: flex-start; flex-direction: column }
 .q-inline { flex-wrap: wrap }
 .q-detail-status>span:last-child { margin-left: 0 }
 }
@@ -112,13 +73,14 @@
 .q-followup-form>p { font-size: var(--text-sm); color: var(--fg-muted); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
 .q-followup-history { border-top: var(--hairline) solid var(--border); border-bottom: var(--hairline) solid var(--border); margin: var(--space-4) 0; padding: var(--space-3) 0 }
 .q-followup-history h3 { font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-followup-history article { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin: var(--space-3) 0 }
-.q-followup-history article>div { min-width: 0 }
-.q-followup-history strong { display: block; font-size: var(--text-sm); overflow-wrap: anywhere; margin-bottom: var(--space-1_5); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking) }
-.q-followup-history small { display: block; margin-top: var(--space-1_5); color: var(--fg-muted); font-size: var(--text-2xs); line-height: var(--lh-2xs); letter-spacing: var(--type-2xs-tracking) }
 .q-followup-note { font-size: var(--text-sm); line-height: var(--lh-sm); padding: var(--space-3); border-left: calc(var(--hairline) * 3) solid var(--border); background: var(--bg-subtle); color: var(--fg); letter-spacing: var(--type-sm-tracking) }
 @media(max-width:600px){
 .q-followup-form { padding: var(--space-3) }
-.q-followup-history article { flex-direction: column }
 .q-followup-origin .text-button:where(:not([data-ctds]):not([data-ctds-control])) { line-height: var(--lh-loose) }
 }
+
+/* CTDS owns list row spacing and chrome; longer source and message bodies remain complete. */
+.q-list { min-width: 0; }
+.q-list-body { margin: var(--li-gap-body, var(--space-2)) 0; font-family: var(--font-normal); font-size: var(--text-sm); line-height: var(--lh-sm); letter-spacing: var(--type-sm-tracking); white-space: pre-wrap; overflow-wrap: anywhere; }
+.q-list-choice { display: flex; align-items: flex-start; gap: var(--space-2); min-width: 0; }
+.q-list-choice span { min-width: 0; overflow-wrap: anywhere; }

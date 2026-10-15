@@ -1,0 +1,220 @@
+/*
+ * EventListItem — 리스트에 쌓이는 일정 아이템.
+ * 좌: 날짜 블록(큰 숫자 + 요일 소문자) · 세로 hairline · 우: 제목 + status + meta.
+ *
+ * variant:
+ *   card — 1px --border + --radius-lg + --bg (기본, 단독 카드)
+ *   line — radius 없음, 하단 hairline만 (리스트 흐름 자리)
+ *   fill — 기본은 중립 --bg-subtle(가장 연한 회색). status 지정 시 info/warning/success/destructive subtle 톤
+ *
+ * interactive: href 있을 때만 hover/focus ring.
+ */
+
+.root {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+/* size — padding, 날짜 트랙 폭, 폰트 크기까지 한 단계씩. */
+.md {
+  padding: var(--space-4) var(--space-5);
+}
+.sm {
+  padding: var(--space-3) var(--space-4);
+}
+
+/* card — border + radius + bg */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* line — radius 없이 하단 hairline만. 리스트 자리에서 쭉 흐른다. */
+.line {
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
+/* fill — 기본은 중립 soft 회색(--bg-subtle). status 지정 시 아래 fillInfo/… 가 override. */
+.fill {
+  background: var(--bg-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.fillInfo {
+  background: var(--info-subtle);
+}
+.fillWarning {
+  background: var(--warning-subtle);
+}
+.fillSuccess {
+  background: var(--success-subtle);
+}
+.fillDestructive {
+  background: var(--destructive-subtle);
+}
+
+.interactive {
+  cursor: pointer;
+  transition: var(--transition-colors), var(--transition-ring);
+}
+
+.card.interactive:hover,
+.line.interactive:hover {
+  background: var(--hover);
+}
+
+/* fill은 이미 status 색을 입고 있어 bg 교체 금지(색이 날아간다).
+   hover는 --hover를 inset 그림자로 겹쳐 톤만 살짝 어둡게. */
+.fill.interactive:hover {
+  box-shadow: inset 0 0 0 999rem var(--hover);
+}
+
+.interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-shadow);
+}
+
+/* fill variant에서 hover + focus 동시 유지 */
+.fill.interactive:hover:focus-visible {
+  box-shadow: inset 0 0 0 999rem var(--hover), var(--ring-shadow);
+}
+
+/* 날짜 블록 — 좌측 고정 폭. 숫자가 2자리 기준으로 흔들리지 않도록 min-width 트랙. */
+.dateBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-0_5);
+  flex-shrink: 0;
+}
+.md .dateBlock {
+  min-width: var(--space-10);
+}
+.sm .dateBlock {
+  min-width: var(--space-8);
+}
+
+.day {
+  font-weight: var(--font-weight-semibold); /* 20px 이상 → semibold 허용 */
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-strong);
+  line-height: var(--lh-tight);
+}
+.md .day {
+  font-size: var(--text-2xl);
+}
+.sm .day {
+  font-size: var(--text-xl);
+}
+
+.weekday {
+  font-weight: var(--font-weight-regular);
+  color: var(--fg-muted);
+  /* 소문자 유지. uppercase 금지 */
+}
+.md .weekday {
+  font-size: var(--text-2xs);
+  line-height: var(--lh-2xs);
+}
+.sm .weekday {
+  font-size: var(--text-3xs);
+  line-height: var(--lh-3xs);
+}
+
+/* 세로 hairline — border-left shorthand로 (리터럴 width 금지 회피) */
+.divider {
+  border-inline-start: 1px solid var(--border);
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+/* 본문 — 제목 + 메타 라인 */
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  justify-content: center;
+}
+
+.title {
+  margin: 0;
+  font-weight: var(--font-weight-medium); /* 20px 미만 → medium */
+  color: var(--fg-strong);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.md .title {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+.sm .title {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+
+/* 메타 라인 — status Badge + 아이콘+텍스트 N개. 사이는 짧은 세로 hairline. */
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1_5);
+  flex-wrap: wrap;
+  min-width: 0;
+  color: var(--fg-muted);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--fg-muted);
+  min-width: 0;
+}
+.md .metaItem {
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+}
+.sm .metaItem {
+  font-size: var(--text-2xs);
+  line-height: var(--lh-2xs);
+}
+
+/* 메타 라인 안에서 "앞선 형제가 있을 때만" 왼쪽 hairline. 첫 아이템은 항상 제거,
+   앞 slot이 비었다가 뒤에 하나만 나오는 경우에도 자동으로 안 그려진다. */
+.metaRow > * + .metaItem {
+  padding-inline-start: var(--space-1_5);
+  border-inline-start: 1px solid var(--border);
+}
+
+/* showMetaDivider=false — meta 사이 hairline/padding 제거. gap만으로 분리. */
+.noMetaDivider .metaRow > * + .metaItem {
+  padding-inline-start: 0;
+  border-inline-start: none;
+}
+
+.metaIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.metaLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

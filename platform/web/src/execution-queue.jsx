@@ -1,3 +1,4 @@
+import { List, ListItem } from './ctds-lists.jsx';
 import React,{useCallback,useEffect,useRef,useState} from 'react';
 import {Download,RefreshCw} from 'lucide-react';
 import { Button, ErrorNotice, FormField, projectPath, dateTime, Input, Disclosure } from './ui.jsx';
@@ -8,7 +9,7 @@ export function ExecutionQueueSettings({project,request,onDirty}){const route=pr
   <div className="inline-actions"><h2>PC 실행기</h2><Button type="button" variant="ghost" icon={RefreshCw} onClick={load} disabled={busy}>새로고침</Button></div>
   <p>승인한 코드 작업을 연결된 PC에서 실행합니다. 작업 전 점검에 문제가 있으면 보류합니다.</p>
   <ErrorNotice error={error}/>
-  {data?.agents?.length ? <ul className="ains-prose-list">{data.agents.map(a=><li key={a.id}><strong>{a.label}</strong> · {a.revoked_at?'연결 해제':new Date(a.expires_at)<new Date()?'만료':'연결됨'} · 마지막 확인 {a.last_poll_at?dateTime(a.last_poll_at):'대기'} {!a.revoked_at?<Button type="button" variant="ghost" disabled={busy} onClick={()=>revoke(a.id)}>연결 해제</Button>:null}</li>)}</ul> : null}
+  {data?.agents?.length ? <List className="ains-prose-list">{data.agents.map(a=><ListItem key={a.id}><ListItem.Title>{a.label}</ListItem.Title> · {a.revoked_at?'연결 해제':new Date(a.expires_at)<new Date()?'만료':'연결됨'} · 마지막 확인 {a.last_poll_at?dateTime(a.last_poll_at):'대기'} {!a.revoked_at?<Button type="button" variant="ghost" disabled={busy} onClick={()=>revoke(a.id)}>연결 해제</Button>:null}</ListItem>)}</List> : null}
   <Disclosure open={!activeAgents.length || ack || Boolean(issued)}><summary>{activeAgents.length ? 'PC 실행기 추가' : 'PC 실행기 연결'}</summary><div className="ains-section-stack">
    <p>PC에 Node.js·Git·Codex 로그인이 필요합니다. PC가 켜져 있어야 작업이 실행됩니다.</p>
    <FormField label="실행기 이름"><Input maxLength={100} value={label} onChange={e=>setLabel(e.target.value)} disabled={busy}/></FormField>
@@ -18,6 +19,6 @@ export function ExecutionQueueSettings({project,request,onDirty}){const route=pr
    <p>세 파일을 같은 폴더에 저장하고 아래 명령을 실행하세요. 연결 파일은 30일 뒤 만료되며 키는 다시 조회할 수 없습니다.</p>
    <pre className="ctx-body-text">node watch-execution-queue.cjs --config ains-execution-agent.json</pre>
   </div></Disclosure>
-  {data?.claims?.length?<Disclosure><summary>실행 이력 {data.claims.length}건</summary><ul className="ains-prose-list">{data.claims.map(c=><li key={c.request_id}>{dateTime(c.created_at)} · {c.status}{c.error_code?` · ${c.error_code}`:''}</li>)}</ul></Disclosure>:null}
+  {data?.claims?.length?<Disclosure><summary>실행 이력 {data.claims.length}건</summary><List className="ains-prose-list">{data.claims.map(c=><ListItem key={c.request_id}><ListItem.Title>{c.status}</ListItem.Title><ListItem.Meta><time>{dateTime(c.created_at)}</time>{c.error_code ? <><ListItem.MetaDivider /><code>{c.error_code}</code></> : null}</ListItem.Meta></ListItem>)}</List></Disclosure>:null}
  </section>;
 }

@@ -6,6 +6,7 @@ import { Badge } from '../components/ctds/Badge/Badge';
 import { Callout } from '../components/ctds/Callout/Callout';
 import { Select } from '../components/ctds/Select/Select';
 import { Disclosure } from '../components/ctds/Disclosure/Disclosure';
+import { List, ListItem } from '../ctds-lists.jsx';
 import { executionError, executionReadiness, localRunRequest, runActive, runLabel, runTone } from './execution-state.mjs';
 
 function time(value) { return value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleString('ko-KR') : '시간 기록 없음'; }
@@ -19,10 +20,10 @@ function RunResult({ run }) {
     {run.summary ? <p className="desktop-run-summary">{run.summary}</p> : null}
     <p className="desktop-caption">이 결과는 로컬 실행 기록입니다. 완료 상태만으로 테스트 통과나 변경사항 승인을 의미하지 않습니다. 원본 저장소에 반영하거나 push·PR·merge하지 않습니다.</p>
     <div className="desktop-stack">
-      <Disclosure><Disclosure.Trigger>변경 파일 · {run.changedFiles?.length || 0}개</Disclosure.Trigger><Disclosure.Body><div className="desktop-stack">{run.changedFiles?.length ? <ul className="desktop-file-list">{run.changedFiles.map((file, index) => <li key={`${index}:${file}`}><code>{file}</code></li>)}</ul> : <p className="desktop-caption">기록된 파일 변경이 없습니다.</p>}{run.diff ? <pre className="desktop-code" tabIndex={0} aria-label="실제 코드 변경 내역"><code>{run.diff}</code></pre> : <p className="desktop-caption">표시할 diff가 없습니다.</p>}</div></Disclosure.Body></Disclosure>
-      <Disclosure><Disclosure.Trigger>실행 기록 · {run.events?.length || 0}건</Disclosure.Trigger><Disclosure.Body>{run.events?.length ? <ol className="desktop-event-list">{run.events.map((event, index) => <li key={`${index}:${event.at}`}><time dateTime={event.at}>{time(event.at)}</time><span>{event.message}</span></li>)}</ol> : <p className="desktop-caption">아직 저장된 실행 기록이 없습니다.</p>}</Disclosure.Body></Disclosure>
+      <Disclosure><Disclosure.Trigger>변경 파일 · {run.changedFiles?.length || 0}개</Disclosure.Trigger><Disclosure.Body><div className="desktop-stack">{run.changedFiles?.length ? <List className="desktop-file-list">{run.changedFiles.map((file, index) => <ListItem key={`${index}:${file}`}><ListItem.Title><code>{file}</code></ListItem.Title></ListItem>)}</List> : <p className="desktop-caption">기록된 파일 변경이 없습니다.</p>}{run.diff ? <pre className="desktop-code" tabIndex={0} aria-label="실제 코드 변경 내역"><code>{run.diff}</code></pre> : <p className="desktop-caption">표시할 diff가 없습니다.</p>}</div></Disclosure.Body></Disclosure>
+      <Disclosure><Disclosure.Trigger>실행 기록 · {run.events?.length || 0}건</Disclosure.Trigger><Disclosure.Body>{run.events?.length ? <List className="desktop-event-list">{run.events.map((event, index) => <ListItem key={`${index}:${event.at}`}><ListItem.Title>{event.message}</ListItem.Title><ListItem.Meta><time dateTime={event.at}>{time(event.at)}</time></ListItem.Meta></ListItem>)}</List> : <p className="desktop-caption">아직 저장된 실행 기록이 없습니다.</p>}</Disclosure.Body></Disclosure>
     </div>
-    {run.limitations?.length ? <ul className="desktop-limits desktop-caption">{run.limitations.map((value, index) => <li key={index}>{value}</li>)}</ul> : null}
+    {run.limitations?.length ? <List className="desktop-limits desktop-caption">{run.limitations.map((value, index) => <ListItem key={index}><ListItem.Title>{value}</ListItem.Title></ListItem>)}</List> : null}
   </section>;
 }
 export function LocalDevelopment({ state, dirty, native, disabled, api, onRunningChange, autoReceiving = false, remoteActive = false, remotePending = false }) {

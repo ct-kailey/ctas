@@ -6,16 +6,10 @@
 .unified-library-filters > :first-child { flex: 1 1 var(--ains-panel-sm); }
 .unified-library-filters > .ains-select { flex: 0 1 var(--ains-panel-sm); min-width: 0; }
 .unified-library-count { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); color: var(--fg-muted); font-size: var(--text-xs); margin: 0; }
-.unified-record-list, .unified-record-versions ul { display: flex; flex-direction: column; list-style: none; padding: 0; margin: 0; min-width: 0; }
-.unified-record-list > li { padding-block: var(--space-5); border-top: var(--hairline) solid var(--border); }
-.unified-record-list > li:last-child { border-bottom: var(--hairline) solid var(--border); }
-/* CTDS ListItem documented pure-list composition: the parent owns row spacing. */
-.unified-record-list > li > [data-ctds="list-item"], .unified-record-versions li > [data-ctds="list-item"] { padding-block: 0; margin-block: 0; }
+.unified-record-list { display: flex; flex-direction: column; min-width: 0; }
 .unified-record-meta { color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-loose); overflow-wrap: anywhere; }
 .unified-record-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
 .unified-record-versions { margin-top: var(--space-3); }
-.unified-record-versions ul { padding-inline-start: var(--space-6); }
-.unified-record-versions li { padding-block: var(--space-3); }
 .unified-capture-project { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); font-size: var(--text-sm); }
 .unified-capture-fields { padding-top: var(--space-5); }
 .unified-capture-primary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-4); }
@@ -28,8 +22,6 @@
 .unified-commercial-original .commercial-content-preview { margin-top: var(--space-4); }
 .unified-commercial-decision { margin-top: var(--space-5); }
 @media (max-width: 800px) {
-  .unified-record-list > li > [data-ctds="list-item"] { flex-wrap: wrap; }
-  .unified-record-list > li > [data-ctds="list-item"] > :last-child { flex-basis: 100%; }
   .unified-record-actions { justify-content: flex-start; }
 }
 @media (max-width: 650px) {

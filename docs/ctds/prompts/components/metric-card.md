@@ -14,7 +14,7 @@
 - `value`에 두 줄 텍스트, 긴 서술, 통화·단위를 라벨로 분리해 큰 숫자만 외롭게 두지 않는다.
 - `trend`와 `delta`를 둘 다 넘기지 않는다 — `delta`를 넘기면 자동 매핑이 무시된다.
 - `trend="down"`인데 숫자상 "좋은" 하락(예: 미결 결재 ↓)일 때도 색을 success로 뒤집지 않는다. 추세 색은 **방향**만 신호한다. 좋음/나쁨 해석은 `description`이나 라벨에서 한다.
-- 그림자로 depth 쌓지 않는다. Shape 축이 shadow를 쥐었다면 간접 반영만.
+- 그림자로 depth 쌓지 않는다. `line`만 아주 은은한 `--shadow-sm`을 깐다(hairline 보조). `soft`·`bare`는 그림자 금지.
 - 아이콘을 숫자 옆에 두지 않는다. 아이콘은 라벨 왼쪽 보조 신호.
 
 ### Fallback
@@ -49,7 +49,7 @@
 
 | variant | 표면 | 경계 | padding | 용도 |
 |---|---|---|---|---|
-| `line` | `--bg` | `1px solid --border` | 있음 | 운영 콘솔·조밀 그리드. hairline만. 기본값 |
+| `line` | `--bg` | `1px solid --border` + `--shadow-sm` | 있음 | 운영 콘솔·조밀 그리드. hairline + 아주 은은한 lift. 기본값 |
 | `soft` | `--bg-subtle` | 투명 | 있음 | 서술형 대시보드·분위기 있는 레이아웃. 경계 대신 표면 톤으로 depth |
 | `bare` | 투명 | 없음 | 없음 | pure 좌표 전용. 부모가 hairline/톤으로 분리를 담당하는 strip 안에서만. 혼자 쓰지 않는다 |
 

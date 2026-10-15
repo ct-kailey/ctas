@@ -1,0 +1,75 @@
+/* Hint ──────────────────────────────────────────────────────
+   흐름 속 참고 한 줄~두 줄. 배경·테두리 없음, 아이콘 + muted 텍스트.
+
+   두 줄 넘어가면 둘째 줄 이후가 아이콘 폭만큼 들여쓰기 되도록
+   hanging indent 패턴 사용:
+     padding-left:  아이콘 폭 + gap
+     text-indent:  -(아이콘 폭 + gap)   → 첫 줄만 아이콘 자리로 되돌림
+   아이콘은 inline-flex + vertical-align으로 첫 줄 line-box 안에 걸침. */
+.root {
+  display: block;
+  color: var(--hint-fg, var(--fg-muted));
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  /* 저자가 넣은 "\n" 또는 JSX 안 줄 바꿈을 실제 줄 바꿈으로 보존 —
+     긴 문장이 어중간한 자리에서 자동 줄 바꿈되지 않도록 저자 호흡을 존중. */
+  white-space: pre-line;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 아이콘 중앙을 x-height 중앙에 맞춤 — text-bottom은 디센더 라인 기준이라
+     살짝 아래로 처짐. -0.125em 보정으로 캡 하이트 중앙에 정렬. */
+  vertical-align: middle;
+  transform: translateY(-0.08em);
+  color: var(--hint-accent, var(--fg-muted));
+  margin-inline-end: var(--space-1_5);
+}
+
+/* Size ─────────────────────────────────────────────────────── */
+.sm {
+  font-size: var(--text-sm);
+  padding-inline-start: calc(var(--icon-size-sm) + var(--space-1_5));
+  text-indent: calc(-1 * (var(--icon-size-sm) + var(--space-1_5)));
+}
+.sm .icon > svg {
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+}
+
+.md {
+  font-size: var(--text-base);
+  padding-inline-start: calc(var(--icon-size-md) + var(--space-1_5));
+  text-indent: calc(-1 * (var(--icon-size-md) + var(--space-1_5)));
+}
+.md .icon > svg {
+  width: var(--icon-size-md);
+  height: var(--icon-size-md);
+}
+
+/* Tones ────────────────────────────────────────────────────
+   neutral: 아이콘·텍스트 모두 fg-muted (기본).
+   그 외 tone: 아이콘만 톤 색, 텍스트는 muted 유지 — Callout보다 더 조용함.
+   필요하면 Callout으로 승격. */
+.neutral {
+  --hint-fg: var(--fg-muted);
+  --hint-accent: var(--fg-muted);
+}
+.brand {
+  --hint-fg: var(--fg-muted);
+  --hint-accent: var(--primary);
+}
+.success {
+  --hint-fg: var(--fg-muted);
+  --hint-accent: var(--success);
+}
+.warning {
+  --hint-fg: var(--fg-muted);
+  --hint-accent: var(--warning);
+}
+.destructive {
+  --hint-fg: var(--fg-muted);
+  --hint-accent: var(--destructive);
+}

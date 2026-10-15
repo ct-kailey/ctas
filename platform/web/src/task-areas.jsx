@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Database, Monitor, Pencil, RefreshCw, Server } from 'lucide-react';
 import { Badge, Button, Disclosure, ErrorNotice, FormField, Input, Notice, Select, Spinner, Textarea, dateTime, projectPath } from './ui.jsx';
+import { List, ListItem } from './ctds-lists.jsx';
+import { TableCellMeter } from './components/ctds/TableCell/TableCellMeter';
 import { Checkbox } from './components/ctds/Checkbox/Checkbox';
 import { TASK_AREAS, TASK_AREA_STATUSES, saveTaskArea, taskAreaAssigneeNames, taskAreaDraft, taskAreaHistoryChanges, taskAreaIsDirty, taskAreaMembers, taskAreaProgress, taskAreaProgressLabel, taskAreaRows, taskAreaStatus } from './task-areas-state.mjs';
 import './task-areas.css';
@@ -38,8 +40,9 @@ function TaskAreaLane({ row, members, membersReady, canWrite, disabled, onSave, 
     catch (err) { if (err.name === 'AbortError') return; setError(err); if (err.status === 409) { setStale(true); await onReload(); } }
   }
   function discard() { setDraft(taskAreaDraft(row)); setEditing(false); setError(null); setStale(false); }
-  return <section className="task-area-lane" aria-label={`${area.label} 작업`}>
-    <div className="task-area-label"><Icon aria-hidden="true" /><strong>{area.label}</strong><span>{area.hint}</span></div>
+  return <ListItem leading={<Icon aria-hidden="true" />} aria-label={`${area.label} 작업`}>
+    <ListItem.Title>{area.label}</ListItem.Title>
+    <ListItem.Description>{area.hint}</ListItem.Description>
     <div className="task-area-content ains-section-stack">
       <header className="task-area-toolbar"><Badge tone={status.tone}>{status.label}</Badge>{canWrite && !editing ? <Button type="button" variant="ghost" icon={Pencil} disabled={disabled || !membersReady} onClick={() => { setDraft(taskAreaDraft(row)); setEditing(true); }}>담당·상태 편집</Button> : null}</header>
       {!editing ? <AreaSnapshot row={row} members={members} /> : <form className="task-area-form ains-section-stack" onSubmit={save}>
@@ -49,13 +52,13 @@ function TaskAreaLane({ row, members, membersReady, canWrite, disabled, onSave, 
         <FormField label={area.referenceLabel}><Input maxLength={2000} value={draft.reference} disabled={disabled || stale} onChange={event => update('reference', event.target.value)} placeholder={area.placeholder} /></FormField>
         <FormField label={`${area.label} 진행 상태`}><Select value={draft.status} disabled={disabled || stale} onChange={event => update('status', event.target.value)}>{TASK_AREA_STATUSES.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</Select></FormField>
         <fieldset className="task-area-people" disabled={disabled || stale}><legend>담당자 · 여러 명 선택 가능</legend>
-          {taskAreaMembers(members).length ? <div className="task-area-people-options">{taskAreaMembers(members).map(member => <Checkbox key={member.id} checked={draft.assignee_ids.includes(member.id)} onChange={event => update('assignee_ids', event.target.checked ? [...draft.assignee_ids, member.id] : draft.assignee_ids.filter(id => id !== member.id))}>{member.name || member.email}</Checkbox>)}</div> : <p>배정할 구성원이 없습니다. 프로젝트 구성원을 먼저 추가해 주세요.</p>}
+          {taskAreaMembers(members).length ? <List aria-label="배정할 프로젝트 구성원">{taskAreaMembers(members).map(member => <ListItem key={member.id}><Checkbox checked={draft.assignee_ids.includes(member.id)} onChange={event => update('assignee_ids', event.target.checked ? [...draft.assignee_ids, member.id] : draft.assignee_ids.filter(id => id !== member.id))}>{member.name || member.email}</Checkbox></ListItem>)}</List> : <p>배정할 구성원이 없습니다. 프로젝트 구성원을 먼저 추가해 주세요.</p>}
           {draft.assignee_ids.some(id => !taskAreaMembers(members).some(member => member.id === id)) ? <Notice tone="warning" title={['done', 'not_applicable'].includes(draft.status) ? '이전 담당자 이력을 보존하고 있습니다' : '현재 배정할 수 없는 담당자가 있습니다'} actions={<Button type="button" variant="secondary" disabled={disabled || stale} onClick={() => update('assignee_ids', draft.assignee_ids.filter(id => taskAreaMembers(members).some(member => member.id === id)))}>이전 담당자 해제</Button>}>진행할 작업으로 바꾸거나 담당자를 변경할 때는 현재 프로젝트 구성원 중 다시 선택해 주세요.</Notice> : null}
         </fieldset>
         <div className="task-area-actions"><Button type="button" variant="secondary" disabled={disabled} onClick={discard}>취소</Button><Button type="submit" disabled={disabled || stale || !dirty || !membersReady}>영역 작업 저장</Button></div>
       </form>}
     </div>
-  </section>;
+  </ListItem>;
 }
 
 export function TaskAreasPanel({ projectId, taskId, request, canWrite, disabled = false, onDirty, onBusy, onChanged }) {
@@ -94,13 +97,12 @@ export function TaskAreasPanel({ projectId, taskId, request, canWrite, disabled 
   }
   const rows = useMemo(() => data ? taskAreaRows(data.areas) : [], [data]), progress = data ? taskAreaProgress(rows) : null;
   return <section className="task-areas ains-section-stack" aria-label="화면·서버·DB 담당과 진행 상태">
-    <header className="task-areas-heading"><div><h3>영역별 담당·진행</h3><p>화면·서버·DB 작업을 나눠 여러 담당자와 진행 상황을 기록합니다.</p></div><div className="task-area-actions">{progress ? <strong>{taskAreaProgressLabel(progress)}</strong> : null}<Button type="button" variant="ghost" icon={RefreshCw} disabled={disabled || busy || Object.values(dirtyAreas).some(Boolean)} onClick={load} aria-label="영역별 작업 새로고침">새로고침</Button></div></header>
+    <header className="task-areas-heading"><div><h3>영역별 담당·진행</h3><p>화면·서버·DB 작업을 나눠 여러 담당자와 진행 상황을 기록합니다.</p></div><div className="task-area-actions">{progress ? <>{progress.total > 0 ? <TableCellMeter value={progress.percent} labelPosition="none" aria-label={`영역 작업 ${progress.total}개 중 ${progress.completed}개 완료`} data-ctds="table-cell-meter" /> : null}<strong>{taskAreaProgressLabel(progress)}</strong></> : null}<Button type="button" variant="ghost" icon={RefreshCw} disabled={disabled || busy || Object.values(dirtyAreas).some(Boolean)} onClick={load} aria-label="영역별 작업 새로고침">새로고침</Button></div></header>
     <ErrorNotice error={error || membersError} onRetry={load} />
     {loading && !data ? <Spinner label="영역별 작업을 불러오고 있습니다" /> : data ? <>
-      {/* CTDS has no task swimlane primitive. These structural lanes compose its controls and status badges. */}
-      <div className="task-areas-lanes">{rows.map(row => <TaskAreaLane key={`${taskId}:${row.area}`} row={row} members={members} membersReady={membersReady} canWrite={canWrite} disabled={disabled || busy} onSave={save} onReload={load} onDirty={laneDirty} />)}</div>
+      <List aria-label="영역별 작업">{rows.map(row => <TaskAreaLane key={`${taskId}:${row.area}`} row={row} members={members} membersReady={membersReady} canWrite={canWrite} disabled={disabled || busy} onSave={save} onReload={load} onDirty={laneDirty} />)}</List>
       <p className="task-areas-footnote">영역 상태는 협업 진행 기록입니다. AI 실행·Task 완료·코드 병합은 기존 승인 흐름에서 진행합니다. ‘작업 없음’ 영역은 진행률에서 제외합니다.</p>
-      {data.history?.length ? <Disclosure><summary>담당·진행 변경 이력 · 최근 {data.history.length}건</summary><div className="task-area-history">{data.history.map((event, index) => <article key={event.id || index}><strong>{TASK_AREAS.find(area => area.key === event.area)?.label || '영역'} · {taskAreaHistoryChanges(event)}</strong><span>{event.actor_name || event.actor?.name || '프로젝트 구성원'} · {dateTime(event.created_at)}</span></article>)}</div>{data.history_has_more ? <p className="task-areas-footnote">최근 변경 50건을 표시합니다.</p> : null}</Disclosure> : null}
+      {data.history?.length ? <Disclosure><summary>담당·진행 변경 이력 · 최근 {data.history.length}건</summary><List aria-label="담당·진행 변경 이력">{data.history.map((event, index) => <ListItem key={event.id || index}><ListItem.Title>{TASK_AREAS.find(area => area.key === event.area)?.label || '영역'} · {taskAreaHistoryChanges(event)}</ListItem.Title><ListItem.Meta>{event.actor_name || event.actor?.name || '프로젝트 구성원'} · {dateTime(event.created_at)}</ListItem.Meta></ListItem>)}</List>{data.history_has_more ? <p className="task-areas-footnote">최근 변경 50건을 표시합니다.</p> : null}</Disclosure> : null}
     </> : null}
   </section>;
 }

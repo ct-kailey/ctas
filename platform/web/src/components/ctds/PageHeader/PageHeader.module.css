@@ -1,0 +1,109 @@
+/* Root ─────────────────────────────────────────────────
+   grid-area로 slot 배치 — DOM 순서와 무관하게 Title+Actions가 같은 줄에
+   서고 Eyebrow/Lead/Meta는 그 위아래로 자동 정렬된다. 이 트릭이 compound
+   API의 '자식 생략 가능' 요구와 맞물려서 가장 안정적. 빈 slot은 grid가
+   공간을 안 먹음(자식이 없는 행은 암묵적으로 0).
+
+   세로 간격(eyebrow→title→lead→meta)은 row-gap으로.
+   PageHeader → 다음 섹션 간격은 **상위 wrapper gap이 담당** — 벤더가
+   margin-bottom으로 공급하지 않는다. margin trick 금지, group wrapper + gap만
+   ([[feedback_page_differential_rhythm]], [[feedback_no_double_spacing]]). */
+.root {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "eyebrow eyebrow"
+    "title   actions"
+    "lead    lead"
+    "meta    meta";
+  row-gap: var(--space-1);
+  align-items: start;
+}
+
+/* Size — 타이포 사이즈만 스왑. 외부 간격은 소비처 상위 gap. */
+.root[data-size="sm"] .title {
+  font-size: var(--text-xl);
+  line-height: var(--lh-xl);
+}
+.root[data-size="sm"] .lead {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+}
+
+.root[data-size="md"] .title {
+  font-size: var(--text-2xl);
+  line-height: var(--lh-2xl);
+}
+.root[data-size="md"] .lead {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+.root[data-size="lg"] .title {
+  font-size: var(--text-3xl);
+  line-height: var(--lh-3xl);
+}
+.root[data-size="lg"] .lead {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+}
+
+/* Eyebrow ──────────────────────────────────────────────
+   작은 상단 라벨. muted + small, uppercase/wide tracking 금지. */
+.eyebrow {
+  grid-area: eyebrow;
+  color: var(--fg-subtle);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Title ─────────────────────────────────────────────────
+   semibold, letter-spacing은 globals의 .page-title 리듬 승계. */
+.title {
+  grid-area: title;
+  color: var(--fg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-tighter);
+  margin: 0;
+  min-width: 0;
+}
+
+/* Lead ──────────────────────────────────────────────────
+   muted 본문. */
+.lead {
+  grid-area: lead;
+  color: var(--fg-muted);
+  margin: 0;
+  max-width: 72ch;
+}
+
+/* Meta ──────────────────────────────────────────────────
+   Badge·날짜·author 등. 가로 묶음, gap은 space-2 (작은 컴포넌트 사이 규칙은
+   이웃 간 긴밀한 묶음에 적용되고, meta는 서로 다른 '정보 조각'이라 space-2).
+
+   row-gap(space-1)이 title↔lead에 맞춰 꽤 좁아져 있는데, Meta는 '본문'이 아니라
+   '별도 정보 묶음'이라 그 간격이 어색하게 좁다. 윗 slot(lead/title/eyebrow 중
+   존재하는 것)과의 사이만 추가 margin-top으로 벌림. */
+.meta {
+  grid-area: meta;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  margin-top: var(--space-2);
+}
+
+/* Actions ───────────────────────────────────────────────
+   Title과 같은 줄, 오른쪽 끝에 pin.
+   자식 사이 gap은 작은 컴포넌트 간 규칙대로 space-1. */
+.actions {
+  grid-area: actions;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  align-self: center;
+}

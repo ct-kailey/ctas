@@ -1,10 +1,12 @@
 /* Root ─────────────────────────────────────────────────
-   투명. 배경·보더·그림자 없음. children 자유 배치.
+   투명. 배경·보더·그림자 없음. 부모 폭을 반드시 꽉 채운다 — 이게 없으면
+   AppFrame.topbarSlot(flex) 안에서 콘텐츠 폭만큼만 차지해 좌측에 몰려버림.
    size는 높이만 결정 — padding/gap은 동일. */
 .root {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
   height: var(--topbar-h);
   padding-inline: var(--space-5);
   background: transparent;
@@ -20,7 +22,33 @@
   height: var(--topbar-h-md);
 }
 
-/* Spacer ───────────────────────────────────────────── */
-.spacer {
-  flex: 1 1 auto;
+/* Zone ─────────────────────────────────────────────────
+   공통. 자식은 가로 flex + 작은 컴포넌트 간 gap(--space-1, 메모리 규칙). */
+.zone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* leading — 왼쪽, 자연 폭. */
+.leading {
+  flex: 0 0 auto;
+}
+
+/* center — 가운데 1fr, 내용은 중앙 정렬. 있으면 L과 T 사이 공간을 1fr로 먹음. */
+.center {
+  flex: 1 1 0;
+  justify-content: center;
+}
+
+/* trailing — 오른쪽 자연 폭.
+   margin-inline-start: auto 가 핵심 — center가 없는 조합(L + T만)에서도
+   남는 공간을 전부 왼쪽 margin이 흡수해 자동으로 오른쪽 끝에 붙는다.
+   center가 있으면 center의 flex:1이 먼저 공간을 요구하기 때문에 margin은
+   0으로 수렴. 어떤 조합이든 안정적 배치. */
+.trailing {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  justify-content: flex-end;
 }

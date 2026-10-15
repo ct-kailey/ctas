@@ -21,6 +21,7 @@ import { SendButton } from "./SendButton";
 import styles from "./ChatInput.module.css";
 
 export type ChatInputShape = "multi" | "single";
+export type ChatInputVariant = "framed" | "flush";
 
 /** 첨부 공용 타입 — ChatInput·Message 양쪽에서 재사용. */
 export interface ChatAttachmentImage {
@@ -48,6 +49,8 @@ export interface ChatInputModel {
 
 export interface ChatInputProps {
   shape?: ChatInputShape;
+  /** 외곽 처리. framed(기본)=radius·border·shadow 떠있음, flush=shell 바닥에 edge-to-edge. */
+  variant?: ChatInputVariant;
 
   value: string;
   onChange: (v: string) => void;
@@ -85,6 +88,7 @@ export const ChatInput = forwardRef<HTMLDivElement, ChatInputProps>(
   function ChatInput(props, ref) {
     const {
       shape = "multi",
+      variant = "framed",
       value,
       onChange,
       onSend,
@@ -167,6 +171,7 @@ export const ChatInput = forwardRef<HTMLDivElement, ChatInputProps>(
     const rootCls = [
       styles.root,
       styles[`shape-${shape}`],
+      styles[`variant-${variant}`],
       disabled ? styles.disabled : "",
       className,
     ]

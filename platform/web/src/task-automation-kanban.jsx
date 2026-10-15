@@ -2,6 +2,7 @@ import React, { useId, useState } from 'react';
 import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, pointerWithin, rectIntersection, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { ArrowRight, GripVertical } from 'lucide-react';
 import { Badge, Button, ControlButton, dateTime } from './ui.jsx';
+import { Kanban } from './components/ctds/Kanban/Kanban';
 import { TaskAreaSummary } from './task-areas.jsx';
 import { AUTOMATION_COLUMNS, automationBoardAction, automationCanRequestStart, automationColumn, automationExecutionLabel, automationKeyboardCoordinates } from './task-automation-state.mjs';
 
@@ -11,34 +12,33 @@ const collisionDetection = args => args.pointerCoordinates ? pointerWithin(args)
 
 function TaskColumn({ status, label, count, active, children }) {
   const { setNodeRef, isOver } = useDroppable({ id: `lane:${status}`, data: { status } });
-  return <section ref={setNodeRef} className={`task-auto-column${active && status === 'in_progress' ? ' task-auto-drop-target' : ''}${active && isOver ? ' task-auto-drop-over' : ''}`} aria-label={label}>
-    <header><h3>{label}</h3><Badge tone="quiet">{count}</Badge></header>
-    <div className="task-auto-cards">{children}</div>
-    {active && status === 'in_progress' ? <p className="task-auto-help">여기에 놓으면 개발 준비 상태를 확인합니다.</p> : !count ? <p className="task-auto-help">작업 없음</p> : null}
-  </section>;
+  const tone = { todo: 'neutral', in_progress: 'info', blocked: 'danger', qa: 'warning', done: 'success' }[status];
+  return <Kanban.Column ref={setNodeRef} title={label} count={count} tone={tone} chrome="line" layout="stack" accent="dot" role="region" aria-label={label} data-ctds="kanban-column" className={`${active && status === 'in_progress' ? 'task-auto-drop-target' : ''}${active && isOver ? ' task-auto-drop-over' : ''}`} footer={active && status === 'in_progress' ? '여기에 놓으면 개발 준비 상태를 확인합니다.' : !count ? '작업 없음' : undefined}>
+    {children}
+  </Kanban.Column>;
 }
 
 function TaskCard({ kind, item, canMove, busy, area, areasUnavailable, onSelect, onMove }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: `${kind}:${item.id}`, disabled: !canMove || busy, data: { kind, id: item.id, title: item.title } });
   const pointerListeners = canMove ? { onMouseDown: listeners?.onMouseDown, onTouchStart: listeners?.onTouchStart } : {};
   const draft = kind === 'draft', status = draft ? 'todo' : automationColumn(item);
-  return <div ref={setNodeRef} className="task-auto-card-group" data-dragging={isDragging || undefined}>
-    {canMove ? <ControlButton ref={setActivatorNodeRef} type="button" variant="ghost" className="task-auto-drag-handle" disabled={busy} {...attributes} {...listeners} aria-label={`${item.title} · 드래그로 이동`}><GripVertical size={16} aria-hidden="true" /><span>드래그로 이동</span></ControlButton> : null}
-    <ControlButton type="button" variant="outline" layout="card" className="task-auto-card" disabled={busy} {...pointerListeners} onClick={() => { if (!isDragging) onSelect(item.id); }}>
-      <span>{draft ? <Badge tone="amber">Nora 검증 전</Badge> : null}<strong>{item.title}</strong>
-        {draft ? <><small>{item.source_title} · 출처 기반 초안</small><small>{item.key}{item.depends_on?.length ? ` · 선행 작업 ${item.depends_on.length}개` : ''}</small><small>개발 전 정책 분석이 필요합니다.</small></> : <>
-          {item.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}<small>{automationExecutionLabel(item)}</small>
-          <TaskAreaSummary value={area} unavailable={areasUnavailable} />
-          <small>{status === 'qa' ? '코드·자동 이력 확인 · 검증 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(item.updated_at)} 갱신`}</small>
-        </>}
-      </span>
-    </ControlButton>
-    {canMove ? <Button type="button" variant="ghost" icon={ArrowRight} disabled={busy} aria-label={`${item.title} · ${draft ? '개발 준비 확인' : '진행 중으로 이동하고 AI 개발 시작'}`} onClick={() => onMove(item)}>{draft ? '개발 준비 확인' : '진행 중으로 이동'}</Button> : null}
-  </div>;
+  function openCard(event) { if (!busy && !isDragging && !event.target.closest('button')) onSelect(item.id); }
+  return <Kanban.Card ref={setNodeRef} {...pointerListeners} onClick={openCard} className="task-auto-kanban-card" data-dragging={isDragging || undefined} data-ctds="kanban-card">
+    {canMove || draft || item.requires_provisional_confirmation ? <Kanban.Card.Header>
+      {draft ? <Badge tone="amber">Nora 검증 전</Badge> : item.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}
+      {canMove ? <ControlButton ref={setActivatorNodeRef} type="button" variant="ghost" className="task-auto-drag-handle" disabled={busy} {...attributes} {...listeners} onMouseDown={event => { event.stopPropagation(); listeners?.onMouseDown?.(event); }} onTouchStart={event => { event.stopPropagation(); listeners?.onTouchStart?.(event); }} aria-label={`${item.title} · 드래그로 이동`}><GripVertical size={16} aria-hidden="true" /><span>드래그로 이동</span></ControlButton> : null}
+    </Kanban.Card.Header> : null}
+    <Kanban.Card.Title><ControlButton type="button" variant="ghost" className="task-auto-title-action" disabled={busy} onClick={() => { if (!isDragging) onSelect(item.id); }}>{item.title}</ControlButton></Kanban.Card.Title>
+    {draft ? <><Kanban.Card.Description>{item.source_title} · 출처 기반 초안</Kanban.Card.Description><Kanban.Card.Meta>{item.key}{item.depends_on?.length ? ` · 선행 작업 ${item.depends_on.length}개` : ''}</Kanban.Card.Meta><Kanban.Card.Description>개발 전 정책 분석이 필요합니다.</Kanban.Card.Description></> : <>
+      <Kanban.Card.Description>{automationExecutionLabel(item)}</Kanban.Card.Description>
+      <TaskAreaSummary value={area} unavailable={areasUnavailable} />
+      <Kanban.Card.Meta>{status === 'qa' ? '코드·자동 이력 확인 · 검증 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(item.updated_at)} 갱신`}</Kanban.Card.Meta>
+    </>}
+    {canMove ? <Kanban.Card.Footer><Button type="button" variant="ghost" icon={ArrowRight} disabled={busy} aria-label={`${item.title} · ${draft ? '개발 준비 확인' : '진행 중으로 이동하고 AI 개발 시작'}`} onMouseDown={event => event.stopPropagation()} onTouchStart={event => event.stopPropagation()} onClick={() => onMove(item)}>{draft ? '개발 준비 확인' : '진행 중으로 이동'}</Button></Kanban.Card.Footer> : null}
+  </Kanban.Card>;
 }
 
-// CTDS has no Kanban primitive. Compose CTDS controls with dnd-kit sensors;
-// the server remains authoritative for development, review and merge states.
+// CTDS owns board/column/card anatomy; dnd-kit owns input and the server owns state.
 export function TaskAutomationKanban({ tasks, drafts, areas, areasUnavailable, permissions, busy, onStart, onDraftStart, onSelectTask, onSelectDraft, onInvalidMove }) {
   const id = useId(), [active, setActive] = useState(null);
   const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: automationKeyboardCoordinates }));
@@ -59,13 +59,13 @@ export function TaskAutomationKanban({ tasks, drafts, areas, areasUnavailable, p
     onDragCancel: () => '이동을 취소했습니다.',
   };
   return <DndContext id={id} sensors={sensors} collisionDetection={collisionDetection} accessibility={{ screenReaderInstructions, announcements }} onDragStart={({ active: item }) => setActive(item.data.current)} onDragCancel={() => setActive(null)} onDragEnd={finish}>
-    <div className="task-auto-board" role="region" aria-label="AI 개발 작업 칸반" tabIndex={0}>{AUTOMATION_COLUMNS.map(([status, label]) => {
+    <Kanban columnWidth="var(--ains-panel-sm)" role="region" aria-label="AI 개발 작업 칸반" tabIndex={0} data-ctds="kanban">{AUTOMATION_COLUMNS.map(([status, label]) => {
       const column = tasks.filter(task => automationColumn(task) === status), sourceDrafts = status === 'todo' ? drafts : [];
       return <TaskColumn key={status} status={status} label={label} count={column.length + sourceDrafts.length} active={active}>
         {sourceDrafts.map(item => <TaskCard key={`draft:${item.id}`} kind="draft" item={item} canMove={permissions.canWrite} busy={busy} onSelect={onSelectDraft} onMove={onDraftStart} />)}
         {column.map(item => <TaskCard key={`task:${item.id}`} kind="task" item={item} canMove={automationCanRequestStart(item, permissions)} busy={busy} area={areas?.find(value => value.task_id === item.id)} areasUnavailable={areasUnavailable} onSelect={onSelectTask} onMove={onStart} />)}
       </TaskColumn>;
-    })}</div>
-    <DragOverlay dropAnimation={null}>{active ? <div className="task-auto-drag-preview"><ControlButton type="button" variant="outline" layout="card" className="task-auto-card" tabIndex={-1} aria-hidden="true"><strong>{active.title}</strong><small>진행 중에 놓아 개발 준비 확인</small></ControlButton></div> : null}</DragOverlay>
+    })}</Kanban>
+    <DragOverlay dropAnimation={null}>{active ? <Kanban.Card className="task-auto-drag-preview" aria-hidden="true" data-ctds="kanban-card"><Kanban.Card.Title>{active.title}</Kanban.Card.Title><Kanban.Card.Description>진행 중에 놓아 개발 준비 확인</Kanban.Card.Description></Kanban.Card> : null}</DragOverlay>
   </DndContext>;
 }

@@ -1,6 +1,6 @@
 # AINS · CTDS
 
-CTDS 0.3.4의 copy-based React 컴포넌트를 React/Vite 호스트에 적용한다.
+CTDS 0.4.4의 copy-based React 컴포넌트를 React/Vite 호스트에 적용한다.
 기본 축은 [ctds.config.json](./ctds.config.json)이 단일 원본이다.
 
 ## 디자인 방향
@@ -10,7 +10,7 @@ Spare의 간결한 업무 도구 레이아웃을 기반으로 한다. 기본은 
 ## 코드와 규칙
 
 - 공통 컴포넌트: `platform/web/src/components/ctds/`
-- 앱 호환 어댑터: `platform/web/src/ui.jsx`, `ui-controls.jsx`
+- 앱 호환 어댑터: `platform/web/src/ui.jsx`, `ui-controls.jsx`, `ctds-lists.jsx`
 - 테마 저장·검증: `appearance.jsx`, `theme-state.mjs`
 - 공식 규칙: [PRINCIPLES](./docs/ctds/prompts/PRINCIPLES.md), [OVERRIDE](./docs/ctds/prompts/OVERRIDE.md), [Spare](./docs/ctds/prompts/themes/spare.md)
 - 앱 수정 사항: [컴포넌트](./docs/ctds/ains-components.md), [스타일](./docs/ctds/ains-styles.md)
@@ -19,7 +19,7 @@ Spare의 간결한 업무 도구 레이아웃을 기반으로 한다. 기본은 
 
 `Button` 기본 크기는 sm이다. 기존 AINS 폼 호환 어댑터만 implicit submit을 보존하므로 새 비제출 버튼에는 `type="button"`을 명시한다. 탭·선택·입력·체크박스·라디오·접기·확인창은 실제 CTDS 컴포넌트를 사용한다. 폼 호환 어댑터가 ref·이벤트·FormData·필수 입력·초기화를 보존한다. Select의 숨은 native 요소는 폼 전송 전용이며 사용자에게 보이는 트리거와 메뉴는 CTDS Select다. 모달은 바쁜 동안 닫기를 차단하고 미저장 확인 콜백·포커스 복귀를 유지한다.
 
-키보드 포커스는 항상 표시한다. 동작 줄이기 요청은 애니메이션보다 우선한다. 아이콘 변경은 지원하지 않는다. Font 축은 한국어 UI에 맞춰 고정한다. Pretendard Variable은 앱에서 직접 제공하므로 문서 CDN 연결이나 CSP 완화 없이 로드된다.
+키보드 포커스는 항상 표시한다. 동작 줄이기 요청은 애니메이션보다 우선한다. 화면 설정에서는 Lucide를 유지한다. 벤더 Icon은 Phosphor 의미 이름을 기준으로 Solar·Lucide까지 공식 매핑을 지원한다. Font 축은 한국어 UI에 맞춰 고정한다. Pretendard Variable은 앱에서 직접 제공하므로 문서 CDN 연결이나 CSP 완화 없이 로드된다.
 
 ## 업데이트
 
@@ -32,3 +32,11 @@ Spare의 간결한 업무 도구 레이아웃을 기반으로 한다. 기본은 
 5. `npm run check:ctds`, `npm run build`, 로그인·폼 제출·중첩 모달·모바일·테마 전환을 확인한다.
 
 `.ctds-meta.json`은 배포 버전과 파일별 upstream hash를 기록한다. `.npmrc`는 source-copy CLI의 Next.js·선택적 컴포넌트 peer를 자동 설치하지 않도록 하며, 실제 사용 컴포넌트의 Radix 의존성은 package-lock에 명시한다. `npm ci`와 Railway 빌드가 같은 설정을 사용한다.
+
+## CTDS 0.4.4 조립
+
+목록은 `ctds-lists.jsx`의 List/ListItem과 Title·Description·Meta를 조합한다. 직접 ul/li를 만들거나 제거된 from/body/layout API를 쓰지 않는다. 행 내부에 여러 동작이 있으면 제목 버튼과 별도의 액션을 사용하고, 행 전체를 중첩 버튼으로 감싸지 않는다.
+
+작업 보드는 Kanban의 Column/Card compound와 기존 dnd-kit 센서를 조합한다. 프로젝트 메뉴는 비선형 탐색을 유지하고, 실제 순차 실행에만 Stepper를 쓴다. 날짜 중심 이력은 EventListItem, 페이지 제목은 PageHeader, 간단한 안내는 Hint, 네트워크 로딩은 ProgressBar를 쓴다. 작업 완료율은 TableCellMeter로 유지한다.
+
+Topbar는 Leading·Center·Trailing으로 구성한다. Breadcrumb.Menu로 프로젝트·업무를 전환하며, Sidebar는 문자열 label을 직접 전달하여 자동 말줄임 툴팁을 활성화한다. 적용 전 패키지의 `assets/skills/ctds-wireframe/SKILL.md`와 `docs/ctds/prompts/ASSEMBLY.md`·recipes를 확인한다.
