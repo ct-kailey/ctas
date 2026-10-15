@@ -21,11 +21,14 @@ const request = async (path, options = {}) => {
 const noOp = () => {};
 function Fixture() {
   const [report, setReport] = useState([]);
-  function verify() {
-    const results = [];
+  async function verify() {
+    const results = [], root = document.documentElement, original = root.dataset.density;
+    try { for (const density of ['compact', 'default', 'comfortable']) {
+    root.dataset.density = density;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     for (const sample of document.querySelectorAll('.spacing-sample')) {
       const section = sample.querySelector('.task-automation'), notice = section.querySelector('[data-ctds="callout"]'), board = sample.querySelector('.task-auto-board'), card = sample.querySelector('.task-auto-card'), ordinary = sample.querySelector('.spacing-ordinary');
-      const label = `${sample.dataset.density}/${sample.dataset.width}`;
+      const label = `${density}/${sample.dataset.width}`;
       if (!board || !card) { results.push({ label, pass: false, reason: 'Wait for board data' }); continue; }
       const gap = board.getBoundingClientRect().top - notice.getBoundingClientRect().bottom;
       const padding = ['Top', 'Right', 'Bottom', 'Left'].map(side => parseFloat(getComputedStyle(card)[`padding${side}`]));
@@ -36,10 +39,11 @@ function Fixture() {
       const checks = { sectionGap: Math.abs(gap - parseFloat(getComputedStyle(section).gap)) < 0.1 && gap > 0, uniformTokenInset: padding.every(value => Math.abs(value - token) < 0.1), contentContained: within && card.scrollHeight <= card.clientHeight, actionsSlot: !actions.querySelector('ul') && Boolean(actions.querySelector('button')), overflowContained: section.scrollWidth <= section.clientWidth + 1 && board.scrollWidth > board.clientWidth, ordinaryButtonUnchanged: !ordinary.className.includes('cardLayout') && Math.abs(ordinary.getBoundingClientRect().height - parseFloat(getComputedStyle(sample.querySelector('.spacing-token-probe')).height)) < 0.1 };
       results.push({ label, pass: Object.values(checks).every(Boolean), gap, padding, checks });
     }
+    } } finally { root.dataset.density = original; }
     setReport(results);
   }
   return <ConfirmationProvider><main className="spacing-fixture ains-section-stack"><h1>CTDS 간격 검증</h1><p>실제 작업 보드에 테스트 데이터만 제공합니다. 세 가지 밀도와 좁은 화면을 함께 검사합니다.</p><Button type="button" onClick={verify}>실제 간격 검사</Button><output>{report.length ? `${report.filter(item => item.pass).length}/${report.length} 통과` : '검사 대기'}</output><pre>{JSON.stringify(report, null, 2)}</pre>
-    {['compact', 'default', 'comfortable'].flatMap(density => ['wide', 'narrow'].map(width => <section key={`${density}-${width}`} className="spacing-sample ains-section-stack" data-density={density} data-width={width}><h2>{density} · {width}</h2><div className="spacing-token-probe" aria-hidden="true" /><Button className="spacing-ordinary" type="button">일반 버튼</Button><TaskAutomationBoard projectId="synthetic-spacing" request={request} role="viewer" notify={noOp} onSettings={noOp} /></section>))}
+    {['wide', 'narrow'].map(width => <section key={width} className="spacing-sample ains-section-stack" data-width={width}><h2>{width}</h2><div className="spacing-token-probe" aria-hidden="true" /><Button className="spacing-ordinary" type="button">일반 버튼</Button><TaskAutomationBoard projectId="synthetic-spacing" request={request} role="viewer" notify={noOp} onSettings={noOp} /></section>)}
   </main></ConfirmationProvider>;
 }
 createRoot(document.getElementById('root')).render(<Fixture />);
