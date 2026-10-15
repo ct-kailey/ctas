@@ -1,0 +1,31 @@
+.customer-connections, .connection-access { min-width: 0; }
+.customer-connections h2, .customer-connections h3, .customer-connections h4, .customer-connections p, .connection-access h2, .connection-access h3, .connection-access h4, .connection-access p { margin: 0; overflow-wrap: anywhere; }
+.customer-connections h2, .connection-access h2 { font-size: var(--text-lg); line-height: var(--lh-lg); font-weight: var(--font-weight-semibold); }
+.customer-connections h3, .customer-connections h4, .connection-access h3, .connection-access h4 { font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--font-weight-semibold); }
+.connection-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); min-width: 0; }
+.connection-title { display: grid; gap: var(--space-2); min-width: 0; }
+.connection-help, .connection-title p { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.connection-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+.customer-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: var(--space-4); align-items: start; }
+.customer-list { display: grid; gap: var(--space-4); min-width: 0; }
+.customer-card-content { display: grid; gap: var(--space-2); min-width: 0; width: 100%; text-align: start; white-space: normal; }
+.customer-card-content strong, .customer-card-content span { overflow-wrap: anywhere; }
+/* CTDS has no general panel primitive; scoped compositions own panel insets. */
+.connection-panel { padding: var(--space-4); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg); min-width: 0; }
+.connection-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(var(--ains-panel-sm), 100%), 1fr)); gap: var(--space-4); min-width: 0; }
+.connection-options { display: flex; flex-wrap: wrap; gap: var(--space-3); min-width: 0; border: 0; margin: 0; padding: 0; }
+.connection-options legend { padding: 0 0 var(--space-2); font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+.connection-options label { display: inline-flex; gap: var(--space-2); align-items: center; font-size: var(--text-sm); }
+.connection-facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-2) var(--space-3); margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); }
+.connection-facts dt { color: var(--fg-muted); }
+.connection-facts dd { margin: 0; overflow-wrap: anywhere; }
+.connection-resource-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: var(--space-3); min-width: 0; }
+.connection-resource-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); min-width: 0; }
+.connection-resource-list li { display: grid; gap: var(--space-1); font-size: var(--text-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; }
+.connection-resource-list code { color: var(--fg-muted); overflow-wrap: anywhere; }
+.connection-member-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); min-width: 0; }
+.connection-divider { border-top: var(--hairline) solid var(--border); padding-top: var(--space-4); }
+@media (max-width: 760px) {
+  .customer-layout { grid-template-columns: minmax(0, 1fr); }
+  .connection-resource-row { grid-template-columns: minmax(0, 1fr); }
+}

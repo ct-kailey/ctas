@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, BookOpen, ChevronRight, FolderKanban, Home, LogOut, Menu, Plus, Settings2, Share2, FileText, Files, ClipboardCheck, CheckSquare, Code2, Library, Users } from 'lucide-react';
+import { Building2, Bell, BookOpen, ChevronRight, FolderKanban, Home, LogOut, Menu, Plus, Settings2, Share2, FileText, Files, ClipboardCheck, CheckSquare, Code2, Library, Users } from 'lucide-react';
 import { Sidebar } from './components/ctds/Sidebar/Sidebar';
 import { Topbar } from './components/ctds/Topbar/Topbar';
 import { IconButton } from './components/ctds/IconButton/IconButton';
@@ -17,6 +17,7 @@ function Brand() {
 }
 export function WorkspaceShell({ user, project, projects, tab, activeStep, alertCount, onNavigate, onProjectSelect, onNewProject, onUpload, canWrite, onLogout, onAppearance, onGuide, sharedView, onShare, children }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const globalView = tab === 'customers';
   const viewTabs = (activeStep?.navigationTabs || activeStep?.tabs || []).filter(id => !sharedView || SHARED_VIEW_TABS.has(id));
   const run = action => { setMenuOpen(false); action(); };
   function navigation() {
@@ -26,11 +27,12 @@ export function WorkspaceShell({ user, project, projects, tab, activeStep, alert
         <Sidebar.Section>
           <Sidebar.Item icon={<Home size={17}/>} label="홈" active={tab === 'home'} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('home'))}>홈</button></Sidebar.Item>
           <Sidebar.Item icon={<Bell size={17}/>} label="알림함" active={tab === 'alerts'} trailing={alertCount ? <Badge tone="amber">{alertCount}</Badge> : null} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('alerts'))}>알림함</button></Sidebar.Item>
+          {!sharedView ? <Sidebar.Item icon={<Building2 size={17}/>} label="고객사·연결 관리" active={globalView} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('customers'))}>고객사·연결 관리</button></Sidebar.Item> : null}
         </Sidebar.Section>
         <Sidebar.Separator />
         {Object.entries(PROJECT_KINDS).map(([kind, label]) => {
           const items = projects.filter(item => (item.project_kind || 'unspecified') === kind);
-          return items.length ? <Sidebar.Section key={kind} title={label}>{items.map(item => <Sidebar.Item key={item.id} icon={<FolderKanban size={16}/>} label={item.name} active={item.id === project?.id} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onProjectSelect(item.id))}>{item.name}</button></Sidebar.Item>)}</Sidebar.Section> : null;
+          return items.length ? <Sidebar.Section key={kind} title={label}>{items.map(item => <Sidebar.Item key={item.id} icon={<FolderKanban size={16}/>} label={item.name} active={!globalView && item.id === project?.id} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onProjectSelect(item.id))}>{item.name}</button></Sidebar.Item>)}</Sidebar.Section> : null;
         })}
         {!sharedView ? <Sidebar.Section><Sidebar.Item icon={<Plus size={16}/>} label="새 프로젝트" asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(onNewProject)}>새 프로젝트</button></Sidebar.Item></Sidebar.Section> : null}
         {project ? <><Sidebar.Separator /><Sidebar.Section title="프로젝트 업무">
@@ -43,8 +45,8 @@ export function WorkspaceShell({ user, project, projects, tab, activeStep, alert
   }
   return <div className="unified-shell"><a href="#workspace" className="skip-link">본문으로 바로가기</a>
     <aside className="unified-rail">{navigation()}</aside>
-    <div className="unified-main"><Topbar className="unified-topbar"><IconButton className="unified-mobile-menu" icon={<Menu size={20}/>} aria-label="탐색 메뉴 열기" onClick={() => setMenuOpen(true)} data-ctds="icon-button" /><Breadcrumb className="unified-breadcrumb" aria-label="현재 위치" data-ctds="breadcrumb"><Breadcrumb.Link href="/?tab=home" onClick={event => { event.preventDefault(); onNavigate('home'); }}>AINS</Breadcrumb.Link><Breadcrumb.Link href={`/?${new URLSearchParams({ tab: 'home', ...(project ? {project: project.id} : {}) })}`} onClick={event => { event.preventDefault(); onNavigate('home'); }}>{project?.name || '프로젝트'}</Breadcrumb.Link><Breadcrumb.Current>{activeStep?.label || WORKSPACE_VIEWS[tab]?.label || '홈'}</Breadcrumb.Current></Breadcrumb><Topbar.Spacer/>{project && !sharedView && project.role === 'owner' ? <Button type="button" variant="secondary" icon={Share2} onClick={onShare}>공유</Button> : null}{project && canWrite && tab === 'documents' ? <Button type="button" icon={Plus} onClick={onUpload} disabled={!canWrite}>자료 등록</Button> : null}</Topbar>
-      {project ? <div className="unified-project-bar"><label htmlFor="project-selector">프로젝트</label><Select id="project-selector" aria-label="프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{projectOptionLabel(item)}</option>)}</Select><Badge tone="quiet">{projectKindLabel(project)}</Badge><span>{ROLES[project.role]}</span></div> : null}
+    <div className="unified-main"><Topbar className="unified-topbar"><IconButton className="unified-mobile-menu" icon={<Menu size={20}/>} aria-label="탐색 메뉴 열기" onClick={() => setMenuOpen(true)} data-ctds="icon-button" /><Breadcrumb className="unified-breadcrumb" aria-label="현재 위치" data-ctds="breadcrumb"><Breadcrumb.Link href="/?tab=home" onClick={event => { event.preventDefault(); onNavigate('home'); }}>AINS</Breadcrumb.Link>{!globalView ? <Breadcrumb.Link href={`/?${new URLSearchParams({ tab: 'home', ...(project ? {project: project.id} : {}) })}`} onClick={event => { event.preventDefault(); onNavigate('home'); }}>{project?.name || '프로젝트'}</Breadcrumb.Link> : null}<Breadcrumb.Current>{activeStep?.label || WORKSPACE_VIEWS[tab]?.label || '홈'}</Breadcrumb.Current></Breadcrumb><Topbar.Spacer/>{project && !globalView && !sharedView && project.role === 'owner' ? <Button type="button" variant="secondary" icon={Share2} onClick={onShare}>공유</Button> : null}{project && canWrite && tab === 'documents' ? <Button type="button" icon={Plus} onClick={onUpload} disabled={!canWrite}>자료 등록</Button> : null}</Topbar>
+      {project && !globalView ? <div className="unified-project-bar"><label htmlFor="project-selector">프로젝트</label><Select id="project-selector" aria-label="프로젝트 선택" value={project.id} onChange={event => onProjectSelect(event.target.value)}>{projects.map(item => <option key={item.id} value={item.id}>{projectOptionLabel(item)}</option>)}</Select><Badge tone="quiet">{projectKindLabel(project)}</Badge><span>{ROLES[project.role]}</span></div> : null}
       {viewTabs.length > 1 ? <Tabs value={tab} onValueChange={id => onNavigate(id, { workflowStep: activeStep.id })} variant="underline" size="sm" className="unified-view-container"><Tabs.List className="unified-view-tabs" aria-label={`${activeStep.label} 메뉴`}>{viewTabs.map(id => <Tabs.Trigger key={id} value={id}>{activeStep.id === 'knowledge' && id === 'context' ? '재사용 자료' : WORKSPACE_VIEWS[id]?.label}</Tabs.Trigger>)}</Tabs.List><Tabs.Panel value={tab}>{children}</Tabs.Panel></Tabs> : children}
     </div>
     {menuOpen ? <Modal title="업무 탐색" onClose={() => setMenuOpen(false)}><div className="unified-mobile-navigation">{navigation()}</div></Modal> : null}

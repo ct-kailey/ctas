@@ -57,7 +57,7 @@ function compare(a,b){return a.updatedAt.localeCompare(b.updatedAt)||a.id.locale
 function createNoraChannelSourceProvider({pool,provider}){
   const extractionAttempts=new Map();
   async function bound(input){identity(input);const row=await binding(pool,input.projectId);if(!row||row.workspace_id!==input.workspaceId||row.status!=='ready'||typeof provider?.callTool!=='function')fail('NORA_CHANNEL_CONNECTION_REQUIRED','프로젝트의 Nora 워크스페이스 연결을 먼저 완료하세요.');return row;}
-  const call=(input,name,args={})=>provider.callTool({projectId:input.projectId,workspaceId:input.workspaceId,name,arguments:args,signal:input.signal});
+  const call=async(input,name,args={})=>{await input.authorize?.();return provider.callTool({projectId:input.projectId,workspaceId:input.workspaceId,name,arguments:args,signal:input.signal});};
   async function connectors(input){
     const rows=array(await call(input,'list_connectors'),'connectors');
     return rows.filter(row=>SOURCE_PROVIDERS.has(row.provider)).map(row=>{
@@ -119,6 +119,38 @@ function createNoraChannelSourceProvider({pool,provider}){
       await call(input,'create_knowledge_folder',{name:ids.libraryTag});
       await ensure(input,'trigger',listed);await ensure(input,'schedule',listed);await bound(input);
       return {...ids,triggerUrl:null,status:'ready',delivery:'nora_library',provider:connector?.provider||null};
+    },
+    async pause(input){
+      // Revoked grants still need cleanup. Only the original project's bound
+      // workspace and immutable managed pipeline identity may be touched.
+      const stopping={...input,authorize:input.authorizeStop};await bound(stopping);const ids=identity(stopping);
+      for(const [key,expected]of [['pipelineId',ids.pipelineId],['triggerPipelineId',ids.triggerPipelineId],['libraryTag',ids.libraryTag]])if(stopping[key]&&stopping[key]!==expected)fail('NORA_CHANNEL_SCOPE_MISMATCH','중지할 수집 파이프라인이 일치하지 않습니다.',403);
+      const listed=array(await call(stopping,'list_pipelines'),'pipelines'),plans=[];
+      // Validate both current graphs and every published snapshot before any
+      // mutation. Never clear another pipeline's schedule or overwrite edits.
+      for(const entrypoint of ['schedule','trigger']){
+        const base=buildChannelPipeline(stopping,{entrypoint});
+        if(!listed.some(row=>row.id===base.pipelineId))continue;
+        const graph=await get(stopping,base.pipelineId),options=entrypoint==='schedule'?existingSchedule(graph,base):{};
+        const template=buildChannelPipeline(stopping,{entrypoint,...options});inspectGraph(graph,template,{partial:true});
+        const live=await call(stopping,'get_live_pipeline_publication',{pipelineId:base.pipelineId});
+        if(live){if(!live.is_live||!live.payload||!live.content_hash)fail('NORA_CHANNEL_PIPELINE_UNPUBLISHED','발행한 수집 파이프라인의 중지 상태를 확인하지 못했습니다.');const liveOptions=entrypoint==='schedule'?existingSchedule(live.payload,base):{};inspectGraph(live.payload,buildChannelPipeline(stopping,{entrypoint,...liveOptions}));}
+        plans.push({entrypoint,base,graph,live});
+      }
+      for(const {entrypoint,base,graph,live}of plans){
+        await bound(stopping);const entry=graph.nodes.find(node=>node.id===base.nodes[0].id);
+        if(entrypoint==='schedule'&&entry)await call(stopping,'clear_pipeline_schedule',{pipelineId:base.pipelineId});
+        if(entrypoint==='trigger'&&entry){
+          const before=entry.config?.apiAuthSecret?.enc;
+          await call(stopping,'rotate_pipeline_trigger_secret',{pipelineId:base.pipelineId,nodeId:entry.id});
+          const changed=await get(stopping,base.pipelineId),secret=changed.nodes.find(node=>node.id===entry.id)?.config?.apiAuthSecret;
+          if(!secret?.enc||!secret?.lastFour||secret.enc===before)fail('NORA_CHANNEL_TRIGGER_AUTH_INVALID','Nora 이벤트 키 교체를 확인하지 못했습니다.');
+        }
+        const stopped=await get(stopping,base.pipelineId);inspectGraph(stopped,base,{partial:true});
+        if(stopped.nodes.length===base.nodes.length){await call(stopping,'publish_pipeline',{pipelineId:base.pipelineId,summary:'AINS managed channel ingestion paused',authorLabel:'AINS'});await published(stopping,base);}
+        else if(live)fail('NORA_CHANNEL_PIPELINE_CHANGED','발행한 파이프라인의 일부 노드가 누락되어 중지를 확인하지 못했습니다.');
+      }
+      await bound(stopping);return {status:'stopped',schedulePaused:true,triggerKeyRotated:true};
     },
     async run(input){
       await bound(input);const ids=identity(input),entrypoint=input.entrypoint==='trigger'?'trigger':'schedule';

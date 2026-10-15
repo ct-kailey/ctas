@@ -83,3 +83,15 @@ test('one records area covers legacy contract links and source review is the pri
   assert.equal(WORKFLOW_STEPS.filter(area => area.tabs.includes('documents')).length, 1);
   assert.equal(resolveWorkflowStep('commercial').id, resolveWorkflowStep('documents').id);
 });
+
+
+test('customer management opens without a project while shared links stay project-only', async () => {
+  const { readWorkspaceLocation } = await import('../web/src/workspace-navigation.mjs');
+  const { sharedViewTab } = await import('../web/src/shared-view-state.mjs');
+  const entry = readWorkspaceLocation('?tab=customers');
+  assert.equal(entry.tab, 'customers');
+  assert.equal(entry.projectId, '');
+  assert.equal(entry.workflowStep, null);
+  assert.equal(sharedViewTab(entry.tab, true), 'home');
+  assert.equal(sharedViewTab(entry.tab, false), 'customers');
+});

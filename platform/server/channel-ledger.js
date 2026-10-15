@@ -124,6 +124,7 @@ function createChannelLedger(pool) {
       if (!Object.keys(body).length || Object.values(body).some(v=>typeof v!=='boolean')) fail('INVALID_CHANNEL_INPUT','수집 사용 여부를 선택하세요.');
       return transaction(pool,async client=>{
         await member(client,p,u,REVIEWERS); const src=await source(client,p,sourceId,true);
+        if(body.manual_intake_enabled===true&&(await client.query('SELECT 1 FROM nora_channel_sources WHERE project_id=$1 AND id=$2',[p,src.id])).rowCount)fail('NORA_CHANNEL_MANAGED_INTAKE','Nora 수집 채널에는 수동 입력을 켤 수 없습니다.',409);
         const updated=(await client.query('UPDATE channel_sources SET enabled=$1,manual_intake_enabled=$2,updated_at=now() WHERE id=$3 RETURNING *',[body.enabled??src.enabled,body.manual_intake_enabled??src.manual_intake_enabled,src.id])).rows[0];
         await audit(client,p,u,'channel.source_updated',src.id,{enabled:updated.enabled,manual_intake_enabled:updated.manual_intake_enabled}); return updated;
       });
@@ -135,12 +136,14 @@ function createChannelLedger(pool) {
         // Consistent lock order: project admission, source, inbox rows.
         await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[`channel-intake:${p}`]);
         const src=await source(client,p,sourceId,true);
+        const managed=(await client.query('SELECT 1 FROM nora_channel_sources WHERE project_id=$1 AND id=$2',[p,src.id])).rowCount>0;
+        if(managed&&!internal.authorize)fail('NORA_CHANNEL_MANAGED_INTAKE','Nora 수집 채널은 승인된 연결을 통해서만 입력할 수 있습니다.',409);
+        if(internal.authorize)await internal.authorize(client);
         const prior=(await client.query('SELECT inbox_id AS id,batch_sha256 FROM channel_batches WHERE source_id=$1 AND batch_id=$2',[src.id,batch.batch_id])).rows[0];
         if (prior) {
           if (prior.batch_sha256!==batchHash) fail('BATCH_REPLAY_CONFLICT','같은 배치 ID에 다른 메시지가 입력되었습니다.',409);
           return {...await detail(client,p,prior.id),replayed:true};
         }
-        if (internal.authorize) await internal.authorize(client);
         if (!src.enabled || (!internal.authorize && !src.manual_intake_enabled)) fail('CHANNEL_PAUSED','이 채널의 수집이 일시 정지되어 있습니다.',409);
         const collected=[];
         for (const m of batch.messages) {

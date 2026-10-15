@@ -1,6 +1,7 @@
 'use strict';
 const { error, emailAddress } = require('./auth');
 const { transaction } = require('./db');
+const { invalidateGrantSources } = require('./customer-connections');
 
 const ROLES = new Set(['owner', 'reviewer', 'member', 'viewer']);
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
@@ -52,6 +53,14 @@ async function protectOwner(db, p, actor, id, previousRole, nextRole) {
 async function audit(db, p, actor, kind, id, detail) {
   await db.query('INSERT INTO events(project_id,actor_id,kind,entity_id,detail) VALUES($1,$2,$3,$4,$5)', [p, actor, kind, id, detail]);
 }
+async function stopMemberSources(db, p, id) {
+  // Source workers hold the same source row lock through their last grant check
+  // and evidence commit. Queue remote stops before changing membership so the
+  // revocation and local collection fence become visible in one transaction.
+  return invalidateGrantSources(db,
+    's.project_id=$1 AND s.connection_grant_id IN (SELECT id FROM project_connection_grants WHERE project_id=$1 AND (operator_id=$2 OR reviewer_id=$2))',
+    [p, id], 'CONNECTION_OPERATOR_REVOKED');
+}
 
 function createProjectMembers(pool) {
   return {
@@ -97,8 +106,9 @@ function createProjectMembers(pool) {
           const refs = await assignments(db, p, id);
           if (refs.open_tasks || refs.open_task_areas || refs.open_questions || refs.active_scopes) throw error('MEMBER_HAS_ACTIVE_ASSIGNMENTS', '진행 중인 담당 작업·화면·서버·DB 영역·질문을 정리하거나 다른 담당자로 변경하고 작업 범위를 해제한 뒤 열람 권한으로 바꾸세요.', 409);
         }
+        const stopped = ['owner', 'reviewer'].includes(nextRole) ? 0 : await stopMemberSources(db, p, id);
         await db.query('UPDATE memberships SET role=$3 WHERE project_id=$1 AND user_id=$2', [p, id, nextRole]);
-        await audit(db, p, actor, 'member.role_changed', id, { before: previous.role, after: nextRole });
+        await audit(db, p, actor, 'member.role_changed', id, { before: previous.role, after: nextRole, nora_sources_stopped: stopped });
         return { member: { id, role: nextRole } };
       });
     },
@@ -110,8 +120,9 @@ function createProjectMembers(pool) {
         await protectOwner(db, p, actor, id, previous.role, null);
         const refs = await assignments(db, p, id);
         if (refs.tasks || refs.task_areas || refs.questions || refs.scopes) throw error('MEMBER_HAS_ASSIGNMENT_HISTORY', '담당 작업·영역·질문·작업 범위 이력이 있어 해제할 수 없습니다. 이력을 보존하며 권한만 변경할 수 있습니다.', 409);
+        const stopped = await stopMemberSources(db, p, id);
         await db.query('DELETE FROM memberships WHERE project_id=$1 AND user_id=$2', [p, id]);
-        await audit(db, p, actor, 'member.removed', id, { role: previous.role });
+        await audit(db, p, actor, 'member.removed', id, { role: previous.role, nora_sources_stopped: stopped });
         return { removed: true, user_id: id };
       });
     },

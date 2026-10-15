@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Clock3, Copy, FileText, History, Inbox, KeyRound, Link2, Plus, RefreshCw, Zap } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, FormField, Input, Notice, Select, Spinner, dateTime, projectPath } from './ui.jsx';
 import { ListItem, ListItemLeadingIcon } from './components/ctds/ListItem';
+import { usableConnectionGrants, selectedGrantResource } from './customer-connections-state.mjs';
 import './nora-channels.css';
 
 const PROVIDERS = { slack: 'Slack', discord: 'Discord', teams: 'Microsoft Teams', gmail: 'Gmail', drive: 'Google Drive', google_drive: 'Google Drive', gdrive: 'Google Drive', 'google-drive': 'Google Drive', onedrive: 'OneDrive', microsoft: 'Microsoft', github: 'GitHub', notion: 'Notion' };
@@ -9,6 +10,14 @@ const INTERVALS = [[5, '5분'], [10, '10분'], [15, '15분'], [30, '30분'], [60
 const SOURCE_STATUS = { draft: ['연결 적용 필요', 'amber'], provisioning: ['파이프라인 연결 중', 'blue'], ready: ['연결 준비 완료', 'green'], error: ['연결 확인 필요', 'red'] };
 const DELIVERY_STATUS = { queued: ['처리 대기', 'quiet'], processing: ['적재 중', 'blue'], running: ['처리 중', 'blue'], submitted: ['Nora 실행 요청됨', 'blue'], completed: ['확인 완료', 'green'], delivered: ['검토함 적재', 'green'], succeeded: ['검토함 적재', 'green'], failed: ['확인 필요', 'red'], uncertain: ['실행 결과 확인 필요', 'amber'], duplicate: ['중복 제외', 'quiet'], skipped: ['적재 제외', 'quiet'] };
 const ERRORS = {
+  NORA_CHANNEL_STOP_PENDING: '기존 Nora 일정·트리거의 원격 중지를 확인하고 있습니다. 중지 완료 후 연결을 적용하세요.',
+  CONNECTION_GRANT_REQUIRED: '고객사 소유 계정과 프로젝트의 사용 범위를 승인한 뒤 수집 대상을 다시 연결해 주세요.',
+  CONNECTION_GRANT_REVOKED: '프로젝트의 사용 허용이나 고객사·계정·담당자 권한이 중지되었습니다. 소유자가 사용 범위와 권한을 확인해야 합니다.',
+  CONNECTION_GRANT_SCOPE_MISMATCH: '승인한 Nora 워크스페이스·커넥터와 기존 수집 대상이 일치하지 않습니다.',
+  CONNECTION_GRANT_CHANGED: '사용 범위가 변경되었습니다. 원격 중지 완료 후 수집 설정과 파이프라인 연결을 다시 적용하세요.',
+  CUSTOMER_ARCHIVED: '소유 고객사가 보관 상태입니다. 고객사 소유자에게 확인해 주세요.',
+  CONNECTION_ACCOUNT_PAUSED: '계정 사용이 중지되었습니다. 고객사 소유자에게 계정 상태를 확인해 주세요.',
+  CONNECTION_RESOURCE_FORBIDDEN: '이 채널·폴더는 프로젝트에 허용되지 않았습니다. 소유자에게 사용 범위를 확인해 주세요.',
   NORA_AUTH_REQUIRED: 'Nora 로그인을 다시 연결한 뒤 시도해 주세요.',
   NORA_WORKSPACE_REQUIRED: '프로젝트 설정에서 Nora 워크스페이스를 먼저 연결해 주세요.',
   NORA_WORKSPACE_NOT_READY: 'Nora 워크스페이스 연결 확인이 끝난 뒤 다시 시도해 주세요.',
@@ -33,9 +42,9 @@ const sourceStatus = source => SOURCE_STATUS[source.status] || ['상태 확인 �
 const configuration = source => ({ expected_version: source.version, schedule_enabled: Boolean(source.schedule_enabled), trigger_enabled: Boolean(source.trigger_enabled), interval_minutes: source.interval_minutes || 15 });
 const sameConfiguration = (left, right) => left.schedule_enabled === right.schedule_enabled && left.trigger_enabled === right.trigger_enabled && Number(left.interval_minutes) === Number(right.interval_minutes);
 
-export function NoraChannelSources({ project, request, canReview, notify, onChanged, onDirty, onNavigate }) {
+export function NoraChannelSources({ project, request, canReview, notify, onChanged, onDirty, onNavigate, accessVersion = 0 }) {
   const base = projectPath(project.id), route = `${base}/nora-channel-sources`;
-  const [sources, setSources] = useState([]), [connection, setConnection] = useState(null), [loading, setLoading] = useState(true);
+  const [sources, setSources] = useState([]), [connection, setConnection] = useState(null), [grants, setGrants] = useState([]), [loading, setLoading] = useState(true);
   const [error, setError] = useState(null), [creating, setCreating] = useState(false), [busy, setBusy] = useState(null);
   const [selectedId, setSelectedId] = useState(null), [settingsDirty, setSettingsDirty] = useState(false);
   const lifecycle = useRef({ active: true, sequence: 0 }), requestInProgress = useRef(false);
@@ -44,20 +53,20 @@ export function NoraChannelSources({ project, request, canReview, notify, onChan
   const load = useCallback(async ({ signal, quiet = false } = {}) => {
     const sequence = ++lifecycle.current.sequence;
     try {
-      const result = await request(route, { signal });
+      const [result, access] = await Promise.all([request(route, { signal }), request(`${base}/connection-grants`, { signal })]);
       if (!lifecycle.current.active || sequence !== lifecycle.current.sequence) return;
-      setSources(result.sources || []); setConnection(result);
+      setSources(result.sources || []); setConnection(result); setGrants(access.grants || []);
       if (!quiet) setError(null);
     } catch (err) {
       if (lifecycle.current.active && sequence === lifecycle.current.sequence && err.name !== 'AbortError' && !quiet) setError(friendlyError(err));
     } finally { if (lifecycle.current.active && sequence === lifecycle.current.sequence) setLoading(false); }
-  }, [request, route]);
+  }, [request, route, base]);
 
   useEffect(() => {
     lifecycle.current.active = true;
     const controller = new AbortController(); void load({ signal: controller.signal });
     return () => { lifecycle.current.active = false; lifecycle.current.sequence += 1; controller.abort(); };
-  }, [load]);
+  }, [load, accessVersion]);
   useEffect(() => {
     const timer = setInterval(() => { if (!document.hidden && !requestInProgress.current) void load({ quiet: true }); }, 15000);
     return () => clearInterval(timer);
@@ -72,7 +81,7 @@ export function NoraChannelSources({ project, request, canReview, notify, onChan
       if (!lifecycle.current.active) return null;
       if (result.source) setSources(previous => previous.map(item => item.id === source.id ? result.source : item));
       await load({ quiet: true });
-      notify?.(kind === 'run' ? '수집 실행을 요청했습니다. 적재 결과는 수집 이력과 대화 검토함에서 확인하세요.' : kind === 'provision' ? 'Nora 파이프라인 연결을 적용했습니다. 이벤트 수신은 외부 서비스의 Webhook 연결도 확인해 주세요.' : '수집 설정을 저장했습니다. Nora 파이프라인 연결을 적용해 주세요.');
+      notify?.(kind === 'reauthorize' ? '수집 대상의 사용 승인을 연결했습니다. 원격 중지 완료 후 진입점을 설정하고 파이프라인 연결을 적용하세요.' : kind === 'run' ? '수집 실행을 요청했습니다. 적재 결과는 수집 이력과 대화 검토함에서 확인하세요.' : kind === 'provision' ? 'Nora 파이프라인 연결을 적용했습니다. 이벤트 수신은 외부 서비스의 Webhook 연결도 확인해 주세요.' : '수집 설정을 저장했습니다. Nora 파이프라인 연결을 적용해 주세요.');
       await onChanged?.({ quiet: true });
       return result;
     } catch (err) {
@@ -82,12 +91,16 @@ export function NoraChannelSources({ project, request, canReview, notify, onChan
   }
 
   const canConfigure = canReview && connection?.ready && connection?.configured !== false;
+  const availableGrants = usableConnectionGrants(grants);
+  const hasApproval = source => Boolean(selectedGrantResource(grants, source.grant_id || source.connection_grant_id, source.external_channel_id));
+  const stopPending = source => Boolean(source.remote_stop_status && source.remote_stop_status !== 'completed');
+  const canOperate = source => canConfigure && source.can_operate === true && hasApproval(source) && !stopPending(source);
   return <section className="nora-channels ains-section-stack" aria-label="Nora 커넥터 수집">
     <div className="nora-channel-heading">
       <div className="nora-channel-title"><h2>Nora 커넥터로 기록 수집</h2><p>일정 수집과 이벤트 트리거로 새 기록을 모으고, 검토할 문서 초안을 만듭니다.</p></div>
       <div className="nora-channel-actions">
         <Button type="button" variant="ghost" icon={RefreshCw} disabled={Boolean(busy) || loading} onClick={() => load()}>새로고침</Button>
-        {canReview ? <Button type="button" variant="secondary" icon={Plus} disabled={!canConfigure || Boolean(busy) || creating || settingsDirty} onClick={() => setCreating(true)}>Nora 수집 추가</Button> : null}
+        {canReview ? <Button type="button" variant="secondary" icon={Plus} disabled={!canConfigure || !availableGrants.length || Boolean(busy) || creating || settingsDirty} onClick={() => setCreating(true)}>Nora 수집 추가</Button> : null}
       </div>
     </div>
     <Notice title="원문 → 대화 검토함 → 문서·기록" icon={<FileText size={16} />} actions={<NavigationLink projectId={project.id} tab="channels" onNavigate={onNavigate}>대화 검토함 열기</NavigationLink>}>
@@ -96,25 +109,30 @@ export function NoraChannelSources({ project, request, canReview, notify, onChan
     <ErrorNotice error={error} onRetry={() => load()} />
     {loading && !connection ? <Spinner label="Nora 수집 연결을 불러오고 있습니다" /> : null}
     {connection && !connection.ready ? <Notice tone="warning" title="Nora 워크스페이스 연결이 필요합니다" actions={<NavigationLink projectId={project.id} tab="settings" onNavigate={onNavigate}>프로젝트 연결 설정</NavigationLink>}>프로젝트의 Nora 로그인과 워크스페이스 연결 상태를 확인해 주세요. 커넥터는 해당 워크스페이스에 등록된 연결을 사용합니다.</Notice> : connection?.configured === false ? <Notice tone="warning" title="수집 기능 준비가 필요합니다">서버의 Nora 연결 설정을 확인해 주세요. 기존 수집 기록은 계속 조회할 수 있습니다.</Notice> : null}
-    {creating ? <NoraSourceForm route={route} connectorRoute={`${base}/nora-channel-connectors`} request={request} onCancel={() => setCreating(false)} onCreated={async source => { setCreating(false); setSelectedId(source.id); await load({ quiet: true }); notify?.('수집 대상을 저장했습니다. 진입점을 선택한 뒤 Nora 파이프라인 연결을 적용하세요.'); }} /> : null}
-    {!loading && !sources.length && connection?.ready && !creating ? <Empty compact icon={Link2} title="Nora 수집 대상을 추가하세요">Nora에 연결한 Slack 등의 커넥터와 수집할 채널을 지정합니다. 대상 저장만으로 자동 수집이 시작되지는 않습니다.</Empty> : null}
+    {connection?.ready && !availableGrants.length ? <Notice title="프로젝트 사용 범위를 먼저 승인하세요">위의 고객사·사용 범위에서 실제 Nora 커넥터와 채널·폴더를 승인하면 수집 대상을 추가할 수 있습니다.</Notice> : null}
+    {creating ? <NoraSourceForm route={route} grants={grants} request={request} onCancel={() => setCreating(false)} onCreated={async source => { setCreating(false); setSelectedId(source.id); await load({ quiet: true }); notify?.('수집 대상을 저장했습니다. 진입점을 선택한 뒤 Nora 파이프라인 연결을 적용하세요.'); }} /> : null}
+    {!loading && !sources.length && connection?.ready && !creating ? <Empty compact icon={Link2} title="Nora 수집 대상을 추가하세요">프로젝트에 승인된 계정과 채널·폴더 중 수집 대상을 선택합니다. 대상 저장만으로 자동 수집이 시작되지는 않습니다.</Empty> : null}
     {sources.length ? <div className="nora-channel-source-list">{sources.map(source => {
-      const [label, tone] = sourceStatus(source), sourceBusy = Boolean(busy) || source.status === 'provisioning';
+      const [label, tone] = stopPending(source) ? ['원격 중지 확인 중', 'amber'] : !hasApproval(source) ? ['사용 승인 필요', 'amber'] : sourceStatus(source), sourceBusy = Boolean(busy) || source.status === 'provisioning';
       return <article className="nora-channel-source ains-section-stack" key={source.id}>
         <div className="nora-channel-heading"><div className="nora-channel-title"><span className="nora-channel-meta">{PROVIDERS[source.provider] || source.provider}</span><h3>{source.name}</h3></div><Badge tone={tone}>{label}</Badge></div>
         <div className="nora-channel-summary"><p>수집 대상 <code>{source.external_channel_id}</code></p><p>최근 적재 {source.last_received_at ? dateTime(source.last_received_at) : '아직 없음'}</p></div>
         <div className="nora-channel-entry-summary" aria-label="저장된 수집 진입점"><span><Clock3 size={15} />일정 수집 {source.schedule_enabled ? `${source.interval_minutes}분 간격${source.status !== 'ready' ? ' · 적용 필요' : ''}` : '꺼짐'}</span><span><Zap size={15} />이벤트 트리거 {source.trigger_enabled ? source.status === 'ready' ? '수신 준비 · Webhook 연동 확인' : '적용 필요' : '꺼짐'}</span></div>
-        {source.last_error_code ? <Notice tone="warning" title="최근 수집을 확인해 주세요">{ERRORS[source.last_error_code] || '수집 이력에서 실패 원인과 연결 상태를 확인해 주세요.'} <code>{source.last_error_code}</code></Notice> : null}
+        {stopPending(source) ? <Notice tone="warning" title={source.remote_stop_status === 'failed' ? 'Nora 원격 중지 확인이 필요합니다' : 'Nora 원격 수집 중지를 확인하고 있습니다'}>새 수집 요청은 차단했습니다. 기존 일정·트리거의 중지를 확인한 뒤 파이프라인을 다시 연결할 수 있습니다.{source.remote_stop_error_code ? <code> {source.remote_stop_error_code}</code> : null}</Notice> : null}
+        {!hasApproval(source) ? <Notice tone="warning" title="프로젝트의 사용 승인이 필요합니다">기존 수집 대상과 기록은 보존됩니다. 프로젝트 소유자가 같은 Nora 커넥터와 대상의 사용 범위를 승인한 뒤 설정·수집 이력에서 다시 연결하세요.</Notice> : null}
+        {source.authorization_error || source.last_error_code ? <Notice tone="warning" title="최근 수집을 확인해 주세요">{ERRORS[source.authorization_error || source.last_error_code] || '수집 이력에서 실패 원인과 연결 상태를 확인해 주세요.'} <code>{source.authorization_error || source.last_error_code}</code></Notice> : null}
         <div className="nora-channel-actions">
-          {canReview ? <><Button type="button" variant="secondary" icon={Link2} disabled={!canConfigure || sourceBusy || settingsDirty || creating} busy={busy === `${source.id}:provision`} onClick={() => mutate(source, 'provision', { expected_version: source.version })}>Nora 파이프라인 연결</Button><Button type="button" variant="secondary" icon={RefreshCw} disabled={!canConfigure || sourceBusy || source.status !== 'ready' || settingsDirty || creating} busy={busy === `${source.id}:run`} onClick={() => mutate(source, 'run', {})}>지금 수집</Button></> : null}
+          {canReview ? <><Button type="button" variant="secondary" icon={Link2} disabled={!canOperate(source) || sourceBusy || settingsDirty || creating} busy={busy === `${source.id}:provision`} onClick={() => mutate(source, 'provision', { expected_version: source.version })}>Nora 파이프라인 연결</Button><Button type="button" variant="secondary" icon={RefreshCw} disabled={!canOperate(source) || sourceBusy || source.status !== 'ready' || settingsDirty || creating} busy={busy === `${source.id}:run`} onClick={() => mutate(source, 'run', {})}>지금 수집</Button></> : null}
           <Button type="button" variant="ghost" icon={History} disabled={sourceBusy || settingsDirty || creating} aria-expanded={source.id === selectedId} onClick={() => setSelectedId(source.id === selectedId ? null : source.id)}>{source.id === selectedId ? '설정·이력 닫기' : '설정·수집 이력'}</Button>
         </div>
       </article>;
     })}</div> : null}
     {selected ? <section className="nora-channel-detail ains-section-stack" aria-label={`${selected.name} 수집 설정과 이력`}>
       <h3>{selected.name} · 설정 및 수집 이력</h3>
-      {canReview ? <NoraSourceSettings key={selected.id} source={selected} disabled={Boolean(busy) || selected.status === 'provisioning' || !canConfigure} onDirty={setSettingsDirty} onSave={body => mutate(selected, 'settings', body)} /> : null}
-      <NoraDeliveries key={selected.id} source={selected} route={route} request={request} canReview={canReview} projectId={project.id} onNavigate={onNavigate} refreshKey={selected.last_received_at} notify={notify} onChanged={() => load({ quiet: true })} />
+      {/* Distinct sibling keys keep polling from orphaning settings or delivery DOM. */}
+      {project.role === 'owner' && !hasApproval(selected) ? <NoraReauthorize key={`approval:${selected.id}`} source={selected} grants={grants} disabled={Boolean(busy)} onSave={body => mutate(selected, 'reauthorize', body)} /> : null}
+      {canReview ? <NoraSourceSettings key={`settings:${selected.id}`} source={selected} saving={busy === `${selected.id}:settings`} disabled={Boolean(busy) || selected.status === 'provisioning' || !canOperate(selected)} onDirty={setSettingsDirty} onSave={body => mutate(selected, 'settings', body)} /> : null}
+      <NoraDeliveries key={`deliveries:${selected.id}`} source={selected} route={route} request={request} canReview={canReview && canOperate(selected)} projectId={project.id} onNavigate={onNavigate} refreshKey={selected.last_received_at} notify={notify} onChanged={() => load({ quiet: true })} />
     </section> : null}
   </section>;
 }
@@ -124,37 +142,40 @@ function NavigationLink({ projectId, tab, onNavigate, children, inboxId }) {
   return <Button asChild type="button" variant="ghost"><a href={href} onClick={onNavigate ? event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); onNavigate(tab, inboxId ? { inboxId } : undefined); } } : undefined}>{children}</a></Button>;
 }
 
-function NoraSourceForm({ route, connectorRoute, request, onCancel, onCreated }) {
-  const [connectors, setConnectors] = useState([]), [connectorId, setConnectorId] = useState(''), [loading, setLoading] = useState(true);
+function NoraSourceForm({ route, grants, request, onCancel, onCreated }) {
+  const [grantId, setGrantId] = useState(''), [resourceId, setResourceId] = useState('');
   const [error, setError] = useState(null), [busy, setBusy] = useState(false), active = useRef(true);
-  const load = useCallback(async signal => {
-    setLoading(true); setError(null);
-    try { const result = await request(connectorRoute, { signal }); if (active.current) setConnectors(result.connectors || []); }
-    catch (err) { if (active.current && err.name !== 'AbortError') setError(friendlyError(err)); }
-    finally { if (active.current) setLoading(false); }
-  }, [connectorRoute, request]);
-  useEffect(() => { active.current = true; const controller = new AbortController(); void load(controller.signal); return () => { active.current = false; controller.abort(); }; }, [load]);
-  const available = connectors.filter(connector => connector.enabled !== false);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const available = usableConnectionGrants(grants), grant = available.find(item => item.id === grantId), selected = selectedGrantResource(grants, grantId, resourceId);
   return <form className="nora-channel-form ains-section-stack" onSubmit={async event => {
-    event.preventDefault(); if (busy) return; const form = new FormData(event.currentTarget); setBusy(true); setError(null);
-    try { const result = await request(route, { method: 'POST', body: { name: String(form.get('name')).trim(), connector_id: connectorId, external_channel_id: String(form.get('external_channel_id')).trim(), interval_minutes: 15, schedule_enabled: false, trigger_enabled: false } }); if (active.current) await onCreated(result.source); }
+    event.preventDefault(); if (busy || !selected) return; const form = new FormData(event.currentTarget); setBusy(true); setError(null);
+    try { const result = await request(route, { method: 'POST', body: { name: String(form.get('name')).trim(), grant_id: grantId, external_channel_id: resourceId } }); if (active.current) await onCreated(result.source); }
     catch (err) { if (active.current) setError(friendlyError(err)); }
     finally { if (active.current) setBusy(false); }
   }}>
-    <h3>Nora 수집 대상 추가</h3>
-    <ErrorNotice error={error} onRetry={() => load()} />
-    {loading ? <Spinner label="Nora 커넥터를 불러오고 있습니다" /> : !available.length ? <Notice title="사용할 수 있는 Nora 커넥터가 없습니다" actions={<Button type="button" variant="ghost" disabled={busy} onClick={() => load()}>커넥터 다시 확인</Button>}>Nora의 해당 워크스페이스에서 Slack 등의 커넥터를 연결하고, 수집 대상에 대한 읽기 권한을 부여해 주세요.</Notice> : <div className="nora-channel-fields">
-      <FormField label="Nora 커넥터"><Select required value={connectorId} disabled={busy} onChange={event => setConnectorId(event.target.value)}><option value="" disabled>커넥터 선택</option>{connectors.map(connector => <option key={connector.id} value={connector.id} disabled={connector.enabled === false}>{connector.name || connector.id} · {PROVIDERS[connector.provider] || connector.provider}{connector.enabled === false ? ' (사용 중지)' : ''}</option>)}</Select></FormField>
+    <h3>승인한 리소스에서 Nora 수집 추가</h3>
+    <ErrorNotice error={error} />
+    {!available.length ? <Notice title="사용할 수 있는 승인 범위가 없습니다">프로젝트 소유자가 계정과 정확한 채널·폴더를 승인해야 수집 대상을 추가할 수 있습니다.</Notice> : <div className="nora-channel-fields">
+      <FormField label="승인된 계정·사용 범위"><Select required value={grantId} disabled={busy} onChange={event => { setGrantId(event.target.value); setResourceId(''); }}><option value="" disabled>승인 범위 선택</option>{available.map(item => <option key={item.id} value={item.id}>{item.customer_name} · {item.connection_name} · {PROVIDERS[item.provider] || item.provider}</option>)}</Select></FormField>
+      <FormField label="승인된 채널·폴더"><Select required value={resourceId} disabled={busy || !grant} onChange={event => setResourceId(event.target.value)}><option value="" disabled>수집 대상 선택</option>{(grant?.allowed_resources || []).map(resource => <option key={resource.id} value={resource.id}>{resource.label || resource.id}{resource.label ? ` · ${resource.id}` : ''}</option>)}</Select></FormField>
       <FormField label="수집 이름"><Input name="name" required maxLength={200} disabled={busy} placeholder="예: 씨젠 프로젝트 결정 기록" /></FormField>
-      <FormField label="수집 대상 ID" hint="Slack 채널 ID 등 커넥터에서 읽을 대상의 식별자를 입력하세요. 저장 후 대상 변경은 새 수집으로 등록합니다."><Input name="external_channel_id" required maxLength={300} disabled={busy} placeholder="예: C0123456789" /></FormField>
     </div>}
-    <div className="nora-channel-actions"><Button type="submit" variant="secondary" busy={busy} disabled={loading || !available.length || !connectorId}>수집 대상 저장</Button><Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>취소</Button></div>
+    <div className="nora-channel-actions"><Button type="submit" variant="secondary" busy={busy} disabled={!selected}>수집 대상 저장</Button><Button type="button" variant="ghost" disabled={busy} onClick={onCancel}>취소</Button></div>
   </form>;
 }
 
-function NoraSourceSettings({ source, disabled, onSave, onDirty }) {
+function NoraReauthorize({ source, grants, disabled, onSave }) {
+  const [grantId, setGrantId] = useState(''), available = usableConnectionGrants(grants, source);
+  return <form className="ains-section-stack" onSubmit={async event => { event.preventDefault(); if (!available.some(item => item.id === grantId)) return; await onSave({ grant_id: grantId, expected_version: source.version }); }}>
+    <Notice tone="warning" title="기존 수집 대상에 사용 승인 연결">수집 대상과 이력을 유지하면서 같은 커넥터·채널·폴더의 승인 범위를 연결합니다. 연결 후 일정 수집과 이벤트 트리거를 다시 설정해야 합니다.</Notice>
+    {available.length ? <FormField label="기존 대상과 일치하는 승인 범위"><Select required value={grantId} disabled={disabled} onChange={event => setGrantId(event.target.value)}><option value="" disabled>승인 범위 선택</option>{available.map(grant => <option key={grant.id} value={grant.id}>{grant.customer_name} · {grant.connection_name}</option>)}</Select></FormField> : <p className="nora-channel-help">같은 Nora 워크스페이스·커넥터와 대상 ID를 포함하는 사용 범위를 먼저 승인하세요.</p>}
+    <div className="nora-channel-actions"><Button type="submit" variant="secondary" disabled={disabled || !available.some(item => item.id === grantId)}>기존 수집에 승인 연결</Button></div>
+  </form>;
+}
+
+function NoraSourceSettings({ source, disabled, saving = false, onSave, onDirty }) {
   const [baseline, setBaseline] = useState(() => configuration(source)), [draft, setDraft] = useState(() => configuration(source));
-  const dirty = !sameConfiguration(baseline, draft), stale = source.version !== baseline.expected_version;
+  const dirty = !sameConfiguration(baseline, draft), stale = !saving && source.version !== baseline.expected_version;
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   useEffect(() => { if (!dirty && source.version !== baseline.expected_version) { const value = configuration(source); setBaseline(value); setDraft(value); } }, [source, dirty, baseline.expected_version]);
   function reset() { const value = configuration(source); setBaseline(value); setDraft(value); }

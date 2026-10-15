@@ -38,7 +38,7 @@ test('unrelated anchors are not consumed and an empty share token still marks sh
 test('shared navigation permits project records but excludes configuration and external actions',async()=>{
  const {sharedViewTab}=await state;
  for(const tab of ['documents','context','commercial','implementation','questions','work-items'])assert.equal(sharedViewTab(tab,true),tab);
- for(const tab of ['settings','integrations','github-delivery','members','unexpected-new-admin-page'])assert.equal(sharedViewTab(tab,true),'home');
+ for(const tab of ['settings','integrations','customers','github-delivery','members','unexpected-new-admin-page'])assert.equal(sharedViewTab(tab,true),'home');
  assert.equal(sharedViewTab('settings',false),'settings');
 });
 

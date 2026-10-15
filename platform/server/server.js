@@ -42,6 +42,7 @@ const {mountTaskDraftRoutes}=require('./task-draft-routes');
 const {mountImplementationNoteRoutes}=require('./implementation-note-routes');
 const {mountDomainGuideRoutes}=require('./domain-guide-routes');
 const {mountNoraChannelSourceRoutes,mountNoraChannelTrigger}=require('./nora-channel-source-routes');
+const {mountCustomerConnectionRoutes,mountProjectCustomerConnectionRoutes}=require('./customer-connection-routes');
 const {mountProjectJourneyRoutes}=require('./project-journey-routes');
 
 function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {}, nora = {} }) {
@@ -95,6 +96,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   });
   app.post('/api/auth/shared-view/exit', async (req,res) => { await sharedViews.exit(req,res); res.json({ok:true}); });
   app.use('/api', auth.authenticate, sharedViews.guard, auth.csrf);
+  mountCustomerConnectionRoutes(app,{pool,provider:nora.channelSources});
   app.get('/api/nora/oauth/callback',async(req,res)=>{
     if(!nora.oauth)return res.redirect('/?nora_connection=failed');
     try{
@@ -133,7 +135,8 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   mountContextAIRoutes(project,{pool,write,review,contextAI});
   mountProviderRoutes(project,{providerSettings,owner:roles('owner')});
   mountIntegrationRoutes(project,{pool,review,...integration});
-  mountNoraChannelSourceRoutes(project,{pool,review,provider:nora.channelSources,appOrigin});
+  mountProjectCustomerConnectionRoutes(project,{pool,owner:roles('owner'),provider:nora.channelSources});
+  mountNoraChannelSourceRoutes(project,{pool,review,owner:roles('owner'),provider:nora.channelSources,appOrigin});
   project.get('/integrations/kakao-watcher',review,(_req,res)=>{res.attachment('watch-kakao-export.cjs');res.type('text/plain');res.send(kakaoWatcherScript());});
   mountTranscriptionRoutes(project,{pool,write,review,transcription:{resolveConfig,...transcription}});
   mountSemanticRoutes(project,{service:semanticService,review});

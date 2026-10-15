@@ -128,10 +128,11 @@ test('temporary shared links authorize only selected read projections and preser
     const paths = ['/api/projects', '/api/shared-views', '/api/projects/selected-one/documents', '/api/projects/selected-one/reviews/' + randomUUID() + '/decision', '/api/implementation-runner/' + randomUUID() + '/claim'];
     for (const path of paths) assert.equal((await call(path, { method: 'POST', headers, body: '{}' })).status, 403, path);
     assert.equal((await call('/api/projects/selected-one/journey/milestones', { method: 'POST', headers, body: '{}' })).status, 403);
+    for (const path of ['/api/customers', '/api/customers/' + randomUUID() + '/connections', '/api/customers/' + randomUUID() + '/members']) assert.equal((await call(path, { headers })).status, 404, path);
     for (const suffix of ['', '/' + randomUUID() + '/feedback', '/' + randomUUID() + '/review', '/' + randomUUID() + '/followup']) {
       assert.equal((await call('/api/projects/selected-one/implementation-notes' + suffix, { method: 'POST', headers, body: '{}' })).status, 403);
     }
-    for (const path of ['context/semantic/search?q=hello', 'context/daily-brief', 'integrations', 'ai-provider', 'settings/repository-access', 'execution-agents', 'question-outbound', 'implementation-runner-script', 'revisions/' + randomUUID() + '/original', 'transcriptions/' + randomUUID() + '/audio', 'implementation-requests/' + randomUUID() + '/patch', 'commercial/documents/' + randomUUID() + '/revisions/' + randomUUID() + '/export', 'future-endpoint']) {
+    for (const path of ['customer', 'connection-grants', 'connection-grant-options', 'nora-channel-sources', 'nora-channel-connectors', 'context/semantic/search?q=hello', 'context/daily-brief', 'integrations', 'ai-provider', 'settings/repository-access', 'execution-agents', 'question-outbound', 'implementation-runner-script', 'revisions/' + randomUUID() + '/original', 'transcriptions/' + randomUUID() + '/audio', 'implementation-requests/' + randomUUID() + '/patch', 'commercial/documents/' + randomUUID() + '/revisions/' + randomUUID() + '/export', 'future-endpoint']) {
       assert.equal((await call('/api/projects/selected-one/' + path, { headers })).status, 403, path);
     }
     assert.equal((await call('/api/shared-views', { headers })).status, 404);

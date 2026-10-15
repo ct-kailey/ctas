@@ -5,7 +5,7 @@ const {buildChannelPipeline,identity,cronFor}=require('../../nora/channel-ingest
 const projectId='project-channel-test',workspaceId='t_channel_test_workspace',sourceId='channel-source-test';
 function fixture(){
  const input={projectId,workspaceId,sourceId,connectorId:'conn_channel_test_slack',externalChannelId:'C_CHANNEL_TEST',intervalMinutes:15,scheduleEnabled:true,triggerEnabled:true};
- const graphs=new Map(),live=new Map(),docs=new Map(),calls=[];let foreign=false,autoExtract=false;
+ const graphs=new Map(),live=new Map(),docs=new Map(),calls=[];let foreign=false,autoExtract=false,secretVersion=0;
  const provider={callTool:async call=>{calls.push(call);assert.equal(call.projectId,projectId);assert.equal(call.workspaceId,workspaceId);const a=call.arguments;
   switch(call.name){
    case 'list_connectors':return [{id:input.connectorId,provider:'slack',name:'Slack 업무',status:'active',config:{token:'NEVER_RETURN'}},{id:'conn_github_test',provider:'github',name:'Code'},{id:'conn_discord_test',provider:'discord',status:'revoked'}];
@@ -17,7 +17,7 @@ function fixture(){
    case 'connect_pipeline_edge':graphs.get(a.pipelineId).edges.push(structuredClone(a));return {};
    case 'set_pipeline_schedule':{const g=graphs.get(a.pipelineId),n=g.nodes.find(n=>n.paletteId==='ingest_schedule');n.config={scheduleMode:a.mode,cron:a.cron,scheduleTimezone:a.tz,scheduleInput:a.input};return {};}
    case 'clear_pipeline_schedule':graphs.get(a.pipelineId).nodes.find(n=>n.paletteId==='ingest_schedule').config={};return {};
-   case 'rotate_pipeline_trigger_secret':graphs.get(a.pipelineId).nodes.find(n=>n.id===a.nodeId).config.apiAuthSecret={enc:'nora-encrypted-key',lastFour:'safe'};return {token:'ONE_TIME_PLAINTEXT_DO_NOT_RETURN'};
+   case 'rotate_pipeline_trigger_secret':graphs.get(a.pipelineId).nodes.find(n=>n.id===a.nodeId).config.apiAuthSecret={enc:'nora-encrypted-key-'+(++secretVersion),lastFour:'safe'};return {token:'ONE_TIME_PLAINTEXT_DO_NOT_RETURN'};
    case 'publish_pipeline':live.set(a.pipelineId,{is_live:true,content_hash:'fixed-hash',payload:structuredClone(graphs.get(a.pipelineId))});return {};
    case 'get_live_pipeline_publication':return structuredClone(live.get(a.pipelineId));
    case 'invoke_pipeline':return {kind:'pipelineRun',ok:true,pipelineId:a.pipelineId,runId:'00000000-0000-4000-8000-000000000001',status:'succeeded',report:{stages:[{status:'ok',artifacts:{failed:0}}]}};
@@ -102,4 +102,31 @@ test('failed records in a nominally successful Nora run do not count as success'
 test('scope identifiers are deterministic, domain-isolated and schedule intervals exact',()=>{
  const f=fixture();assert.deepEqual(identity(f.input),identity(f.input));assert.notEqual(identity(f.input).libraryTag,identity({...f.input,projectId:'project-other'}).libraryTag);assert.equal(cronFor(120),'0 */2 * * *');assert.throws(()=>cronFor(90),{code:'NORA_CHANNEL_INPUT_INVALID'});
  assert.deepEqual(buildChannelPipeline(f.input),buildChannelPipeline(f.input));
+});
+
+test('durable pause clears cron and invalidates the trigger secret without returning credentials',async()=>{
+ const f=fixture(),ids=await f.service.provision(f.input),before=f.graphs.get(ids.triggerPipelineId).nodes[0].config.apiAuthSecret.enc;
+ const result=await f.service.pause({...f.input,...ids});assert.equal(result.status,'stopped');assert.equal(result.schedulePaused,true);assert.equal(result.triggerKeyRotated,true);
+ assert.deepEqual(f.graphs.get(ids.pipelineId).nodes[0].config,{});assert.notEqual(f.graphs.get(ids.triggerPipelineId).nodes[0].config.apiAuthSecret.enc,before);
+ assert.deepEqual(f.live.get(ids.pipelineId).payload.nodes[0].config,{});assert.ok(!JSON.stringify(result).includes('ONE_TIME_PLAINTEXT'));
+ await f.service.pause({...f.input,...ids});assert.deepEqual(f.graphs.get(ids.pipelineId).nodes[0].config,{});
+});
+test('pause checks every managed graph before mutation and refuses foreign scope',async()=>{
+ const f=fixture(),ids=await f.service.provision(f.input);f.graphs.get(ids.triggerPipelineId).nodes[1].config.folder_id='foreign-resource';const count=f.calls.length;
+ await assert.rejects(f.service.pause({...f.input,...ids}),{code:'NORA_CHANNEL_PIPELINE_CHANGED'});assert.ok(!f.calls.slice(count).some(c=>['clear_pipeline_schedule','rotate_pipeline_trigger_secret'].includes(c.name)));
+ await assert.rejects(f.service.pause({...f.input,...ids,pipelineId:'foreign-pipeline'}),{code:'NORA_CHANNEL_SCOPE_MISMATCH'});
+ f.setForeign();await assert.rejects(f.service.pause({...f.input,...ids}),{code:'NORA_CHANNEL_CONNECTION_REQUIRED'});
+});
+test('pause remains unconfirmed when secret rotation fails or cannot be verified',async()=>{
+ const f=fixture(),ids=await f.service.provision(f.input),original=f.provider.callTool;
+ f.provider.callTool=c=>c.name==='rotate_pipeline_trigger_secret'?Promise.resolve({}):original(c);
+ await assert.rejects(f.service.pause({...f.input,...ids}),{code:'NORA_CHANNEL_TRIGGER_AUTH_INVALID'});
+});
+test('grant and stop lease authorization is checked before every remote operation',async()=>{
+ const f=fixture();let checks=0;
+ await assert.rejects(f.service.provision({...f.input,authorize:()=>{if(++checks>3)throw Object.assign(new Error('revoked'),{code:'CONNECTION_GRANT_REVOKED'});}}),{code:'CONNECTION_GRANT_REVOKED'});
+ assert.equal(f.calls.length,3);assert.ok(!f.calls.some(c=>c.name==='set_pipeline_schedule'));
+ const ready=fixture(),ids=await ready.service.provision(ready.input),count=ready.calls.length;
+ await assert.rejects(ready.service.pause({...ready.input,...ids,authorizeStop:()=>{throw Object.assign(new Error('lease lost'),{code:'NORA_CHANNEL_STOP_LEASE_LOST'});}}),{code:'NORA_CHANNEL_STOP_LEASE_LOST'});
+ assert.equal(ready.calls.length,count);
 });

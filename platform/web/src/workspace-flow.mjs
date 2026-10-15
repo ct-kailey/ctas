@@ -9,6 +9,7 @@ export const WORKFLOW_STEPS = [
   { id: 'prepare', label: '프로젝트 관리', description: '구성원과 개발 저장소, 실행 환경을 설정합니다.', primaryTab: 'members', tabs: ['members', 'settings'], management: true },
 ];
 export const WORKSPACE_VIEWS = {
+  customers: { label: '고객사·연결 관리', description: '고객사와 연결 계정의 소유자, 프로젝트별 사용 범위를 관리하세요.' },
   'domain-guide': { label: '도메인 가이드', description: '축적된 자료와 확정 정책으로 프로젝트와 도메인을 학습하세요.' },
   home: { label: '홈', description: '계약·기획부터 최종 전달까지의 기록과 작업 진행률을 확인하세요.' },
   alerts: { label: '알림함', description: '프로젝트를 선택해 검토할 내용과 지연된 업무를 확인하세요.' },
