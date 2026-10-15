@@ -28,7 +28,7 @@ COPY nora/implementation-plan/manifest.json nora/implementation-plan/request.sch
 COPY nora/commercial-drafting/manifest.json nora/commercial-drafting/request.schema.json nora/commercial-drafting/result.schema.json ./nora/commercial-drafting/
 COPY nora/context/manifest.json nora/context/client.js nora/context/contract.js nora/context/request.schema.json nora/context/result.schema.json ./nora/context/
 COPY nora/work-review/manifest.json nora/work-review/client.js nora/work-review/contract.js nora/work-review/request.schema.json nora/work-review/result.schema.json ./nora/work-review/
-COPY nora/task-automation/risk-flow.js ./nora/task-automation/
+COPY nora/task-automation/risk-flow.js nora/task-automation/risk-flow-v2.js ./nora/task-automation/
 COPY nora/adapter/extract_document.py ./nora/adapter/
 RUN node -e "require('./platform/server/start.js')"
 ENV NODE_ENV=production PYTHON_BIN=/opt/venv/bin/python PORT=3000
