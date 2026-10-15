@@ -25,6 +25,8 @@ const {createProjectNoraWorker}=require('./project-nora-worker');
 const {createNoraGitHub}=require('./nora-github');
 const {createNoraTaskProvider}=require('./nora-task-provider');
 const {createTaskAutomationWorker}=require('./task-automation-worker');
+const {createNoraDomainGuideProvider}=require('./nora-domain-guide-provider');
+const {createDomainGuideWorker}=require('./domain-guide-worker');
 
 function token(name, filename, production) {
   if (process.env[name]) return process.env[name];
@@ -69,6 +71,8 @@ async function main() {
   const noraGit=createNoraGitHub({pool,provider:noraProvider});
   const noraTasks=createNoraTaskProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:300000}),git:noraGit});
   const taskAutomationWorker=createTaskAutomationWorker({pool,provider:noraTasks,onError:()=>console.error(JSON.stringify({event:'task_automation_worker_error'}))});
+  const noraGuide=createNoraDomainGuideProvider({pool,provider:createNoraMcpProvider({oauth:noraOAuth,timeoutMs:300000})});
+  const domainGuideWorker=createDomainGuideWorker({pool,provider:noraGuide,onError:()=>console.error(JSON.stringify({event:'domain_guide_worker_error'}))});
   const noraWorker=createProjectNoraWorker({pool,provider:noraProvider,onError:()=>console.error(JSON.stringify({event:'nora_workspace_worker_error'}))});
   const providerSettings=createProviderSettings(pool),resolveConfig=p=>providerSettings.getConfig(p);
   let contextToken=process.env.NORA_CONTEXT_TOKEN, contextWebhookSecret=process.env.NORA_CONTEXT_WEBHOOK_SECRET;
@@ -77,7 +81,7 @@ async function main() {
   let workToken=process.env.NORA_WORK_REVIEW_TOKEN,workWebhookSecret=process.env.NORA_WORK_WEBHOOK_SECRET;
   if(!production){const file=path.resolve(__dirname,'../../nora/.secrets/work-review-secret.json');if(fs.existsSync(file)&&(fs.statSync(file).mode&0o077)===0){const local=JSON.parse(fs.readFileSync(file,'utf8'));workToken ||= local.token;workWebhookSecret ||= local.webhookSecret;}}
   const workAI={enabled:Boolean(workToken&&workWebhookSecret?.length>=32),webhookSecret:workWebhookSecret};
-  const app=createApp({pool,appOrigin,production,google:google||{},contextAI,workAI,nora:{oauth:noraOAuth,provider:noraProvider,git:noraGit,tasks:noraTasks},repositoryAccess:{noraGit}});
+  const app=createApp({pool,appOrigin,production,google:google||{},contextAI,workAI,nora:{oauth:noraOAuth,provider:noraProvider,git:noraGit,tasks:noraTasks,guide:noraGuide},repositoryAccess:{noraGit}});
   const workAIWorker=createWorkAIWorker({pool,token:workToken,enabled:workAI.enabled,onError:()=>console.error(JSON.stringify({event:'work_ai_error'}))});
   const contextWorker=createContextAIWorker({pool,token:contextToken,enabled:contextAI.enabled,onError:()=>console.error(JSON.stringify({event:'context_worker_error'}))});
   const worker=createWorker({pool,pipelineToken,flowToken,python:process.env.PYTHON_BIN||'python3',onError:()=>console.error(JSON.stringify({event:'worker_error'}))});
@@ -110,6 +114,7 @@ async function main() {
   await workAIWorker.start();
   await noraWorker.start();
   await taskAutomationWorker.start();
+  await domainGuideWorker.start();
   const questionWorker=startQuestionWorker({pool,onError:()=>console.error(JSON.stringify({event:'question_worker_error'}))});
   const integrationWorker=createIntegrationWorker({pool,onError:()=>console.error(JSON.stringify({event:'integration_worker_error'}))});await integrationWorker.start();
   const transcriptionWorker=startTranscriptionWorker({pool,resolveConfig,onError:()=>console.error(JSON.stringify({event:'transcription_worker_error'}))});
@@ -127,7 +132,7 @@ async function main() {
   async function stop() {
     if(closing)return; closing=true; clearInterval(maintenance);clearInterval(runnerRecovery);
     const timeout=setTimeout(()=>process.exit(1),280000);timeout.unref();
-    await Promise.all([new Promise(resolve=>server.close(resolve)),worker.stop(),channelWorker.stop(),implementationWorker.stop(),commercialWorker.stop(),contextWorker.stop(),integrationWorker.stop(),transcriptionWorker.stop(),semanticWorker.stop(),insightWorker.stop(),workAIWorker.stop(),questionWorker.stop(),noraWorker.stop(),taskAutomationWorker.stop()]);
+    await Promise.all([new Promise(resolve=>server.close(resolve)),worker.stop(),channelWorker.stop(),implementationWorker.stop(),commercialWorker.stop(),contextWorker.stop(),integrationWorker.stop(),transcriptionWorker.stop(),semanticWorker.stop(),insightWorker.stop(),workAIWorker.stop(),questionWorker.stop(),noraWorker.stop(),taskAutomationWorker.stop(),domainGuideWorker.stop()]);
     await pool.end();clearTimeout(timeout);process.exit(0);
   }
   process.on('SIGTERM',stop);process.on('SIGINT',stop);

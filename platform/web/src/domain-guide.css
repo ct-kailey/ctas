@@ -1,0 +1,77 @@
+.domain-guide {
+  --ains-layout-guide-sidebar: 240px;
+  --ains-layout-guide-flow: 700px;
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+  color: var(--fg);
+}
+.domain-guide-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+.domain-guide-heading h2 { margin-block: var(--space-2); font-size: var(--text-xl); letter-spacing: var(--tracking-tight); }
+.domain-guide-heading p, .domain-guide-help { color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-loose); }
+.domain-guide-kicker { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--fg-muted); font-size: var(--text-xs); }
+.domain-guide-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); }
+.domain-guide-statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); border-block: var(--hairline) solid var(--border); padding-block: var(--space-3); font-size: var(--text-sm); color: var(--fg-muted); }
+.domain-guide-statusbar > span:first-child { color: var(--fg); font-weight: var(--font-weight-semibold); }
+.domain-guide-layout { display: grid; grid-template-columns: var(--ains-layout-guide-sidebar) minmax(0, 1fr); gap: var(--space-8); align-items: start; }
+.domain-guide-sidebar { display: grid; gap: var(--space-6); min-width: 0; }
+.domain-guide-sidebar nav { display: grid; gap: var(--space-2); padding-block: var(--space-3); }
+.domain-guide-sidebar h3 { font-size: var(--text-sm); margin-bottom: var(--space-2); }
+.domain-guide a { color: var(--ains-primary-text); text-decoration: underline; text-underline-offset: var(--space-1); overflow-wrap: anywhere; }
+.domain-guide-sidebar nav a { padding-block: var(--space-1); color: var(--fg-muted); text-decoration: none; font-size: var(--text-sm); }
+.domain-guide a:focus-visible, .domain-guide-flow-scroll:focus-visible { outline: none; box-shadow: var(--ring-shadow); border-radius: var(--radius-xs); }
+.domain-guide-sidebar nav a:hover { color: var(--fg); text-decoration: underline; }
+.domain-guide-version-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-6); }
+.domain-guide-reading { display: grid; gap: var(--space-5); min-width: 0; }
+.domain-guide-version-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
+.domain-guide-version-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
+.domain-guide-version-meta > strong { color: var(--fg); font-size: var(--text-sm); }
+.domain-guide-section { padding-block: var(--space-6); border-bottom: var(--hairline) solid var(--border); scroll-margin-top: var(--space-8); min-width: 0; }
+.domain-guide-section:first-child { padding-top: var(--space-2); }
+.domain-guide-section > h3 { font-size: var(--text-lg); margin-bottom: var(--space-4); }
+.domain-guide-section > h2 { font-size: var(--text-xl); margin-bottom: var(--space-4); line-height: var(--lh-snug); }
+.domain-guide h4 { font-size: var(--text-base); line-height: var(--lh-snug); margin-block: var(--space-3); }
+.domain-guide-prose { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-loose); font-size: var(--text-sm); margin-block: var(--space-3); }
+.domain-guide-evidence { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-3); font-size: var(--text-xs); }
+.domain-guide-glossary { display: grid; gap: var(--space-5); }
+.domain-guide-glossary > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--space-4); }
+.domain-guide-glossary dt { font-weight: var(--font-weight-semibold); overflow-wrap: anywhere; padding-top: var(--space-3); font-size: var(--text-sm); }
+.domain-guide-glossary dd { margin: 0; min-width: 0; }
+.domain-guide-policy { margin-top: var(--space-6); }
+.domain-guide-entry-list { padding-left: var(--space-5); display: grid; gap: var(--space-5); }
+.domain-guide-entry-list li { padding-left: var(--space-2); }
+.domain-guide-source-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-6); }
+.domain-guide-source-list > li { min-width: 0; display: grid; gap: var(--space-3); scroll-margin-top: var(--space-8); padding-block: var(--space-2); }
+.domain-guide-source-list > li > a { font-size: var(--text-sm); }
+.domain-guide-source-list > li > [data-ctds="button"] { justify-self: start; }
+.domain-guide-flow { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
+.domain-guide-flow h4 { margin-bottom: 0; }
+.domain-guide-flow-scroll { width: 100%; overflow-x: auto; border: var(--hairline) solid var(--border); border-radius: var(--radius-md); background: var(--bg-subtle); }
+.domain-guide-flow-svg { display: block; width: 100%; min-width: var(--ains-layout-guide-flow); height: auto; }
+.domain-guide-node { fill: var(--bg); stroke: var(--border-strong); stroke-width: 1; }
+.domain-guide-node.decision { fill: var(--warning-subtle); stroke: var(--warning); }
+.domain-guide-node.start, .domain-guide-node.end { fill: var(--bg-muted); }
+.domain-guide-edge { fill: none; stroke: var(--fg-muted); stroke-width: 1; }
+.domain-guide-arrow { fill: var(--fg-muted); }
+.domain-guide-edge-label { fill: var(--fg); font-size: var(--text-xs); text-anchor: middle; paint-order: stroke; stroke: var(--bg-subtle); stroke-width: 5; stroke-linejoin: round; }
+.domain-guide-node-label { display: flex; align-items: center; justify-content: center; height: 100%; text-align: center; font-size: var(--text-sm); line-height: var(--lh-snug); overflow-wrap: anywhere; color: var(--fg); }
+.domain-guide-node-label > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.domain-guide-flow-details { display: grid; gap: var(--space-3); padding-left: var(--space-5); font-size: var(--text-sm); }
+.domain-guide-review { display: grid; gap: var(--space-4); padding: var(--space-5); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); }
+.domain-guide-review h3 { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-base); }
+.domain-guide-review > p, .domain-guide-review-comment { color: var(--fg-muted); line-height: var(--lh-loose); font-size: var(--text-sm); overflow-wrap: anywhere; }
+.domain-guide-check { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); line-height: var(--lh-loose); }
+.domain-guide-start { display: grid; justify-items: start; gap: var(--space-4); padding: var(--space-5); border: var(--hairline) solid var(--border); border-radius: var(--radius-md); }
+.domain-guide-settings { padding-block: var(--space-5); border-top: var(--hairline) solid var(--border); display: grid; gap: var(--space-3); }
+.domain-guide-settings h3 { font-size: var(--text-base); }
+.domain-guide-settings > p { font-size: var(--text-sm); line-height: var(--lh-loose); color: var(--fg-muted); }
+@media (max-width: 1100px) {
+  .domain-guide-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .domain-guide-sidebar nav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .domain-guide-sidebar nav h3 { flex-basis: 100%; }
+}
+@media (max-width: 560px) {
+  .domain-guide-glossary > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .domain-guide-version-heading { align-items: flex-start; flex-direction: column; }
+  .domain-guide-review, .domain-guide-start { padding: var(--space-4); }
+}

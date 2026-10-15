@@ -4,10 +4,12 @@ export const WORKFLOW_STEPS = [
   { id: 'context', label: '요구사항·결정', description: '원문과 Nora 분석을 대조하고 반영할 내용을 확정합니다.', primaryTab: 'source-review', tabs: ['source-review', 'context', 'reviews', 'activity'], navigationTabs: ['source-review', 'context', 'activity'] },
   { id: 'plan', label: '작업·고객 질문', description: '작업을 배정하고 기한·답변·작업 전후 점검을 관리합니다.', primaryTab: 'work-items', tabs: ['work-items', 'questions', 'work-governance'] },
   { id: 'execute', label: 'AI 개발', description: '확정한 요구사항으로 개발 계획을 만들고 코드·테스트·PR을 검토합니다.', primaryTab: 'implementation', tabs: ['implementation', 'github-delivery'] },
+  { id: 'domain-guide', label: '도메인 가이드', description: '프로젝트 개요·용어·업무 흐름·확정 정책을 출처와 함께 학습합니다.', primaryTab: 'domain-guide', tabs: ['domain-guide'] },
   { id: 'knowledge', label: '재사용 자료', description: '검토한 해결 사례를 찾아 현재 프로젝트에 적용합니다.', primaryTab: 'context', tabs: ['context'] },
   { id: 'prepare', label: '프로젝트 관리', description: '구성원과 개발 저장소, 실행 환경을 설정합니다.', primaryTab: 'members', tabs: ['members', 'settings'], management: true },
 ];
 export const WORKSPACE_VIEWS = {
+  'domain-guide': { label: '도메인 가이드', description: '축적된 자료와 확정 정책으로 프로젝트와 도메인을 학습하세요.' },
   home: { label: '홈', description: '계약·기획부터 최종 전달까지의 기록과 작업 진행률을 확인하세요.' },
   alerts: { label: '알림함', description: '프로젝트를 선택해 검토할 내용과 지연된 업무를 확인하세요.' },
   settings: { label: '저장소·AI 설정', description: '개발할 저장소를 연결하고 AI 실행 환경을 설정하세요.' },

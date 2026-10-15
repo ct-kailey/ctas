@@ -11,7 +11,7 @@ import './workspace-shell.css';
 import { SHARED_VIEW_TABS } from './shared-view-state.mjs';
 import { PROJECT_KINDS, projectKindLabel, projectOptionLabel } from './project-scope.mjs';
 
-const AREA_ICONS = { contract: FileText, collect: Files, context: ClipboardCheck, plan: CheckSquare, execute: Code2, knowledge: Library };
+const AREA_ICONS = { contract: FileText, collect: Files, context: ClipboardCheck, plan: CheckSquare, execute: Code2, 'domain-guide': BookOpen, knowledge: Library };
 function Brand() {
   return <span className="unified-brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M2 2h10l8 8v10H10l-8-8zm10 18h10l8 8v2H20l-8-8zM2 22h8v8H2z" /></svg><strong>AINS</strong></span>;
 }
@@ -34,7 +34,7 @@ export function WorkspaceShell({ user, project, projects, tab, activeStep, alert
         })}
         {!sharedView ? <Sidebar.Section><Sidebar.Item icon={<Plus size={16}/>} label="새 프로젝트" asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(onNewProject)}>새 프로젝트</button></Sidebar.Item></Sidebar.Section> : null}
         {project ? <><Sidebar.Separator /><Sidebar.Section title="프로젝트 업무">
-          {WORKFLOW_STEPS.filter(area => !area.management).map(area => { const Icon = AREA_ICONS[area.id]; return <Sidebar.Item key={area.id} icon={<Icon size={16}/>} label={area.label} active={activeStep?.id === area.id} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate(area.primaryTab, { workflowStep: area.id }))}>{area.label}</button></Sidebar.Item>; })}
+          {WORKFLOW_STEPS.filter(area => !area.management && (!sharedView || SHARED_VIEW_TABS.has(area.primaryTab))).map(area => { const Icon = AREA_ICONS[area.id]; return <Sidebar.Item key={area.id} icon={<Icon size={16}/>} label={area.label} active={activeStep?.id === area.id} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate(area.primaryTab, { workflowStep: area.id }))}>{area.label}</button></Sidebar.Item>; })}
         </Sidebar.Section>{!sharedView ? <><Sidebar.Separator /><Sidebar.Section title="프로젝트 관리"><Sidebar.Item icon={<Users size={16}/>} label="구성원" active={tab === 'members'} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('members'))}>구성원</button></Sidebar.Item><Sidebar.Item icon={<Settings2 size={16}/>} label="저장소·AI 설정" active={tab === 'settings'} asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(() => onNavigate('settings'))}>저장소·AI 설정</button></Sidebar.Item></Sidebar.Section></> : null}</> : null}
         <Sidebar.Separator /><Sidebar.Section><Sidebar.Item icon={<BookOpen size={16}/>} label="사용 안내" asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(onGuide)}>사용 안내</button></Sidebar.Item><Sidebar.Item icon={<Settings2 size={16}/>} label="화면 설정" asChild><button data-ctds="sidebar-item" type="button" onClick={() => run(onAppearance)}>화면 설정</button></Sidebar.Item></Sidebar.Section>
       </div></Sidebar.Body>
