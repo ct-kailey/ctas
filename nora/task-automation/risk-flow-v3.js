@@ -8,6 +8,8 @@ const v2 = require('./risk-flow-v2');
 const REQUEST_SCHEMA = structuredClone(v2.REQUEST_SCHEMA);
 REQUEST_SCHEMA.properties.schema_version = { const: '3.0' };
 REQUEST_SCHEMA.properties.automation.properties.uncertainty_mode = { const: 'per_task' };
+const feedbackArtifact=REQUEST_SCHEMA.properties.feedback.anyOf[0].properties.original_task.anyOf[0].properties.artifact.anyOf[0];
+feedbackArtifact.properties.preview_url={anyOf:[feedbackArtifact.properties.preview_url,{type:'null'}]};
 const MODEL_RESULT_SCHEMA = structuredClone(v2.MODEL_RESULT_SCHEMA);
 MODEL_RESULT_SCHEMA.properties.schema_version = { const: '3.0' };
 const RESULT_SCHEMA = structuredClone(v2.RESULT_SCHEMA);
@@ -20,7 +22,14 @@ function object(value) {
   if (!value || Buffer.byteLength(JSON.stringify(value)) > 700000) fail('NORA_RISK_RESULT_INVALID','분석 결과 크기를 확인하세요.');
   return value;
 }
-function priorSnapshot(snapshot) { const prior=structuredClone(snapshot);prior.schema_version='2.0';prior.automation.uncertainty_mode='provisional';return prior; }
+function priorSnapshot(snapshot) {
+  const prior=structuredClone(snapshot);prior.schema_version='2.0';prior.automation.uncertainty_mode='provisional';
+  // v3 already validates all artifact fields above. The legacy validator has
+  // no representation for a verified PR whose preview deployment is pending.
+  // Adapt only its validation copy; preserve the actual feedback evidence.
+  if(prior.feedback?.original_task?.artifact?.preview_url===null)prior.feedback.original_task.artifact=null;
+  return prior;
+}
 function validateRiskRequest(value, scope) {
   const snapshot=object(value);
   if(!requestCheck(snapshot))fail('NORA_RISK_INPUT_INVALID','작업별 확인 분석 입력 형식을 확인하세요.');

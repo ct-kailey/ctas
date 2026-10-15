@@ -228,6 +228,13 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   const f=await fixture({provider,policyText:'목록 정렬 기준은 미정이다.'}),task=await todo(f);await f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version});await f.worker.runOnce();
   const blocked=await f.service.getTask(f.p,users.owner,task.id);assert.equal(blocked.status,'blocked');assert.equal(blocked.artifact.preview_url,null);assert.equal(blocked.artifact.pr_number,12);assert.equal((await pool.query('SELECT 1 FROM project_implementation_notes WHERE automation_task_id=$1',[task.id])).rowCount,1);
   await assert.rejects(f.service.approveMerge(f.p,users.owner,task.id,{expected_version:blocked.version,head_sha:HEAD,note:'미검증 결과 병합 시도'}),{code:'TASK_REVIEW_STALE'});
+  const archive=require('../server/implementation-notes').createImplementationNotes({pool}),note=(await archive.list(f.p,users.owner,{automation_task_id:task.id})).notes[0];
+  const feedback=await archive.feedback(f.p,users.owner,note.id,{request_id:randomUUID(),expected_version:note.version,text:'실패한 테스트와 웹 프리뷰 배포를 보완해 주세요.'});
+  const followup=await f.service.analyzeFeedback(f.p,users.owner,{note_id:note.id,expected_version:feedback.note.version,request_id:randomUUID()});
+  const frozen=(await pool.query('SELECT input_snapshot FROM task_automation_analyses WHERE id=$1',[followup.id])).rows[0].input_snapshot;
+  assert.equal(frozen.feedback.original_task.artifact.pr_number,12);assert.equal(frozen.feedback.original_task.artifact.preview_url,null);
+  await f.worker.runOnce();const next=(await f.service.overview(f.p,users.owner)).tasks.find(t=>t.id!==task.id);assert.ok(next);assert.equal(next.status,'todo');assert.equal((await f.service.getTask(f.p,users.owner,task.id)).status,'blocked');
+
  });
 
  await t.test('context changes during development block approval but do not discard the verified PR and execution history',async()=>{
