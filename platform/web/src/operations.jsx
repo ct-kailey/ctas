@@ -4,15 +4,21 @@ import { Badge, Button, ErrorNotice, FormField, JobExecution, Modal, SourceNotic
 import { HistoryDetails, RECORD_KINDS } from './records.jsx';
 import { useSharedView } from './shared-view.jsx';
 import { PROJECT_KINDS } from './project-scope.mjs';
+import { createProjectRequest, NORA_WORKSPACE_PATTERN, retainProjectRequest } from './nora-workspace-state.mjs';
 
 export function ProjectModal({ request, onClose, onCreated }) {
   const [busy, setBusy] = useState(false), [error, setError] = useState(null);
+  const pendingRequest = useRef(null), createdProject = useRef(null);
   async function submit(event) {
     event.preventDefault(); const data = new FormData(event.currentTarget); setBusy(true); setError(null);
-    try { const result = await request('/api/projects', { method: 'POST', body: { name: data.get('name').trim(), project_kind: data.get('project_kind') } }); await onCreated(result.project); }
-    catch (err) { setError(err); } finally { setBusy(false); }
+    pendingRequest.current ||= createProjectRequest(Object.fromEntries(data), crypto.randomUUID());
+    try {
+      if (!createdProject.current) { const result = await request('/api/projects', { method: 'POST', body: pendingRequest.current }); createdProject.current = result.project; }
+      await onCreated(createdProject.current); pendingRequest.current = null;
+    } catch (err) { if (!createdProject.current && !retainProjectRequest(err)) pendingRequest.current = null; setError(err); } finally { setBusy(false); }
   }
-  return <Modal title="새 프로젝트 만들기" eyebrow="PROJECT SETUP" busy={busy} onClose={onClose}><form onSubmit={submit}><div className="modal-body"><p className="form-intro">문서와 결정 기록을 함께 관리할 작업 공간입니다.<br />생성한 계정에 프로젝트 관리자 권한이 부여됩니다.</p><FormField label="프로젝트 이름"><Input autoFocus name="name" required maxLength={160} placeholder="예: 고객 포털 고도화" /></FormField><fieldset className="project-kind-choices" disabled={busy}><legend>프로젝트 용도</legend>{Object.entries(PROJECT_KINDS).filter(([value]) => value !== 'unspecified').map(([value, label]) => <label className="checkbox-label" key={value}><Input type="radio" name="project_kind" value={value} required /><span>{label}</span></label>)}</fieldset><p className="inline-note">AINS 플랫폼 자체의 기획서는 자체 제품 개발 프로젝트에, 고객의 문서와 이력은 해당 고객 프로젝트에 등록하세요. Git 저장소는 프로젝트 설정에서 연결합니다.</p><ErrorNotice error={error} /></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose} disabled={busy}>취소</Button><Button type="submit" busy={busy} icon={ArrowRight}>프로젝트 만들기</Button></footer></form></Modal>;
+  const locked = busy || Boolean(pendingRequest.current);
+  return <Modal title="새 프로젝트 만들기" eyebrow="PROJECT SETUP" busy={busy} onClose={onClose}><form onSubmit={submit}><div className="modal-body"><p className="form-intro">문서와 결정 기록을 함께 관리할 작업 공간입니다.<br />생성한 계정에 프로젝트 관리자 권한이 부여됩니다.</p><FormField label="프로젝트 이름"><Input autoFocus name="name" required maxLength={160} disabled={locked} placeholder="예: 고객 포털 고도화" /></FormField><fieldset className="project-kind-choices" disabled={locked}><legend>프로젝트 용도</legend>{Object.entries(PROJECT_KINDS).filter(([value]) => value !== 'unspecified').map(([value, label]) => <label className="checkbox-label" key={value}><Input type="radio" name="project_kind" value={value} required /><span>{label}</span></label>)}</fieldset><FormField label="Nora 워크스페이스 ID" hint="Nora에서 이 프로젝트의 워크스페이스를 먼저 만든 뒤 t_로 시작하는 ID를 복사해 붙여 넣으세요."><Input name="nora_workspace_id" required pattern={NORA_WORKSPACE_PATTERN} maxLength={130} autoComplete="off" spellCheck={false} disabled={locked} placeholder="t_…" /></FormField><p className="inline-note">프로젝트의 문서·결정 맥락은 등록한 Nora 워크스페이스에서 관리합니다. Git 연결은 프로젝트 설정에서 선택하세요.</p>{pendingRequest.current && !busy ? <Notice tone="warning" title="프로젝트 생성 결과를 확인해 주세요">입력 내용을 유지했습니다. 아래 버튼으로 같은 생성 요청의 결과를 확인할 수 있습니다.</Notice> : null}<ErrorNotice error={error} /></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose} disabled={busy}>취소</Button><Button type="submit" busy={busy} icon={ArrowRight}>{pendingRequest.current ? '같은 생성 요청 확인' : '프로젝트 만들기'}</Button></footer></form></Modal>;
 }
 
 export function RevisionModal({ project, doc, revisionId, request, canWrite, canReview, onClose, onChanged, onReview, onEdit, onImplementation }) {

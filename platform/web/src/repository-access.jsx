@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { Button, ErrorNotice, FormField, Spinner, projectPath, Input, Disclosure } from './ui.jsx';
 
-const SOURCES = { project: '프로젝트 읽기 토큰', github_delivery: '같은 저장소의 GitHub PR 연결', server: '서버 읽기 연결', anonymous: '공개 저장소 확인 · 인증 없음' };
+const SOURCES = { nora: '프로젝트 Nora Git 연결', project: '프로젝트 읽기 토큰', github_delivery: '같은 저장소의 GitHub PR 연결', server: '서버 읽기 연결', anonymous: '공개 저장소 확인 · 인증 없음' };
 
 export function RepositoryAccess({ project, settingsVersion, disabled, request, onChanged, onDirty, onBusy, notify }) {
   const route = `${projectPath(project.id)}/settings/repository-access`;
   const [access, setAccess] = useState(null), [token, setToken] = useState(''), [remove, setRemove] = useState(false), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const lifecycle = useRef({ active: true, sequence: 0 });
   const owner = project.role === 'owner';
-  const dirty = Boolean(token || remove);
+  const nora = access?.credential_source === 'nora';
+  const dirty = !nora && Boolean(token || remove);
   const load = useCallback(async signal => {
     const sequence = ++lifecycle.current.sequence;
     try { const response = await request(route, { signal }); if (lifecycle.current.active && sequence === lifecycle.current.sequence) { setAccess(response.access); setError(null); } }
@@ -23,7 +24,7 @@ export function RepositoryAccess({ project, settingsVersion, disabled, request, 
   useEffect(() => { onDirty?.(dirty); return () => onDirty?.(false); }, [dirty, onDirty]);
   useEffect(() => { onBusy?.(busy); return () => onBusy?.(false); }, [busy, onBusy]);
   async function save(event) {
-    event.preventDefault(); setBusy(true); setError(null);
+    event.preventDefault(); if (nora) return; setBusy(true); setError(null);
     try {
       const response = await request(route, { method: 'PUT', body: { expected_version: access.version, expected_settings_version: settingsVersion, ...(token ? { token } : { remove_token: true }) } });
       if (!lifecycle.current.active) return;
@@ -35,10 +36,15 @@ export function RepositoryAccess({ project, settingsVersion, disabled, request, 
   }
   return <section className="repository-check">
     <div className="settings-context-heading"><KeyRound size={19} /><h3>비공개 저장소 연결</h3></div>
-    <p>GitHub 로그인과 별도로, AINS 서버가 저장소를 읽을 수 있는 인증이 필요합니다.</p>
+    <p>{nora ? '등록한 Nora 워크스페이스의 Git 연결로 저장소 접근을 확인합니다.' : 'GitHub 로그인과 별도로, AINS 서버가 저장소를 읽을 수 있는 인증이 필요합니다.'}</p>
     <ErrorNotice error={error} onRetry={() => load()} />
     {!access ? !error ? <Spinner label="저장소 인증 정보를 확인하고 있습니다" /> : null : <>
       <p><strong>확인에 사용할 연결</strong><br />{SOURCES[access.credential_source] || SOURCES.anonymous}</p>
+      {nora ? <>
+        <p>프로젝트 설정의 Nora 워크스페이스에서 계정을 연결하고 Git 연결을 선택해 주세요.</p>
+        {access.error_code ? <p>선택한 Nora Git 연결의 저장소 읽기 지원과 접근 권한을 확인해야 합니다.</p> : null}
+        <Button asChild type="button" variant="secondary"><a href="#nora-workspace-connection">Nora 연결 설정</a></Button>
+      </> : <>
       {access.credential_error ? <p className="role-note">저장한 연결 정보를 해독할 수 없습니다. 관리자에게 암호화 설정 확인 또는 토큰 재등록을 요청하세요.</p> : null}
       {!access.repository_matches ? <p className="role-note">저장한 읽기 토큰의 대상과 현재 저장소가 다릅니다. 현재 저장소 전용 토큰을 다시 등록해 주세요.</p> : null}
       {owner ? <form onSubmit={save}>
@@ -53,6 +59,7 @@ export function RepositoryAccess({ project, settingsVersion, disabled, request, 
         <p>토큰은 암호화하여 저장하며 다시 표시하지 않습니다. 읽기 연결 저장은 코드 변경이나 PR 발행을 허용하지 않습니다.</p>
       </form> : <p className="role-note">프로젝트 관리자만 읽기 연결을 등록할 수 있습니다.</p>}
       <Disclosure><summary>연결 선택 순서와 AI 실행기</summary><p>프로젝트 읽기 토큰 → 같은 저장소의 활성 PR 연결 → 서버 읽기 연결 → 인증 없는 공개 조회 순서로 확인합니다. 토큰을 삭제하면 다음 연결을 사용합니다.</p><p>이 연결은 서버의 저장소 확인에 사용합니다. 개인 PC의 AI 실행기는 별도로 <code>AINS_GITHUB_READ_TOKEN</code>을 설정해야 비공개 저장소를 내려받을 수 있습니다. 해당 토큰은 Git 다운로드에만 사용하고 AI 모델에는 전달하지 않습니다.</p></Disclosure>
+      </>}
     </>}
   </section>;
 }

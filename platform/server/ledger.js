@@ -106,7 +106,7 @@ function baselineResult(documentId, revisionId, time, reviewId) {
   return { document_id: documentId, revision_id: revisionId, ...(reviewId ? { review_id: reviewId } : {}), published_at: time };
 }
 
-function createLedger(pool, { automaticDocumentAnalysis = false } = {}) {
+function createLedger(pool, { automaticDocumentAnalysis = false, requireNoraWorkspace = false } = {}) {
   const ledger = {
     async listProjects(userId) {
       return (await pool.query('SELECT p.*,m.role,s.project_kind FROM projects p JOIN memberships m ON m.project_id=p.id JOIN project_settings s ON s.project_id=p.id WHERE m.user_id=$1 ORDER BY p.created_at,p.id', [id(userId)])).rows;
@@ -114,10 +114,25 @@ function createLedger(pool, { automaticDocumentAnalysis = false } = {}) {
     async createProject(userId, body = {}) {
       bodyObject(body);
       const name = text(body.name, '프로젝트 이름', 200), pack = domain(body.domain_pack), projectKind = require('./implementation-source-review').projectKind(body.project_kind ?? 'unspecified');
+      const nora = require('./project-nora');
+      const workspace = requireNoraWorkspace || body.nora_workspace_id !== undefined ? nora.workspaceId(body.nora_workspace_id) : null;
+      const requestId = requireNoraWorkspace || body.request_id !== undefined ? id(body.request_id).toLowerCase() : null;
+      const signature = jsonHash({name,domain_pack:pack,project_kind:projectKind,nora_workspace_id:workspace});
       return transaction(pool, async client => {
+        if(requestId){
+          await client.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-project-create:' || $1 || ':' || $2,0))",[userId,requestId]);
+          const prior=(await client.query('SELECT * FROM project_creation_requests WHERE user_id=$1 AND request_id=$2',[id(userId),requestId])).rows[0];
+          if(prior){
+            if(prior.input_sha256!==signature)fail('PROJECT_REQUEST_CONFLICT','같은 생성 요청의 내용이 변경되었습니다. 프로젝트 목록을 확인해 주세요.',409);
+            await member(client,prior.project_id,userId,['owner']);
+            return (await client.query("SELECT p.*,m.role,s.project_kind FROM projects p JOIN memberships m ON m.project_id=p.id JOIN project_settings s ON s.project_id=p.id WHERE p.id=$1 AND m.user_id=$2",[prior.project_id,userId])).rows[0];
+          }
+        }
         const project = (await client.query('INSERT INTO projects(name,domain_pack) VALUES($1,$2) RETURNING *', [name, JSON.stringify(pack)])).rows[0];
         if(projectKind!=='unspecified')await client.query('UPDATE project_settings SET project_kind=$1,version=version+1 WHERE project_id=$2',[projectKind,project.id]);
         await client.query("INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,'owner')", [project.id, id(userId)]);
+        if(workspace)await nora.queueBinding(client,project.id,userId,workspace);
+        if(requestId)await client.query('INSERT INTO project_creation_requests(user_id,request_id,input_sha256,project_id) VALUES($1,$2,$3,$4)',[userId,requestId,signature,project.id]);
         await event(client, project.id, userId, 'project.created', project.id, { name, project_kind:projectKind });
         return { ...project, role: 'owner',project_kind:projectKind };
       });
@@ -179,7 +194,7 @@ function createLedger(pool, { automaticDocumentAnalysis = false } = {}) {
         }
         const rev = (await client.query('INSERT INTO revisions(project_id,document_id,filename,mime_type,sha256,content,created_by,history) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id', [projectId, document.id, filename, mimeType, sha, content, userId, JSON.stringify(metadata)])).rows[0];
         const job = (await client.query("INSERT INTO jobs(project_id,kind,revision_id) VALUES($1,'intake',$2) RETURNING id", [projectId, rev.id])).rows[0];
-        if (automaticDocumentAnalysis) await client.query('INSERT INTO document_analysis_queue(revision_id,project_id,created_by) VALUES($1,$2,$3)', [rev.id, projectId, userId]);
+        if (automaticDocumentAnalysis && !await require('./project-nora').binding(client,projectId)) await client.query('INSERT INTO document_analysis_queue(revision_id,project_id,created_by) VALUES($1,$2,$3)', [rev.id, projectId, userId]);
         await event(client, projectId, userId, 'revision.uploaded', rev.id, { document_id: document.id, domain_id: document.domain_id, record_kind: document.record_kind, document_category: document.document_category, filename, sha256: sha, job_id: job.id, history: metadata });
         return { document_id: document.id, revision_id: rev.id, job_id: job.id, document_category: document.document_category };
       });

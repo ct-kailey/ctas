@@ -3,6 +3,7 @@
 const { randomUUID, createHash } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const { transaction } = require('./db');
+const { assertLegacyNoraDispatch } = require('./project-nora');
 const { extractDocument, validateExtractedDocument, validateSource, ADAPTER_CODES } = require('./extractor');
 const { checkRequest, runDocumentPipeline, runPublishedChangeReview } = require('../../nora/client/nora-client');
 const { validateDocumentSchema, validateResultSchema } = require('../../nora/client/schema-validator');
@@ -11,6 +12,7 @@ const pipelineManifest = require('../../nora/pipeline/manifest.json');
 const flowManifest = require('../../nora/flow/manifest.json');
 
 const KNOWN_CODES = new Set([...ADAPTER_CODES,
+  'NORA_PROJECT_FLOW_SETUP_REQUIRED',
   'SOURCE_BYTES_REQUIRED', 'SOURCE_MIME_MISMATCH', 'SOURCE_HASH_MISMATCH', 'EXTRACTION_IDENTITY_MISMATCH',
   'EXTRACTION_TIMEOUT', 'EXTRACTOR_UNAVAILABLE', 'EXTRACTION_FAILED', 'EXTRACTION_OUTPUT_LIMIT',
   'EXTRACTION_OUTPUT_INVALID', 'DOCUMENT_SCHEMA_INVALID', 'REQUEST_SCHEMA_INVALID', 'RESULT_SCHEMA_INVALID',
@@ -181,7 +183,6 @@ function createWorker({
     try {
       let completion;
       if (job.kind === 'intake') {
-        if (typeof pipelineToken !== 'string' || !pipelineToken.trim()) fail('PIPELINE_AUTH_REQUIRED');
         const { rows: [revision] } = await pool.query(`SELECT * FROM revisions WHERE id=$1 AND project_id=$2`,
           [job.revision_id, job.project_id]);
         if (!revision) fail('WORKER_RECORD_MISSING');
@@ -189,6 +190,14 @@ function createWorker({
         const document = await extract(revision, { python });
         validateExtractedDocument(document, revision);
         if (lostLease) fail('WORKER_LEASE_LOST');
+        await intent(job, 'extracted', { extracted_document: document, request_sha256: hashJson(document) });
+        const selectedWorkspace=await require('./project-nora').binding(pool,job.project_id);
+        if(selectedWorkspace){
+          const normalized=verifyNormalization(document,require('./document-normalization').normalizeLocal(document));
+          completion={status:'succeeded',document:normalized,data:{normalization:'local_lossless',completed_at:new Date().toISOString()}};
+        }else{
+        await assertLegacyNoraDispatch(pool, job.project_id);
+        if (typeof pipelineToken !== 'string' || !pipelineToken.trim()) fail('PIPELINE_AUTH_REQUIRED');
         // Save the key before dispatch. JSONB can reorder keys, so reconstructing
         // this JSON.stringify-based identity from the stored document is unsafe.
         const idempotencyKey = hashJson([pipelineManifest.workspace_id, pipelineManifest.pipeline_id,
@@ -208,7 +217,9 @@ function createWorker({
           run_id: response.runId, idempotency_key: idempotencyKey,
           completed_at: new Date().toISOString(),
         } };
+        }
       } else {
+        await assertLegacyNoraDispatch(pool, job.project_id);
         if (typeof flowToken !== 'string' || !flowToken.trim()) fail('FLOW_AUTH_REQUIRED');
         const { rows: [stored] } = await pool.query(`SELECT * FROM reviews WHERE id=$1 AND project_id=$2`,
           [job.review_id, job.project_id]);

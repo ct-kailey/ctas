@@ -34,10 +34,12 @@ const {mountChannelWorkflowRoutes}=require('./channel-workflow-routes');
 const {mountWorkAIRoutes,mountWorkAIWebhook}=require('./work-ai-routes');
 const {mountExecutionQueueBridge,mountExecutionQueueRoutes}=require('./execution-queue');
 const {kakaoWatcherScript}=require('./kakao-watcher-download');
+const {mountProjectNoraRoutes}=require('./project-nora-routes');
+const {mountTaskAutomationRoutes}=require('./task-automation-routes');
 
-function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {} }) {
+function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {}, nora = {} }) {
   const sharedViews = createSharedViews(pool, { appOrigin, production });
-  const app = express(), ledger = createLedger(pool, { automaticDocumentAnalysis: true }), auth = createAuth(pool, { appOrigin, production, sharedViews });
+  const app = express(), ledger = createLedger(pool, { automaticDocumentAnalysis: true, requireNoraWorkspace: true }), auth = createAuth(pool, { appOrigin, production, sharedViews });
   const registrationAssistant = createRegistrationAssistant({ pool });
   const channels = createChannelLedger(pool);
   if(production&&governance.enforce===false)throw new Error('GOVERNANCE_REQUIRED_IN_PRODUCTION');
@@ -85,6 +87,13 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   });
   app.post('/api/auth/shared-view/exit', async (req,res) => { await sharedViews.exit(req,res); res.json({ok:true}); });
   app.use('/api', auth.authenticate, sharedViews.guard, auth.csrf);
+  app.get('/api/nora/oauth/callback',async(req,res)=>{
+    if(!nora.oauth)return res.redirect('/?nora_connection=failed');
+    try{
+      const result=await nora.oauth.callback(req.user.id,req.query);
+      res.redirect('/?'+new URLSearchParams({project:result.project_id,tab:'settings',nora_connection:'connected'}));
+    }catch{res.redirect('/?nora_connection=failed');}
+  });
   app.get('/api/session', (req,res) => res.json({user:req.user,csrfToken:req.session.csrfToken,...(req.sharedView?{shared_view:req.sharedView}:{})}));
   app.post('/api/auth/logout', auth.logout);
   app.get('/api/shared-views', async (req,res) => res.json(await sharedViews.list(req.user.id)));
@@ -101,6 +110,8 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   });
   function roles(...allowed) { return (req,_res,next) => allowed.includes(req.projectRole) ? next() : next(error('FORBIDDEN','이 작업을 수행할 권한이 없습니다.',403)); }
   const write=roles('owner','reviewer','member'), review=roles('owner','reviewer');
+  mountProjectNoraRoutes(project,{pool,owner:roles('owner'),...nora});
+  mountTaskAutomationRoutes(project,{pool,write,review,owner:roles('owner'),provider:nora.tasks});
   mountDashboardRoutes(project,{pool});
   mountProjectMemberRoutes(project,{pool});
   mountCommercialRoutes(project,{pool,write,review});

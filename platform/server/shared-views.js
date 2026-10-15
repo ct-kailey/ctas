@@ -10,6 +10,8 @@ const ID = '[^/]+';
 // Explicit allowlist: adding a new GET never accidentally publishes it. Several
 // existing GETs invoke models, save digests, expose credentials, or download files.
 const READ_PATHS = [
+  /^\/task-automation\/?$/,
+  new RegExp(`^/task-automation/tasks/${ID}/?$`),
   /^\/(?:overview|dashboard|attention|settings|members|domains|documents|feed|work-items|implementation-plans|implementation-requests|channel-sources|channel-inbox|context|commercial|questions|question-reminders|work-governance|github-deliveries|transcriptions)\/?$/,
   new RegExp(`^/(?:revisions|reviews|work-items|implementation-plans|implementation-requests|channel-inbox|questions|github-deliveries|transcriptions)/${ID}/?$`),
   /^\/context\/(?:sources|search|timeline|insights|ai-runs)\/?$/,
@@ -48,7 +50,7 @@ function projectSharedJSON(value) {
   if (!value || typeof value !== 'object' || value instanceof Date) return value;
   const out = {};
   for (const [key, item] of Object.entries(value)) {
-    if (['email', 'token_hash', 'csrf_token', 'secret_envelope', 'runner_token_hash', 'lease_token', 'access_token', 'api_key', 'patch'].includes(key)) continue;
+    if (['email', 'token_hash', 'csrf_token', 'secret_envelope', 'runner_token_hash', 'lease_token', 'access_token', 'api_key', 'patch', 'diff'].includes(key)) continue;
     out[key] = projectSharedJSON(item);
   }
   return out;

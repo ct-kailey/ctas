@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRight, CalendarDays, CheckCheck, Download, FolderKanban, Plus, RefreshCw, Search } from 'lucide-react';
 import { Badge, Button, Empty, ErrorNotice, FormField, Modal, Spinner, dateTime, projectPath, Input, Textarea, Select, ControlButton, Disclosure, Tabs, Notice } from './ui.jsx';
 import './work-items.css';
+import { TaskAutomationBoard } from './task-automation.jsx';
 
 const STATES = { todo: ['할 일', 'quiet'], in_progress: ['진행 중', 'blue'], blocked: ['차단됨', 'red'], qa: ['QA 대기', 'amber'], done: ['완료', 'green'] };
 const NEXT = { todo: ['in_progress', 'blocked'], in_progress: ['todo', 'blocked', 'qa'], blocked: ['todo', 'in_progress', 'qa'], qa: ['todo', 'in_progress', 'blocked', 'done'], done: ['todo'] };
@@ -12,9 +13,9 @@ const overdue = (item, date) => item.status !== 'done' && item.due_on && item.du
 const initialForm = item => ({ status: item.status, assignee_id: item.assignee_id || '', due_on: item.due_on || '', blocker: item.blocker || '', note: '', qa_evidence: '' });
 function StateBadge({ status }) { return <Badge tone={STATES[status]?.[1]}>{STATES[status]?.[0] || status}</Badge>; }
 
-export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId }) {
+export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId, onDirty, onOpenSettings, onOpenQuestions }) {
   const sharedView = useSharedView();
-  const route = projectPath(projectId), canReview = REVIEWERS.includes(role);
+  const route = projectPath(projectId), canReview = !sharedView && REVIEWERS.includes(role);
   const [data, setData] = useState(null), [plans, setPlans] = useState([]), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('all'), [query, setQuery] = useState(''), [selected, setSelected] = useState(null), [importing, setImporting] = useState(false), [opening, setOpening] = useState(false), [detailError, setDetailError] = useState(null);
   const alive = useRef(true), controller = useRef(null), detailController = useRef(null), initialDetail = useRef(null);
@@ -50,6 +51,7 @@ export function WorkItems({ projectId, request, role, userId, notify, onChanged,
     return matches && `${item.source_task.title} ${item.source_task.description} ${item.assignee_name || ''} ${item.plan_title}`.toLowerCase().includes(query.toLowerCase().trim());
   });
   return <section className="work-board" aria-label="기능별 작업 관리">
+    <TaskAutomationBoard projectId={projectId} request={request} role={role} notify={notify} onDirty={onDirty} onChanged={onChanged} onSettings={onOpenSettings} onQuestions={onOpenQuestions} />
     <div className="work-board-intro"><div><h2>작업 목록</h2><p>{sharedView ? '작업별 담당자·기한·진행 상태와 이력을 확인하세요.' : '작업을 선택해 담당자·기한·상태를 변경하세요.'}</p></div><div className="inline-actions">{onOpenGovernance ? <Button variant="secondary" onClick={onOpenGovernance}>작업 전 점검·범위 승인</Button> : null}<Button variant="secondary" icon={RefreshCw} busy={busy} onClick={load}>새로고침</Button>{canReview ? <Button icon={Plus} onClick={() => setImporting(true)} disabled={!data}>승인 계획 가져오기</Button> : null}</div></div>
     <ErrorNotice error={error} onRetry={load} />
     <ErrorNotice error={detailError?.error} onRetry={detailError ? () => open({ id: detailError.id }) : undefined} />
@@ -81,7 +83,7 @@ function WorkDetail({ initial, members, route, request, role, userId, onClose, o
   const sharedView = useSharedView();
   const [item, setItem] = useState(initial), [form, setForm] = useState(() => initialForm(initial)), [busy, setBusy] = useState(false), [error, setError] = useState(null);
   const alive = useRef(true); useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  const reviewer = REVIEWERS.includes(role), canEdit = reviewer || (role === 'member' && item.assignee_id === userId);
+  const reviewer = !sharedView && REVIEWERS.includes(role), canEdit = !sharedView && (reviewer || (role === 'member' && item.assignee_id === userId));
   const stale = item.stale_reasons.length > 0, dependencyPending = item.dependencies.some(d => d.status !== 'done');
   const options = [item.status, ...NEXT[item.status]].filter(s => reviewer || (s !== 'done' && item.status !== 'done') || s === item.status);
   const field = key => ({ value: form[key], onChange: e => setForm(current => ({ ...current, [key]: e.target.value })) });

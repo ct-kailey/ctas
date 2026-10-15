@@ -1,4 +1,5 @@
 'use strict';
+const {assertLegacyNoraDispatch}=require('./project-nora');
 const {createHash,randomUUID}=require('node:crypto');
 const {lockGovernanceProject,assertPlanGovernance}=require('./work-governance');
 const {transaction}=require('./db');
@@ -87,7 +88,7 @@ function createImplementationLedger(pool,{requireGovernance=true}={}){return {
     if(!Number.isSafeInteger(version)||version<1||!['ready','empty','inaccessible','branch_missing'].includes(body.status)||typeof body.checked_at!=='string'||!Number.isFinite(Date.parse(body.checked_at)))fail('INVALID_REPOSITORY_CHECK','저장소 확인 결과가 올바르지 않습니다.');
     if(body.status==='ready'?(typeof body.head_sha!=='string'||!SHA.test(body.head_sha)):body.head_sha!==null)fail('INVALID_REPOSITORY_CHECK','저장소 commit 정보가 올바르지 않습니다.');
     if(body.reason_code!=null&&!require('./repository-check').REASON_CODES.has(body.reason_code))fail('INVALID_REPOSITORY_CHECK','저장소 확인 사유가 올바르지 않습니다.');
-    if(body.credential_source!==undefined&&!['project','github_delivery','server','anonymous'].includes(body.credential_source))fail('INVALID_REPOSITORY_CHECK','저장소 인증 출처가 올바르지 않습니다.');
+    if(body.credential_source!==undefined&&!['project','github_delivery','server','anonymous','nora'].includes(body.credential_source))fail('INVALID_REPOSITORY_CHECK','저장소 인증 출처가 올바르지 않습니다.');
     const checked={status:body.status,head_sha:body.head_sha,checked_at:new Date(body.checked_at).toISOString()};
     if(body.reason_code!==undefined)checked.reason_code=body.reason_code;
     if(body.credential_source!==undefined)checked.credential_source=body.credential_source;
@@ -138,6 +139,7 @@ function createImplementationLedger(pool,{requireGovernance=true}={}){return {
     const preparationId=body.preparation_id?id(body.preparation_id):null;
     const requestHash=hash({revision_ids:revisionIds,...(classificationId?{classification_id:classificationId}:{}),...(preparationId?{preparation_id:preparationId,acknowledge_project_sources:body.acknowledge_project_sources===true}:{})});
     return transaction(pool,async client=>{
+      await member(client,p,u,WRITERS);await assertLegacyNoraDispatch(client,p,{lock:true});
       if(classificationId)await lockGovernanceProject(client,p);
       await member(client,p,u,WRITERS);const config=await settings(client,p,true);
       const prior=(await client.query('SELECT id,request_sha256 FROM implementation_plans WHERE project_id=$1 AND id=$2',[p,requestId])).rows[0];
@@ -183,6 +185,7 @@ function createImplementationLedger(pool,{requireGovernance=true}={}){return {
   async requestExecution(p,planId,u,body={}){
     object(body,['acknowledge_code_execution','reason']);if(body.acknowledge_code_execution!==true)fail('EXECUTION_ACK_REQUIRED','승인된 계획의 코드 실행 요청임을 확인하세요.');const reason=text(body.reason,'실행 요청 사유',2000);
     return transaction(pool,async client=>{
+      await member(client,p,u,REVIEWERS);await assertLegacyNoraDispatch(client,p,{lock:true});
       if(requireGovernance)await lockGovernanceProject(client,p);await member(client,p,u,REVIEWERS);const config=await settings(client,p,true),initial=await plan(client,p,planId),reasons=await stale(client,p,initial,config,true),row=await plan(client,p,planId,true);
       const prior=(await client.query('SELECT * FROM implementation_requests WHERE project_id=$1 AND plan_id=$2',[p,row.id])).rows[0];
       if(prior){if(prior.input_snapshot.requested_reason!==reason)fail('IMPLEMENTATION_REQUEST_CONFLICT','이 계획에는 이미 다른 사유로 실행 요청이 있습니다.',409);return {...prior,stale_reasons:reasons,replayed:true};}

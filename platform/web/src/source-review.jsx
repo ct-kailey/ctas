@@ -8,6 +8,8 @@ import { CommercialContentPreview } from './commercial.jsx';
 import { DOCUMENT_CATEGORIES, HistoryDetails, RECORD_KINDS } from './records.jsx';
 import { candidateBlockers, hydratedSourceRevision, sourceCandidatesForRevision, sourceReviewDocuments, sourceReviewForRevision, sourceReviewSelection, sourceRunsForRevision } from './source-review-state.mjs';
 import './source-review.css';
+import { PolicyRiskAnalysis } from './task-automation.jsx';
+import { policyAnalysisEligible, policyAnalysisSourceReady } from './task-automation-state.mjs';
 
 const EMPTY = [];
 const ACTIVE = new Set(['queued', 'running', 'processing', 'extracting', 'waiting_approval', 'finalizing']);
@@ -33,7 +35,7 @@ function useReviewData(request, route) {
 }
 
 /** One place to read a source, inspect actual Nora output, and record a human decision. */
-export function SourceReviewWorkspace({ project, documents = EMPTY, reviews = EMPTY, jobs = EMPTY, request, canWrite, canReview, onChanged, notify, onOpenContext, onOpenRecords, onOpenCommercial, onRetry, initialRevisionId, initialCommercialRevisionId, initialCommercialDocumentId, onDirty, guardNavigation }) {
+export function SourceReviewWorkspace({ project, documents = EMPTY, reviews = EMPTY, jobs = EMPTY, request, canWrite, canReview, onChanged, notify, onOpenContext, onOpenRecords, onOpenCommercial, onRetry, initialRevisionId, initialCommercialRevisionId, initialCommercialDocumentId, onDirty, guardNavigation, onOpenWorkItems, onOpenQuestions }) {
   const route = projectPath(project.id), sharedView = useSharedView();
   const state = useReviewData(request, route);
   const [selectedId, setSelectedId] = useState(initialRevisionId || initialCommercialRevisionId || ''), [selectedReviewId, setSelectedReviewId] = useState(null);
@@ -67,12 +69,12 @@ export function SourceReviewWorkspace({ project, documents = EMPTY, reviews = EM
     <ErrorNotice error={detailError} />
     {!selected ? !state.data || detailLoading ? <Spinner label="검토할 자료를 불러오고 있습니다" /> : <Empty icon={FileText} title={selectedId ? '요청한 문서 버전을 찾을 수 없습니다' : '등록된 문서·기록이 없습니다'} action={onOpenRecords ? <Button type="button" onClick={onOpenRecords}>문서·기록으로</Button> : null}>{selectedId ? '현재 프로젝트에 속한 버전인지 문서·기록에서 확인해 주세요.' : '문서·기록에 자료를 등록하면 이곳에서 원문과 분석 결과를 검토할 수 있습니다.'}</Empty> : <>
       <div className="source-review-selectors"><FormField label="검토할 문서·기록"><Select value={selected.document.id} onChange={(event) => choose(catalog.find((document) => document.id === event.target.value)?.revisions[0]?.id || '')}>{catalog.map((document) => <option key={`${document.source_type}:${document.id}`} value={document.id}>{document.title}</option>)}</Select></FormField><FormField label="문서 버전"><Select value={selected.revision.id} onChange={(event) => choose(event.target.value)}>{selected.document.revisions.map((revision, index) => <option key={revision.id} value={revision.id}>{index === 0 ? '최신 · ' : ''}{revision.label || revision.filename || `v${revision.sequence || selected.document.revisions.length - index}`} · {dateTime(revision.created_at)}{selected.document.baseline_revision_id === revision.id ? ' · 확정본' : ''}</option>)}</Select></FormField></div>
-      <SourceReviewDocument key={`${project.id}:${selected.document.source_type}:${selected.revision.id}`} project={project} doc={selected.document} revisionId={selected.revision.id} reviewId={selectedReview} request={request} canWrite={canWrite && !sharedView} canReview={canReview && !sharedView} context={state.data?.context} ai={state.data?.ai} jobs={jobs} onChanged={changed} onRefresh={state.load} onReview={setSelectedReviewId} onOpenContext={onOpenContext} onOpenCommercial={onOpenCommercial} onRetry={onRetry} onDirty={setDirty} guardNavigation={guardNavigation} />
+      <SourceReviewDocument key={`${project.id}:${selected.document.source_type}:${selected.revision.id}`} project={project} doc={selected.document} revisionId={selected.revision.id} reviewId={selectedReview} request={request} canWrite={canWrite && !sharedView} canReview={canReview && !sharedView} context={state.data?.context} ai={state.data?.ai} jobs={jobs} onChanged={changed} onRefresh={state.load} onReview={setSelectedReviewId} onOpenContext={onOpenContext} onOpenCommercial={onOpenCommercial} onRetry={onRetry} onDirty={setDirty} guardNavigation={guardNavigation} onOpenWorkItems={onOpenWorkItems} onOpenQuestions={onOpenQuestions} />
     </>}
   </section>;
 }
 
-function SourceReviewDocument({ project, doc, revisionId, reviewId, request, canWrite, canReview, context, ai, jobs, onChanged, onRefresh, onReview, onOpenContext, onOpenCommercial, onRetry, onDirty, guardNavigation }) {
+function SourceReviewDocument({ project, doc, revisionId, reviewId, request, canWrite, canReview, context, ai, jobs, onChanged, onRefresh, onReview, onOpenContext, onOpenCommercial, onRetry, onDirty, guardNavigation, onOpenWorkItems, onOpenQuestions }) {
   const sharedView = useSharedView(), commercial = doc.source_type === 'commercial_revision';
   const route = projectPath(project.id), contextRoute = `${route}/context`, revisionRoute = `${route}/revisions/${encodeURIComponent(revisionId)}`;
   const [loadedRevision, setRevision] = useState(null), [source, setSource] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [requestPayload, setRequestPayload] = useState(null), [selectedRunId, setSelectedRunId] = useState(null);
@@ -84,6 +86,7 @@ function SourceReviewDocument({ project, doc, revisionId, reviewId, request, can
   const updateDirty = useCallback((field, value) => setDirtyFields((old) => old[field] === value ? old : { ...old, [field]: value }), []);
   const analysisDirty = useCallback((value) => updateDirty('analysis', value), [updateDirty]);
   const initialDirty = useCallback((value) => updateDirty('initial', value), [updateDirty]);
+  const riskDirty = useCallback((value) => updateDirty('risk', value), [updateDirty]);
   useEffect(() => { onDirty?.(Boolean(requestPayload) || Object.values(dirtyFields).some(Boolean)); }, [requestPayload, dirtyFields, onDirty]);
   useEffect(() => () => onDirty?.(false), [onDirty]);
   const loadSource = useCallback(async () => {
@@ -143,6 +146,7 @@ function SourceReviewDocument({ project, doc, revisionId, reviewId, request, can
   }
   return <>
     <ErrorNotice error={error} onRetry={() => { loadSource(); setRunRefresh((value) => value + 1); }} />
+    {policyAnalysisEligible(doc, revision) ? <PolicyRiskAnalysis key={revisionId} sourceReady={policyAnalysisSourceReady(revision)} projectId={project.id} revisionId={revisionId} request={request} canWrite={canWrite} onDirty={riskDirty} onWorkItems={onOpenWorkItems} onQuestions={onOpenQuestions} /> : null}
     {!revision ? !error ? <Spinner label="원문을 불러오고 있습니다" /> : null : <div className="source-review-columns">
       <section className="source-review-original" id="source-review-original" tabIndex={-1} aria-label="등록한 원문"><header><div><span className="source-review-eyebrow">원문</span><h3>{doc.title}</h3><p>{commercial ? COMMERCIAL_KINDS[doc.record_kind] : DOCUMENT_CATEGORIES[doc.document_category] || RECORD_KINDS[doc.record_kind]}{doc.domain_name ? ` · ${doc.domain_name}` : ''}</p></div>{!commercial ? <Badge status={revision.status} /> : <Badge tone={source?.approved ? 'green' : 'quiet'}>{source?.approved ? '내부 승인됨' : '계약 문서 초안'}</Badge>}</header>
         {!sharedView && !commercial ? <Button type="button" variant="secondary" asChild><a href={`${revisionRoute}/original`}><ArrowDownToLine size={15} />원본 파일 내려받기</a></Button> : null}

@@ -1,4 +1,5 @@
 'use strict';
+const {assertLegacyNoraDispatch}=require('./project-nora');
 const {randomBytes,randomUUID,createHash}=require('node:crypto');
 const {transaction}=require('./db');
 const {lockGovernanceProject,assertPlanGovernance}=require('./work-governance');
@@ -58,6 +59,7 @@ function createImplementationRunner({pool,appOrigin,requireGovernance=true}){
  async function checkGovernance(db,row){if(!requireGovernance)return;const check=await assertPlanGovernance(db,row.project_id,row.plan_id);if(!row.input_snapshot.governance||implementationHash(check)!==implementationHash(row.input_snapshot.governance))fail('GOVERNANCE_SCOPE_CHANGED','승인된 실행 범위가 변경되었습니다. 새 실행 계획을 검토하세요.');}
  return {
   async issue(p,id,u){return transaction(pool,async db=>{
+   await owner(db,p,u);await assertLegacyNoraDispatch(db,p,{lock:true});
    if(requireGovernance)await lockGovernanceProject(db,p);await owner(db,p,u);const initial=await request(db,id,p);await current(db,initial);await checkGovernance(db,initial);const row=await request(db,id,p,true);
    if(row.status!=='awaiting_runner')fail('RUNNER_NOT_WAITING','실행 대기 중인 요청에만 연결 파일을 만들 수 있습니다.');
    await db.query('UPDATE implementation_runner_tokens SET revoked_at=now() WHERE request_id=$1 AND revoked_at IS NULL',[id]);
@@ -68,6 +70,7 @@ function createImplementationRunner({pool,appOrigin,requireGovernance=true}){
   });},
   async revoke(p,id,u){return transaction(pool,async db=>{await owner(db,p,u);const row=await request(db,id,p,true);if(row.status!=='awaiting_runner')fail('RUNNER_NOT_WAITING','이미 시작한 실행은 연결 파일 취소로 중단할 수 없습니다.');await db.query('UPDATE implementation_runner_tokens SET revoked_at=now() WHERE request_id=$1 AND revoked_at IS NULL',[id]);await audit(db,p,u,'implementation.runner_ticket_revoked',id);return {revoked:true};});},
   async claim(id,header){return transaction(pool,async db=>{
+   const scopedToken=await tokenAuth(db,id,header);await assertLegacyNoraDispatch(db,scopedToken.project_id,{lock:true});
    let token=await tokenAuth(db,id,header);if(requireGovernance)await lockGovernanceProject(db,token.project_id);const initial=await request(db,id,token.project_id);await current(db,initial);await checkGovernance(db,initial);const row=await request(db,id,token.project_id,true);token=await tokenAuth(db,id,header);
    if(row.status!=='awaiting_runner')fail('RUNNER_ALREADY_CLAIMED','이 요청은 이미 실행됐거나 다른 실행기가 처리 중입니다.');
    const lease=randomUUID();const saved=(await db.query("UPDATE implementation_requests SET status='running',runner_token_id=$2,lease_token=$3,lease_expires_at=now()+interval '3 minutes' WHERE id=$1 RETURNING lease_expires_at",[id,token.id,lease])).rows[0];

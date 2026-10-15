@@ -65,20 +65,61 @@ npm exec --yes --package=@railway/cli@5.62.1 -- railway config plan --file .rail
 | `APP_ORIGIN` | 실제 공개 주소의 HTTPS origin. 예: `https://서비스도메인`. 로그인·변경 요청의 Origin 검사와 일치해야 한다. |
 | `PORT` | Railway가 제공하는 포트. 서버는 `0.0.0.0`에서 수신한다. |
 | `PYTHON_BIN` | `/opt/venv/bin/python` — Dockerfile 기본값 |
-| `NORA_PIPELINE_TOKEN` | AINS 문서 파이프라인 API 트리거 토큰 |
-| `NORA_FLOW_TOKEN` | AINS OpenAI 변경 검토 플로우 API 트리거 토큰 |
+| `NORA_PIPELINE_TOKEN` | 기존 공용 문서 파이프라인용 API 트리거 토큰. 프로젝트 OAuth만 사용하는 서버 시작에는 불필요하다. |
+| `NORA_FLOW_TOKEN` | 기존 공용 변경 검토 플로우용 API 트리거 토큰. 프로젝트 OAuth만 사용하는 서버 시작에는 불필요하다. |
 | `NORA_REGISTRATION_TOKEN` | AINS `ains-record-registration-v1` 분류 추천 플로우 전용 API 트리거 토큰. 추천 기능 활성화에 필요하다. |
 | `NORA_IMPLEMENTATION_TOKEN` | AINS `ains-implementation-plan-v1` 구현 계획 플로우 전용 API 트리거 토큰. 실제 코드 실행기 인증과 별개다. |
+| `AINS_CREDENTIAL_ENCRYPTION_KEY` | 무작위 32바이트의 base64 값. 프로젝트 OAuth 자격 및 연결 비밀값 암호화에 필요하며 배포마다 유지한다. 브라우저에 전달하지 않는다. |
 | `BOOTSTRAP_ADMIN_EMAIL` | 최초 관리자 이메일 |
 | `BOOTSTRAP_ADMIN_NAME` | 최초 관리자 표시 이름 |
 | `BOOTSTRAP_ADMIN_PASSWORD` | 최초 관리자 비밀번호. 12~1,024자 |
 | `RAILWAY_DEPLOYMENT_DRAINING_SECONDS` | 기존 원격 값을 보존한다. 종료 유예 설정은 IaC의 `deploy.drainingSeconds: 300`으로 명시한다. |
 
-운영 시작에는 파이프라인·변경 검토 Nora 토큰이 필요하고, 분류 추천에는 별도 `NORA_REGISTRATION_TOKEN`이 필요하다. 분류 토큰이 없으면 추천 API는 503으로 안내하며 일반 등록은 유지된다. 이 토큰들은 Nora 제공자에 등록한 OpenAI API 키와 다르다. OpenAI 제공자 키는 Nora에서 관리한다. 브라우저 코드, `VITE_` 변수, 이미지, 저장소에 비밀값을 넣지 않는다. 개발 환경에서만 `nora/.secrets/*-secret.json`의 제한된 파일 권한을 확인한 후 토큰을 읽는다. 분류 추천의 개발용 파일은 `registration-secret.json`이며 권한은 0600으로 둔다. Docker 빌드에는 이 디렉터리가 포함되지 않는다.
+프로젝트 OAuth만 사용하는 서버는 공용 파이프라인·변경 검토 토큰 없이 시작할 수 있다. 기존 공용 흐름을 실행하려면 해당 토큰이 필요하며, 없으면 해당 작업이 명시적으로 실패한다. 분류 추천에는 별도 `NORA_REGISTRATION_TOKEN`이 필요하다. 분류 토큰이 없으면 추천 API는 503으로 안내하며 일반 등록은 유지된다. 이 토큰들은 Nora 제공자에 등록한 OpenAI API 키와 다르다. OpenAI 제공자 키는 Nora에서 관리한다. 브라우저 코드, `VITE_` 변수, 이미지, 저장소에 비밀값을 넣지 않는다. 개발 환경에서만 `nora/.secrets/*-secret.json`의 제한된 파일 권한을 확인한 후 토큰을 읽는다. 분류 추천의 개발용 파일은 `registration-secret.json`이며 권한은 0600으로 둔다. Docker 빌드에는 이 디렉터리가 포함되지 않는다.
 
 최초 부트스트랩은 `ains-sism` 프로젝트와 소유자를 생성한다. 이미 등록된 사용자 비밀번호는 재시작으로 바뀌지 않는다. 최초 생성 후 부트스트랩 변수를 제거하려면 **이메일·이름·비밀번호를 함께 제거**한다. 이메일만 남고 비밀번호가 없으면 시작이 거부된다. 다른 부트스트랩 이메일을 넣어도 기존 프로젝트 소유권이 이전되지 않는다.
 
 현재 시작 시 마이그레이션이 적용된다. DB 변경 전 백업을 확보하고 새 이미지로 테스트 DB에서 먼저 검증한다. 실행 중인 Nora 호출이 있는 재배포는 완료 결과를 받지 못할 수 있으므로 작업 대기열이 비어 있는 시점을 사용한다. 강제 종료가 발생하면 아래 `uncertain` 복구 절차를 따른다.
+
+## 프로젝트 Nora 연결과 정책 작업 자동화
+
+이 경로는 프로젝트마다 등록한 Nora 워크스페이스와 소유자가 승인한 OAuth 자격을 사용한다. 워크스페이스를 자동 생성하지 않으며, 공용 Nora 토큰·기존 GitHub PAT·브라우저 또는 Codex 로그인 자격으로 대체하지 않는다. 한 워크스페이스를 여러 프로젝트에 연결하거나 등록 후 다른 워크스페이스로 교체할 수 없다. 기존 공용 분석·실행이 진행 중이거나 결과 미확인 상태라면 먼저 해당 요청을 정리한다. 연결된 프로젝트의 기존 공용 흐름은 `NORA_PROJECT_FLOW_SETUP_REQUIRED`로 차단될 수 있으므로, 아래 정책 자동화 지원을 모든 기존 AI 메뉴의 이전 완료로 해석하지 않는다.
+
+1. 서버의 `APP_ORIGIN`과 `AINS_CREDENTIAL_ENCRYPTION_KEY`를 설정한다. OAuth 콜백은 `APP_ORIGIN/api/nora/oauth/callback`이다. 암호화 키가 없으면 연결을 시작할 수 없다. 키를 잃거나 바꾸면 저장된 자격을 복호화할 수 없으므로 안전한 백업과 재연결 계획을 준비한다.
+2. Nora에서 프로젝트 전용 워크스페이스를 만들고 `t_…` ID를 프로젝트 등록 또는 설정에 입력한다. 프로젝트 소유자가 **Nora 계정 연결**을 눌러 `https://platform.nora.my/api/v1/oauth/authorize`에서 `read build run` 권한을 직접 승인한다. 인증은 S256 PKCE와 10분 만료·1회 사용 상태값으로 소유자·프로젝트·워크스페이스에 연결된다. 토큰은 서버에 암호화하여 저장하며 브라우저 API로 반환하지 않는다.
+3. 콜백 후 처리기가 워크스페이스 접근을 확인하고 프로젝트 Context 공간을 준비한다. OAuth 연결 완료와 워크스페이스 `ready`는 별도 상태다. 확정된 Context 기록과 대체 이력은 해당 프로젝트의 outbox를 통해 이 공간으로 동기화된다. 소유자 권한을 잃은 사용자의 기존 승인으로는 새 호출을 실행하지 않는다.
+4. 같은 워크스페이스의 GitHub 커넥터를 선택한다. 커넥터의 `config.defaultRepo`를 프로젝트 저장소와 일치시키고 프로젝트 기본 브랜치를 확인한다. 서버는 `refs/heads/<기본 브랜치>`의 실제 커밋과 저장소를 검증한다. 저장소 확인이 없어도 정책 위험 분석은 가능하지만 개발은 시작할 수 없다.
+5. 소유자가 작업 자동화를 활성화한다. 위험 흐름을 비워 두면 서버가 프로젝트 전용 위험 판단 → 작업·질문 계획 흐름을 생성·발행한다. 개발을 사용하려면 별도의 게시된 프로젝트 개발 흐름과 프리뷰의 정확한 HTTPS origin을 설정해야 한다. 설정 변경은 버전 검사를 거치며 기존 작업의 고정 입력을 오래된 상태로 만든다.
+
+자동 분석 대상은 자동화 활성화 후 준비 완료된 **정책 문서**다. 기존 문서는 분석 API로 명시적으로 요청할 수 있다. 추출이 불완전하거나 확인이 필요한 구간이 있으면 작업을 만들지 않는다. 분석은 원문 구간, 현재 확정 Context, 프로젝트·저장소·자동화 설정을 입력 해시로 고정한다. 기본 위험 흐름은 외부 도구·메모리·자동 세션 없이 이 입력만 읽으며 문서 속 지시를 실행하지 않는다. 이 분석 단계에는 사람 승인 노드가 없다. 결과의 모든 위험·질문·작업에는 실제 원문 구간과 정확히 일치하는 인용이 필요하다.
+
+차단 위험 또는 질문이 하나라도 있으면 작업을 생성하지 않고 기존 고객 질문함에 초안을 남긴다. 고객에게 자동 발송하지 않는다. 문제가 없으면 `todo` 작업을 생성한다. 구성원 이상이 작업을 `in_progress`로 옮겨야 개발 실행이 큐에 들어간다. 검증된 PR·전체 diff·동일 커밋의 성공한 CI·허용된 origin의 실제 배포 프리뷰가 모두 있어야 `qa`로 이동한다. 검토자 또는 소유자는 현재 PR head SHA의 프리뷰와 diff를 확인하고 병합을 별도로 승인한다. 승인은 병합 요청을 큐에 넣으며, 처리기가 승인한 head와 기본 브랜치의 병합 완료를 확인한 뒤에만 `done`이 된다. 직접 완료로 이동하는 API는 없다.
+
+### 개발 흐름과 커넥터의 필수 조건
+
+개발 흐름은 최신 게시 버전이어야 하며 `automation_request` 객체 변수를 선언해야 한다. `payload.meta`에는 `ains_project_id`, 정규화된 `.git` URL인 `ains_repository_url`, `ains_default_branch`가 현재 프로젝트와 정확히 일치해야 한다. `graphSettings.autoSessionDisabled`는 `true`이고, 각 에이전트는 `mode: "api"`, `forceFreshContext: true`, `nativeTools: []`여야 한다. 외부 메모리·MCP·지식·스킬·별도 runtime·승인 노드·action/trigger 블록을 연결하지 않는다. 도구는 선택한 GitHub 커넥터의 허용된 작업만 사용하며 `repo` 입력을 받지 않고 커넥터의 고정 `defaultRepo`를 사용한다. 흐름 안의 병합 도구는 허용하지 않는다. 서버는 실행 전 기본 브랜치 커밋, 실행 후 게시 버전과 실제 trace의 워크스페이스·입력·출력을 다시 확인한다. 흐름 출력에서 자체 `trace_id`를 주장할 수 없다.
+
+현재 확인된 Nora GitHub 커넥터는 `list_commits`, `get_commit`, `compare`, `list_pull_requests`, `create_pull_request`, `get_file`을 제공한다. 이것만으로는 위 개발·검토·병합 계약을 충족하지 못하므로 **개발 시작과 병합은 사용할 수 없는 상태로 표시된다**. 연결 완료나 PR 생성 기능 존재만으로 자동 코드 변경과 병합이 가능한 것은 아니다. 서버는 기능 목록을 실행 시 확인하고 누락된 기능을 설명한다.
+
+개발에는 작업 전용 `apply_task_patch(repo, task_id, expected_base_sha, patch)` 또는 `push_task_files(repo, task_id, expected_base_sha, files)` 외에 `get_pull_request`, `list_check_runs`, `list_deployments`, `list_deployment_statuses`, `compare`가 필요하다. 이 작업 전용 쓰기 계약은 `ains/task/<taskId>` 브랜치를 서버에서 결정하고 기본·보호 브랜치 쓰기를 거부하며, 기준 커밋과 기존 작업 브랜치 변경을 조건부 검사해야 한다. 일반 `apply_patch`·`push_files`는 개발을 활성화하지 않으며 개발 흐름 도구에서도 거부한다. 서버는 PR head 브랜치가 해당 작업 브랜치인지 검수와 병합 확인 시 다시 검사한다. 병합에는 승인한 head SHA와 `expected_base_sha`를 함께 검사하는 `merge_pull_request`가 필요하다. 현재 실제 Nora 동의·모델 실행·Git 쓰기·프리뷰 배포·병합의 전체 연동은 완료 검증하지 않았다. 아래 합성 테스트 통과를 실제 원격 실행 성공으로 기록하지 않는다.
+
+### 권한, 복구와 테스트
+
+자동화 설정은 소유자만 변경한다. 분석 요청과 개발 시작은 구성원·검토자·소유자가 할 수 있고 병합 승인과 병합 결과 재확인은 검토자·소유자만 할 수 있다. 일반 조회 목록에는 diff를 싣지 않는다. 공유 보기는 작업 상세에서도 diff를 제거하며, 소유자의 로그인 쿠키가 함께 있어도 모든 변경을 거부한다.
+
+`NORA_AUTH_REQUIRED`이면 현재 소유자가 설정에서 다시 연결한다. Context 공간 생성 결과가 `uncertain`이면 생성 요청을 반복하지 않고 기존 공간을 먼저 조회·대조한다. 개발·병합의 응답이 유실되거나 실행 임대가 만료되면 자동 재실행하지 않는다. 병합 결과 미확인은 검토자가 `reconcile-merge`로 기존 승인 요청의 PR 상태를 조회할 수 있으며 새 병합을 실행하지 않는다. 원문·확정 기록·저장소·설정이 바뀌면 `TASK_SOURCE_STALE`이므로 최신 근거로 다시 분석한다.
+
+프로젝트 루트에서 다음 검증은 임시 DB 스키마와 합성 OAuth/MCP/Git 제공자만 사용하며 실제 Nora나 GitHub에 쓰지 않는다.
+
+```sh
+TEST_DATABASE_URL='postgresql://ains:local-development-only@127.0.0.1:55432/ains' \
+  node --test tests/risk-flow.test.js \
+  platform/tests/nora-oauth.test.js platform/tests/nora-mcp.test.js \
+  platform/tests/nora-task-provider.test.js platform/tests/task-automation.test.js \
+  platform/tests/task-automation-http.test.js
+```
+
+HTTP 테스트는 `createApp({ nora: { tasks: provider } })`를 통해 실제 인증·CSRF·역할·공유 보기 미들웨어와 작업 처리기를 함께 검증한다. DB URL을 생략하면 HTTP·DB 검증이 건너뛰어진다. 구현 계약은 [작업 자동화 서비스](../server/task-automation.js), [Nora 제공자](../server/nora-task-provider.js), [위험 흐름 입력·결과 스키마](../../nora/task-automation/risk-flow.js)를 기준으로 한다.
 
 ## 사용자와 프로젝트 권한
 

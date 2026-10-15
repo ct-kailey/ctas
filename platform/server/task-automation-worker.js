@@ -1,0 +1,87 @@
+'use strict';
+const {randomUUID}=require('node:crypto');
+const {transaction}=require('./db');
+const {membership}=require('./context-ledger');
+const {hash}=require('./context-contract');
+const catalog=require('./context-sources');
+const questions=require('./question-ledger');
+const {parseCreate}=require('./question-contract');
+const A=require('./task-automation');
+
+function createTaskAutomationWorker({pool,provider={},pollMs=3000,timeoutMs=300000,onError=()=>{}}) {
+  const service=A.createTaskAutomation({pool,provider});let active,timer,controller,stopped=false;
+  async function intake() {
+    const row=(await pool.query("SELECT * FROM task_automation_intake WHERE status IN('pending','awaiting_connection') AND next_attempt_at<=now() ORDER BY created_at LIMIT 1")).rows[0];if(!row)return false;
+    try {await service.analyze(row.project_id,row.created_by,{revision_id:row.revision_id,request_id:row.request_id});await pool.query("UPDATE task_automation_intake SET status='submitted',error_code=NULL WHERE revision_id=$1",[row.revision_id]);}
+    catch(e){const code=A.safeCode(e),waiting=['TASK_CONNECTION_REQUIRED','NORA_AUTH_REQUIRED','TASK_AUTOMATION_DISABLED'].includes(code);await pool.query("UPDATE task_automation_intake SET status=$2,error_code=$3,next_attempt_at=now()+interval '30 seconds' WHERE revision_id=$1",[row.revision_id,waiting?'awaiting_connection':'failed',code]);}
+    return true;
+  }
+  async function recover() {
+    return transaction(pool,async db=>{const rows=(await db.query("UPDATE task_automation_jobs SET status='uncertain',error_code='TASK_EXECUTION_INTERRUPTED',lease_token=NULL,lease_expires_at=NULL,updated_at=now() WHERE status='running' AND lease_expires_at<=now() RETURNING *")).rows;for(const r of rows){if(r.kind==='risk')await db.query("UPDATE task_automation_analyses SET status='uncertain',error_code='TASK_EXECUTION_INTERRUPTED',updated_at=now() WHERE id=$1 AND status='running'",[r.analysis_id]);else await db.query("UPDATE automation_tasks SET execution_status='uncertain',error_code='TASK_EXECUTION_INTERRUPTED',version=version+1,updated_at=now() WHERE id=$1 AND status<>'done'",[r.task_id]);}return rows.length;});
+  }
+  async function claim() {
+    return transaction(pool,async db=>{const r=(await db.query("SELECT * FROM task_automation_jobs WHERE status IN('queued','awaiting_connection') AND next_attempt_at<=now() ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1")).rows[0];if(!r)return null;const token=randomUUID();await db.query("UPDATE task_automation_jobs SET status='running',lease_token=$2,lease_expires_at=now()+make_interval(secs=>$3),updated_at=now() WHERE id=$1",[r.id,token,Math.max(600,Math.ceil(timeoutMs/1000)+60)]);if(r.kind==='risk')await db.query("UPDATE task_automation_analyses SET status='running',error_code=NULL,updated_at=now() WHERE id=$1",[r.analysis_id]);else if(r.kind==='develop')await db.query("UPDATE automation_tasks SET execution_status='running',error_code=NULL,version=version+1,updated_at=now() WHERE id=$1",[r.task_id]);return {...r,lease_token:token};});
+  }
+  async function owned(db,job) {const r=(await db.query("SELECT id FROM task_automation_jobs WHERE id=$1 AND lease_token=$2 AND status='running' AND lease_expires_at>now() FOR UPDATE",[job.id,job.lease_token])).rows[0];if(!r)A.fail('TASK_LEASE_LOST','실행 결과의 점유가 만료되었습니다.');}
+  async function finishError(job,state,code) {
+    return transaction(pool,async db=>{const changed=await db.query("UPDATE task_automation_jobs SET status=$3,error_code=$4,lease_token=NULL,lease_expires_at=NULL,next_attempt_at=now()+interval '30 seconds',updated_at=now() WHERE id=$1 AND lease_token=$2 AND status='running' RETURNING id",[job.id,job.lease_token,state,code]);if(!changed.rowCount)return {id:job.id,status:'uncertain',error_code:'TASK_LEASE_LOST'};if(job.kind==='risk')await db.query('UPDATE task_automation_analyses SET status=$2,error_code=$3,updated_at=now() WHERE id=$1',[job.analysis_id,state,code]);else await db.query("UPDATE automation_tasks SET status=CASE WHEN $2='failed' AND $4='develop' THEN 'blocked' ELSE status END,execution_status=$2,error_code=$3,version=version+1,updated_at=now() WHERE id=$1 AND status<>'done'",[job.task_id,state,code,job.kind]);await A.audit(db,job.project_id,job.created_by,'execution_'+state,job.task_id||job.analysis_id,{kind:job.kind,error_code:code});return {id:job.id,status:state,error_code:code};});
+  }
+  async function completeJob(db,job) {await db.query("UPDATE task_automation_jobs SET status='succeeded',error_code=NULL,lease_token=NULL,lease_expires_at=NULL,updated_at=now() WHERE id=$1 AND lease_token=$2",[job.id,job.lease_token]);}
+  async function draftQuestions(db,row,result) {
+    const draftInputs=result.questions.length?result.questions:result.risks.filter(r=>r.blocking).map(r=>({question:'다음 위험에 대한 판단을 확인해 주세요: '+r.description,evidence:r.evidence}));
+    const ids=[],source=await catalog.source(db,row.project_id,'revision',row.revision_id);
+    for(let i=0;i<draftInputs.length;i++) {
+      const q=draftInputs[i],qid=A.stableId(row.id,'question',String(i));
+      const input=parseCreate({request_id:qid,title:('정책 확인: '+q.question).slice(0,300),question:q.question.slice(0,10000),recipient:'확인 담당자 지정 필요',channel:'발송 전 검토',assigned_to:row.created_by,blocking:true,source_refs:[{type:'revision',id:row.revision_id,sha256:source.sha256}],work_item_ids:[]});
+      const refs=await questions.validateSources(db,row.project_id,input.source_refs);
+      const created=(await db.query(`INSERT INTO project_questions(id,project_id,title,question,recipient,channel,assigned_to,created_by,blocking,status,source_refs,request_sha256)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$7,true,'draft',$8,$9) ON CONFLICT(id) DO NOTHING RETURNING *`,[qid,row.project_id,input.title,input.question,input.recipient,input.channel,row.created_by,JSON.stringify(refs),hash(input)])).rows[0];
+      if(created)await questions.event(db,row.project_id,row.created_by,created,'created',{...input,source_refs:refs,automation_analysis_id:row.id,evidence:q.evidence});
+      ids.push(qid);
+    }
+    return ids;
+  }
+  async function riskResult(job,row,result) {
+    return transaction(pool,async db=>{await A.lock(db,row.project_id);await questions.lockQuestionWorkflow(db,row.project_id);await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-context:' || $1,0))",[row.project_id]);await owned(db,job);await membership(db,row.project_id,job.created_by,A.WRITERS);await A.assertFresh(db,row.project_id,row.input_snapshot,row.input_sha256);
+      const blocked=result.risks.some(r=>r.blocking)||result.questions.length>0;let ids=[];
+      if(blocked)ids=await draftQuestions(db,row,result);
+      else for(let i=0;i<result.tasks.length;i++){const t=result.tasks[i];await db.query(`INSERT INTO automation_tasks(id,project_id,analysis_id,title,description,acceptance_criteria,evidence,input_snapshot,input_sha256,created_by)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT(id) DO NOTHING`,[A.stableId(row.id,'task',String(i)),row.project_id,row.id,t.title,t.description,JSON.stringify(t.acceptance_criteria),JSON.stringify(t.evidence),row.input_snapshot,row.input_sha256,row.created_by]);}
+      await db.query('UPDATE task_automation_analyses SET status=$2,result=$3,question_ids=$4,error_code=NULL,updated_at=now() WHERE id=$1',[row.id,blocked?'blocked':'completed',result,JSON.stringify(ids)]);await completeJob(db,job);await A.audit(db,row.project_id,row.created_by,blocked?'questions_drafted':'tasks_created',row.id,{question_ids:ids,task_count:blocked?0:result.tasks.length,trace_id:result.trace_id});return {id:job.id,status:'succeeded',analysis_status:blocked?'blocked':'completed'};});
+  }
+  async function artifactResult(job,row,artifact) {
+    return transaction(pool,async db=>{await A.lock(db,row.project_id);await owned(db,job);await membership(db,row.project_id,job.created_by,A.WRITERS);await A.assertFresh(db,row.project_id,row.input_snapshot,row.input_sha256,{development:true});await db.query("UPDATE automation_tasks SET status='qa',execution_status='ready',artifact=$2,error_code=NULL,version=version+1,updated_at=now() WHERE id=$1",[row.id,artifact]);await completeJob(db,job);await A.audit(db,row.project_id,job.created_by,'review_ready',row.id,{head_sha:artifact.head_sha,pr_number:artifact.pr_number});return {id:job.id,status:'succeeded',task_status:'qa'};});
+  }
+  async function mergeResult(job,row,result) {
+    return transaction(pool,async db=>{await A.lock(db,row.project_id);await owned(db,job);const current=await A.task(db,row.project_id,row.id,true);if(hash(current.artifact)!==current.review?.artifact_sha256||current.review.head_sha!==result.head_sha)A.fail('TASK_REVIEW_STALE','승인한 변경 내역과 병합 결과가 다릅니다.');await db.query("UPDATE automation_tasks SET status='done',execution_status='ready',merge_result=$2,error_code=NULL,version=version+1,updated_at=now() WHERE id=$1",[row.id,result]);await completeJob(db,job);await A.audit(db,row.project_id,job.created_by,'merged',row.id,result);return {id:job.id,status:'succeeded',task_status:'done'};});
+  }
+  async function execute(job,signal) {
+    let dispatched=false,returned=false;
+    try {
+      await membership(pool,job.project_id,job.created_by,['merge','reconcile_merge'].includes(job.kind)?A.REVIEWERS:A.WRITERS);
+      const row=job.kind==='risk'?(await pool.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND id=$2',[job.project_id,job.analysis_id])).rows[0]:await A.task(pool,job.project_id,job.task_id);
+      if(!row)A.fail('TASK_NOT_FOUND','실행할 작업을 찾을 수 없습니다.');
+      if(job.kind!=='reconcile_merge')await A.assertFresh(pool,job.project_id,row.input_snapshot,row.input_sha256,{development:job.kind!=='risk'});
+      const ready=(await pool.query('SELECT workspace_id,status FROM project_nora_workspaces WHERE project_id=$1',[job.project_id])).rows[0];
+      if(ready?.workspace_id!==row.input_snapshot.nora.workspace_id||ready.status!=='ready')return finishError(job,'awaiting_connection','TASK_CONNECTION_REQUIRED');
+      const c=await A.capabilities(provider,job.project_id,pool),config=await A.settings(pool,job.project_id);
+      if(job.kind==='risk'&&!c.risk_analysis||job.kind==='develop'&&!c.development||job.kind==='merge'&&!c.merge||job.kind==='reconcile_merge'&&typeof provider.reconcileMerge!=='function')return finishError(job,'awaiting_connection',job.kind==='risk'?'TASK_RISK_UNAVAILABLE':job.kind==='develop'?'TASK_DEVELOPMENT_UNAVAILABLE':'TASK_MERGE_UNAVAILABLE');
+      const common={projectId:job.project_id,workspaceId:ready.workspace_id,requestId:job.kind==='risk'?row.id:job.id,snapshot:row.input_snapshot,snapshotHash:row.input_sha256,settings:config,signal};
+      if(job.kind==='risk') {dispatched=true;const raw=await provider.analyzeRisk(common);returned=true;const result=require('../../nora/task-automation/risk-flow').validateRiskResult(raw,row.input_snapshot,row.input_sha256);if(!result.trace_id)A.fail('TASK_RISK_TRACE_REQUIRED','Nora 분석 실행 이력이 필요합니다.');return await riskResult(job,row,result);}
+      if(job.kind==='develop') {dispatched=true;const raw=await provider.develop({...common,taskId:row.id,task:{id:row.id,title:row.title,description:row.description,acceptance_criteria:row.acceptance_criteria,evidence:row.evidence}});returned=true;return await artifactResult(job,row,A.validateArtifact(raw,row));}
+      if(!row.review||hash(row.artifact)!==row.review.artifact_sha256||row.review.head_sha!==row.artifact.head_sha)A.fail('TASK_REVIEW_STALE','승인한 변경 내역을 확인할 수 없습니다.');
+      const args={...common,taskId:row.id,artifact:row.artifact,expectedHeadSha:row.review.head_sha,targetBranch:row.review.target_branch,operationId:job.payload.operation_id||job.id};
+      dispatched=true;const result=job.kind==='merge'?await provider.merge(args):await provider.reconcileMerge(args);returned=true;
+      return await mergeResult(job,row,A.validateMerge(result,row));
+    } catch(e) {
+      const code=A.safeCode(e),waiting=e.noSideEffects===true&&['NORA_AUTH_REQUIRED','NORA_SERVICE_UNAVAILABLE','TASK_CONNECTION_REQUIRED'].includes(code);
+      const uncertain=dispatched&&(!returned||['merge','reconcile_merge'].includes(job.kind))&&e.noSideEffects!==true;
+      return finishError(job,waiting?'awaiting_connection':uncertain?'uncertain':'failed',code);
+    }
+  }
+  async function run() {await recover();await intake();const job=await claim();if(!job)return null;controller=new AbortController();try{return await execute(job,AbortSignal.any([controller.signal,AbortSignal.timeout(timeoutMs)]));}finally{controller=null;}}
+  function runOnce(){if(active)return active;active=run().finally(()=>{active=null;});return active;}
+  async function tick(){if(!stopped)try{await runOnce();}catch(e){onError({code:A.safeCode(e)});}}
+  return {runOnce,tick,recover,async start(){if(timer)return;stopped=false;void tick();timer=setInterval(tick,pollMs);timer.unref();},async stop(){stopped=true;clearInterval(timer);timer=null;controller?.abort();if(active)await active;}};
+}
+module.exports={createTaskAutomationWorker};

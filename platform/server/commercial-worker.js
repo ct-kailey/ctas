@@ -1,10 +1,11 @@
 'use strict';
 const {randomUUID}=require('node:crypto');
 const {transaction}=require('./db');
+const {assertLegacyNoraDispatch}=require('./project-nora');
 const {runCommercialRewrite,validateCommercialRequest,validateCommercialResult,commercialInputHash}=require('../../nora/client/commercial-client');
 const manifest=require('../../nora/commercial-drafting/manifest.json');
 const KNOWN=new Set(['COMMERCIAL_PROJECT_CONTEXT_REQUIRED','PROJECT_MISMATCH','COMMERCIAL_REQUEST_INVALID','COMMERCIAL_REQUEST_TOO_LARGE','COMMERCIAL_TEMPLATE_MISMATCH','COMMERCIAL_RESULT_INVALID','COMMERCIAL_TABLES_CHANGED','COMMERCIAL_FACTS_CHANGED','COMMERCIAL_TERMS_INVENTED','COMMERCIAL_BLOCKING_QUESTION_REQUIRED','COMMERCIAL_RUN_NOT_SUCCEEDED','COMMERCIAL_OUTPUTS_INCOMPLETE','COMMERCIAL_OUTPUT_INVALID','COMMERCIAL_OUTPUT_MISMATCH','COMMERCIAL_NOT_PUBLISHED','COMMERCIAL_AUTH_REQUIRED','COMMERCIAL_TIMEOUT_INVALID','COMMERCIAL_TRANSPORT_UNKNOWN','COMMERCIAL_RESPONSE_INVALID','COMMERCIAL_RECORD_MISMATCH','COMMERCIAL_LEASE_LOST']);
-function safeErrorCode(error){return KNOWN.has(error?.code)||/^COMMERCIAL_HTTP_[1-5]\d\d$/.test(error?.code||'')?error.code:'COMMERCIAL_INTERNAL';}
+function safeErrorCode(error){return error?.code==='NORA_PROJECT_FLOW_SETUP_REQUIRED'||KNOWN.has(error?.code)||/^COMMERCIAL_HTTP_[1-5]\d\d$/.test(error?.code||'')?error.code:'COMMERCIAL_INTERNAL';}
 function classifyFailure(error,dispatched){const code=safeErrorCode(error);return{code,status:dispatched&&(['COMMERCIAL_INTERNAL','COMMERCIAL_TRANSPORT_UNKNOWN','COMMERCIAL_RESPONSE_INVALID','COMMERCIAL_RUN_NOT_SUCCEEDED'].includes(code)||/^COMMERCIAL_HTTP_(5\d\d|408)$/.test(code))?'uncertain':'failed'};}
 function safeTrace(value){return typeof value==='string'&&/^[a-zA-Z0-9_-]{1,200}$/.test(value)?value:null;}
 function fail(code){throw Object.assign(new Error(code),{code});}
@@ -34,6 +35,7 @@ function createCommercialWorker({pool,token,invoke=runCommercialRewrite,onError=
   await audit(client,done,'commercial.rewrite_'+status,{error_code:done.error_code,trace_id:done.trace_id});return{id:done.id,status:done.status,code:done.error_code};
  });}
  async function execute(row){let dispatched=false;try{
+  await assertLegacyNoraDispatch(pool,row.project_id);
   const input=structuredClone(row.input_snapshot);validateCommercialRequest(input,row.project_id);
   if(input.request_id!==row.id||input.document.id!==row.document_id||input.document.revision_id!==row.source_revision_id||input.profile_version!==Number(row.profile_version)||commercialInputHash(input)!==row.input_sha256)fail('COMMERCIAL_RECORD_MISMATCH');
   if(typeof token!=='string'||!token.trim()||manifest.publication_status!=='published'||!manifest.published_version_id||!manifest.agent_id)return await finish(row,'failed','COMMERCIAL_UNAVAILABLE');

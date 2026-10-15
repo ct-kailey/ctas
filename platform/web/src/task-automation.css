@@ -1,0 +1,30 @@
+/* Structural cap for the review diff; controls inherit CTDS density. */
+:root { --ains-task-automation-measure-480: 480px; }
+.task-automation { min-width: 0; margin-bottom: var(--space-8); }
+.task-auto-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
+.task-auto-heading h2, .task-auto-detail h3 { margin: 0; font-size: var(--text-lg); line-height: var(--lh-lg); }
+.task-auto-help, .task-auto-heading p { margin: var(--space-2) 0; color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.task-auto-board { display: grid; grid-template-columns: repeat(5,minmax(var(--ains-panel-sm),1fr)); gap: var(--space-3); overflow-x: auto; padding-bottom: var(--space-3); }
+.task-auto-column { min-width: 0; background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); padding: var(--space-3); }
+.task-auto-column > header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); }
+.task-auto-column h3 { font-size: var(--text-sm); line-height: var(--lh-sm); margin: 0; }
+.task-auto-cards { display: grid; gap: var(--space-2); }
+.task-auto-card { width: 100%; text-align: left; }
+.task-auto-card > span { display: grid; gap: var(--space-2); width: 100%; min-width: 0; }
+.task-auto-card strong, .task-auto-card small { overflow-wrap: anywhere; }
+.task-auto-card small { color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.task-auto-detail { display: grid; gap: var(--space-5); }
+.task-auto-detail p { margin: var(--space-2) 0; line-height: var(--lh-base); white-space: pre-wrap; overflow-wrap: anywhere; }
+.task-auto-detail ul, .task-auto-risks { margin: var(--space-2) 0; padding-left: var(--space-5); font-size: var(--text-sm); line-height: var(--lh-base); }
+.task-auto-diff { white-space: pre; overflow: auto; max-height: var(--ains-task-automation-measure-480); padding: var(--space-3); background: var(--bg-subtle); border: var(--hairline) solid var(--border); border-radius: var(--radius-sm); font-size: var(--text-xs); line-height: var(--lh-sm); }
+.task-auto-facts { display: grid; gap: var(--space-2); margin: 0; }
+.task-auto-facts > div { display: grid; gap: var(--space-1); }
+.task-auto-facts dt { color: var(--fg-muted); font-size: var(--text-xs); }
+.task-auto-facts dd { margin: 0; overflow-wrap: anywhere; font-size: var(--text-sm); }
+.task-auto-review { display: grid; gap: var(--space-3); border-top: var(--hairline) solid var(--border); padding-top: var(--space-4); }
+.task-auto-analysis-list { display: grid; gap: var(--space-4); margin-block: var(--space-4); }
+.task-auto-analysis { border-top: var(--hairline) solid var(--border); padding-top: var(--space-3); }
+.task-auto-analysis > header { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
+.task-auto-policy { margin-block: var(--space-4); padding-block: var(--space-4); border-block: var(--hairline) solid var(--border); }
+.task-auto-policy h3 { font-size: var(--text-base); line-height: var(--lh-base); margin: 0; }
+@media (max-width:650px) { .task-auto-heading { flex-direction: column; } }

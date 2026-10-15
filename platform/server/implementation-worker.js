@@ -1,9 +1,10 @@
 'use strict';
 const {randomUUID}=require('node:crypto');
 const {transaction}=require('./db');
+const {assertLegacyNoraDispatch}=require('./project-nora');
 const {runImplementationPlan,validateImplementationRequest,validateImplementationResult}=require('../../nora/client/implementation-client');
 const manifest=require('../../nora/implementation-plan/manifest.json');
-const KNOWN=new Set(['IMPLEMENTATION_PROJECT_CONTEXT_REQUIRED','PROJECT_MISMATCH','IMPLEMENTATION_REQUEST_INVALID','IMPLEMENTATION_REPOSITORY_INVALID',
+const KNOWN=new Set(['NORA_PROJECT_FLOW_SETUP_REQUIRED','IMPLEMENTATION_PROJECT_CONTEXT_REQUIRED','PROJECT_MISMATCH','IMPLEMENTATION_REQUEST_INVALID','IMPLEMENTATION_REPOSITORY_INVALID',
   'IMPLEMENTATION_REQUEST_TOO_LARGE','IMPLEMENTATION_SOURCES_INVALID','IMPLEMENTATION_RESULT_INVALID','IMPLEMENTATION_DEPENDENCIES_INVALID',
   'IMPLEMENTATION_EVIDENCE_MISMATCH','IMPLEMENTATION_EXECUTABLE_OUTPUT','IMPLEMENTATION_BLOCKING_QUESTION_REQUIRED','IMPLEMENTATION_RUN_NOT_SUCCEEDED',
   'IMPLEMENTATION_OUTPUTS_INCOMPLETE','IMPLEMENTATION_OUTPUT_INVALID','IMPLEMENTATION_OUTPUT_MISMATCH','IMPLEMENTATION_NOT_PUBLISHED',
@@ -42,6 +43,7 @@ function createImplementationWorker({pool,token,invoke=runImplementationPlan,onE
     await audit(client,done,'implementation.plan_'+status,{error_code:done.error_code,trace_id:done.trace_id});return{id:done.id,status:done.status,code:done.error_code};
   });}
   async function execute(row){let dispatched=false;try{
+    await assertLegacyNoraDispatch(pool,row.project_id);
     const input=structuredClone(row.input_snapshot);validateImplementationRequest(input,row.project_id);
     if(input.request_id!==row.id||input.sources.length!==row.requested_revision_ids.length||input.sources.some(source=>!row.requested_revision_ids.includes(source.revision_id)))fail('IMPLEMENTATION_RECORD_MISMATCH');
     if(typeof token!=='string'||!token.trim()||manifest.publication_status!=='published'||!manifest.published_version_id||!manifest.agent_id)return await finish(row,'failed','IMPLEMENTATION_UNAVAILABLE');

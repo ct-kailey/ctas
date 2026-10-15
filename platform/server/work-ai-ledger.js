@@ -1,6 +1,7 @@
 'use strict';
 const {createHash,timingSafeEqual}=require('node:crypto');
 const {transaction}=require('./db');
+const {assertLegacyNoraDispatch}=require('./project-nora');
 const {membership}=require('./context-ledger');
 const governance=require('./work-governance');
 const {object,id,hash,fail,SOURCE_TYPES}=require('./context-contract');
@@ -21,7 +22,7 @@ function createWorkAI({pool,enabled=false,client=native}){return {
  async get(p,rid,u){await membership(pool,p,u);return publicRun(await find(pool,p,rid));},
  async create(p,u,body){
  if(!enabled)fail('WORK_AI_DISABLED','Nora 업무 분석 연결이 설정되지 않았습니다.',503);object(body,['request_id','target_type','target_id']);id(body.request_id);id(body.target_id);if(!['preflight','validation','classification'].includes(body.target_type))fail('WORK_AI_TARGET','분석할 작업 종류를 확인하세요.');const fingerprint=hash(body);
- return transaction(pool,async db=>{await membership(db,p,u,WRITERS);await governance.lockGovernanceProject(db,p);const previous=(await db.query('SELECT * FROM work_ai_runs WHERE id=$1',[body.request_id])).rows[0];if(previous){if(previous.project_id!==p||previous.created_by!==u||previous.request_sha256!==fingerprint)fail('WORK_AI_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.',409);return publicRun(previous);}
+ return transaction(pool,async db=>{await membership(db,p,u,WRITERS);await assertLegacyNoraDispatch(db,p,{lock:true});await governance.lockGovernanceProject(db,p);const previous=(await db.query('SELECT * FROM work_ai_runs WHERE id=$1',[body.request_id])).rows[0];if(previous){if(previous.project_id!==p||previous.created_by!==u||previous.request_sha256!==fingerprint)fail('WORK_AI_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.',409);return publicRun(previous);}
  if(Number((await db.query("SELECT count(*) n FROM work_ai_runs WHERE project_id=$1 AND status IN('queued','running','waiting_approval','finalizing')",[p])).rows[0].n)>=3)fail('WORK_AI_BUSY','진행 중인 분석을 먼저 검토하세요.',429);
  const data=await governance.getAnalysisInput(db,p,body.target_type,body.target_id),sources=[];for(const source of data.sources){const current=await catalog.source(db,p,source.type,source.id);if(current.evidence_changed||(source.sha256&&current.sha256!==source.sha256))fail('WORK_AI_SOURCE_STALE','분석 근거가 변경되었습니다.',409);if(current.text.length>60000)fail('WORK_AI_INPUT_SIZE','근거 문서를 나누어 분석하세요.',422);if(current.text.trim())sources.push(current);}
  const request={schema_version:'1.0',request_id:body.request_id,project_id:p,context_version:Number((await db.query('SELECT version FROM context_heads WHERE project_id=$1',[p])).rows[0]?.version||0),target_type:body.target_type,target_id:body.target_id,input_sha256:data.input_sha256,input_snapshot:{...data.input_snapshot,rule_report:data.report},sources:sources.map(s=>({source_id:s.type+':'+s.id,content:s.text,title:s.title.slice(0,300),sha256:s.sha256})),coverage:data.coverage||[],member_ids:data.member_ids||[]};contract.validateRequest(request,p);

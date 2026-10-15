@@ -20,12 +20,15 @@ function createRepositoryAccess(pool, {
   serverToken = process.env.GITHUB_READ_TOKEN,
   fetchImpl = fetch,
   implementation,
+  noraGit,
 } = {}) {
   let canStore = false;
   try { vault.key(encryptionKey); canStore = true; } catch { /* Status reports missing vault configuration without returning a secret. */ }
   const row = async (db, p) => (await db.query('SELECT * FROM project_repository_access WHERE project_id=$1', [p])).rows[0];
   const aad = (p, repo) => `ains:repository-read:${p}:${repo}`;
   async function credential(db, p, settings) {
+    const nora=await require('./project-nora').binding(db,p);
+    if(nora)return {source:'nora',token:null,version:nora.version};
     if (!settings.repository_url) return { source: 'anonymous', token: null, version: 0 };
     const repo = repositoryCoordinates(settings.repository_url).url;
     const saved = await row(db, p);
@@ -52,7 +55,7 @@ function createRepositoryAccess(pool, {
       credential_error: credentialError,
       has_project_token: Boolean(saved?.secret_ciphertext),
       repository_matches: !saved?.secret_ciphertext || saved.repository_url === settings.repository_url,
-      can_store_credentials: canStore,
+      can_store_credentials: source!=='nora'&&canStore,
       updated_at: saved?.updated_at || null,
     };
   }
@@ -67,6 +70,8 @@ function createRepositoryAccess(pool, {
       if (hasToken && !canStore) fail('REPOSITORY_VAULT_UNAVAILABLE', '서버에 연결 정보 암호화 키를 설정해야 토큰을 저장할 수 있습니다.', 503);
       return transaction(pool, async db => {
         await membership(db, p, u, ['owner']);
+        await require('./project-nora').lockProjectDispatch(db,p);
+        if(await require('./project-nora').binding(db,p))fail('NORA_GITHUB_CONNECTION_MANAGED','GitHub 인증은 프로젝트의 Nora 워크스페이스에서 관리하세요.',409);
         const settings = (await db.query('SELECT repository_url,version FROM project_settings WHERE project_id=$1 FOR UPDATE', [p])).rows[0];
         await lockOwner(db, p, u);
         if (Number(settings.version) !== body.expected_settings_version) fail('SETTINGS_VERSION_CONFLICT', '대상 저장소가 변경되었습니다. 설정을 다시 불러와 주세요.', 409);
@@ -88,6 +93,14 @@ function createRepositoryAccess(pool, {
       const settings = await implementation.getSettings(p, u);
       if (!settings.repository_url || !settings.base_branch) fail('PROJECT_SETTINGS_REQUIRED', '대상 저장소와 기준 브랜치를 먼저 저장하세요.', 409);
       const access = await credential(pool, p, settings), signature = fingerprint(access);
+      if(access.source==='nora'){
+        if(!noraGit)fail('NORA_SERVICE_UNAVAILABLE','Nora 연결 서비스를 사용할 수 없습니다.',503);
+        const result=await noraGit.verify(p);
+        return implementation.recordRepositoryCheck(p,u,settings.version,result.checked,{assertAccess:async(db)=>{
+          await lockOwner(db,p,u);const current=await require('./project-nora').binding(db,p);
+          if(current?.version!==result.binding.version||current.status!=='ready')fail('NORA_GITHUB_SETTINGS_CHANGED','저장소 확인 중 Nora 연결이 변경되었습니다.',409);
+        }});
+      }
       // Network reads happen outside a transaction; persist only against the same settings and credentials.
       const checked = { ...await checkRepository(settings, { fetchImpl, token: access.token }), credential_source: access.source };
       return implementation.recordRepositoryCheck(p, u, settings.version, checked, {

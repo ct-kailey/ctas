@@ -19,7 +19,7 @@ test('channel HTTP routes preserve project permissions, CSRF and explicit review
   async function login(email){const r=await fetch(base+'/api/auth/login',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({email,password:'channel-password-123'})});assert.equal(r.status,200);const d=await r.json();return {Cookie:r.headers.get('set-cookie').split(';')[0],Origin:origin,'Content-Type':'application/json','X-CSRF-Token':d.csrfToken};}
   const headers=await login(owner.email),memberHeaders=await login(member.email),outside=await login('channel-outsider@example.test');
   async function call(route,body,expected=200,auth=headers,method=body===undefined?'GET':'POST'){const r=await fetch(base+route,{method,headers:auth,body:body===undefined?undefined:JSON.stringify(body)});const d=await r.json();assert.equal(r.status,expected,d.error?.code);return d;}
-  const {project}=await call('/api/projects',{name:'합성 채널 검증'},201);const p='/api/projects/'+project.id;
+  const {project}=await call('/api/projects',{name:'합성 채널 검증',nora_workspace_id:'t_channel_test_'+randomUUID().replaceAll('-',''),request_id:randomUUID()},201);const p='/api/projects/'+project.id;
   await pool.query("INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,'member')",[project.id,member.id]);
   const domain=(await call(p+'/domains')).domains[0];
   const sourceBody={name:'합성 Slack',provider:'slack',external_workspace_id:'TEST',external_channel_id:'TEST-CHANNEL',default_domain_id:domain.id};

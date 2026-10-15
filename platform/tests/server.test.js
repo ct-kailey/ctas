@@ -37,7 +37,7 @@ test('HTTP authentication, project isolation, role checks, CSRF, original downlo
   }
   const a=await login('owner@example.test','owner-test-password');
   const headers={Cookie:a.cookie,Origin:origin,'Content-Type':'application/json','X-CSRF-Token':a.csrf};
-  const p=await call('/api/projects',{method:'POST',headers,body:JSON.stringify({name:'격리 검증'})});
+  const p=await call('/api/projects',{method:'POST',headers,body:JSON.stringify({name:'격리 검증',nora_workspace_id:'t_http_test_'+randomUUID().replaceAll('-',''),request_id:randomUUID()})});
   assert.equal(p.status,201);const {project}=await p.json();
   const prefix='/api/projects/'+project.id;
   assert.equal((await call(prefix+'/documents',{headers:{Cookie:a.cookie}})).status,200);

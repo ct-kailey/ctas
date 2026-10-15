@@ -3,6 +3,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { transaction } = require('./db');
+const { assertLegacyNoraDispatch } = require('./project-nora');
 const { recordKind, documentCategory, CATEGORY_RECORD_KINDS } = require('./record-contract');
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
@@ -30,6 +31,7 @@ function createRegistrationAssistant({pool, token, invoke, available} = {}) {
     async suggest(projectId, userId, body) {
       const role = (await pool.query('SELECT role FROM memberships WHERE project_id=$1 AND user_id=$2', [projectId, userId])).rows[0]?.role;
       if (!['owner', 'reviewer', 'member'].includes(role)) throw error('FORBIDDEN', '분류 추천을 요청할 권한이 없습니다.', 403);
+      await assertLegacyNoraDispatch(pool, projectId);
       if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(k => !['title', 'text', 'filename', 'record_kind', 'document_category', 'domain_id'].includes(k))) throw error('INVALID_INPUT', '분류할 제목과 내용을 입력하세요.');
       const title = field(body.title, '제목', 300, true).trim();
       const text = field(body.text, '본문', 20000);
@@ -66,6 +68,7 @@ function createRegistrationAssistant({pool, token, invoke, available} = {}) {
         const hash = createHash('sha256').update(JSON.stringify(request)).digest('hex');
         // Persist the dispatch intent before any model call; lock only during the short quota check.
         await transaction(pool, async db => {
+          await assertLegacyNoraDispatch(db, projectId, { lock: true });
           await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['registration:'+projectId]);
           const recent = (await db.query("SELECT count(*)::int n FROM registration_requests WHERE project_id=$1 AND created_at>now()-interval '1 hour'", [projectId])).rows[0].n;
           if (recent >= 60) throw error('REGISTRATION_RATE_LIMIT', '이 프로젝트의 시간당 분류 추천 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요.', 429);

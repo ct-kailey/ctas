@@ -2,9 +2,10 @@
 
 const { randomUUID } = require('node:crypto');
 const { transaction } = require('./db');
+const { assertLegacyNoraDispatch } = require('./project-nora');
 const { runChannelTriage, validateChannelTriageRequest, validateChannelTriageResult } = require('../../nora/client/channel-triage-client');
 const manifest = require('../../nora/channel-triage/manifest.json');
-const KNOWN_CODES = new Set(['TRIAGE_PROJECT_CONTEXT_REQUIRED', 'PROJECT_MISMATCH', 'TRIAGE_REQUEST_INVALID', 'TRIAGE_REQUEST_TOO_LARGE',
+const KNOWN_CODES = new Set(['NORA_PROJECT_FLOW_SETUP_REQUIRED', 'TRIAGE_PROJECT_CONTEXT_REQUIRED', 'PROJECT_MISMATCH', 'TRIAGE_REQUEST_INVALID', 'TRIAGE_REQUEST_TOO_LARGE',
   'TRIAGE_MESSAGES_INVALID', 'TRIAGE_RESULT_INVALID', 'TRIAGE_KIND_MISMATCH', 'TRIAGE_EVIDENCE_MISMATCH', 'TRIAGE_RUN_NOT_SUCCEEDED',
   'TRIAGE_OUTPUTS_INCOMPLETE', 'TRIAGE_OUTPUT_INVALID', 'TRIAGE_OUTPUT_MISMATCH', 'TRIAGE_NOT_PUBLISHED', 'TRIAGE_AUTH_REQUIRED',
   'TRIAGE_TIMEOUT_INVALID', 'TRIAGE_TRANSPORT_UNKNOWN', 'TRIAGE_RESPONSE_INVALID', 'TRIAGE_RECORD_MISMATCH', 'TRIAGE_LEASE_LOST']);
@@ -76,6 +77,7 @@ function createChannelWorker({ pool, token, invoke = runChannelTriage, onError =
   async function execute(row) {
     let dispatched = false;
     try {
+      await assertLegacyNoraDispatch(pool, row.project_id);
       if (row.evidence_changed) return await finish(row, 'needs_review', 'EVIDENCE_CHANGED');
       const input = structuredClone(row.input_snapshot);
       validateChannelTriageRequest(input, row.project_id);
@@ -91,6 +93,7 @@ function createChannelWorker({ pool, token, invoke = runChannelTriage, onError =
       if (!safeTrace(response?.traceId)) fail('TRIAGE_RUN_NOT_SUCCEEDED');
       return await finish(row, 'needs_review', null, analysis, response.traceId);
     } catch (error) {
+      if (error.code === 'NORA_PROJECT_FLOW_SETUP_REQUIRED') return finish(row, 'needs_review', error.code);
       const failure = classifyFailure(error, dispatched);
       return finish(row, failure.status, failure.code, null, error?.traceId);
     }
