@@ -146,7 +146,7 @@ function SourceCard({ source, ...sourceProps }) {
 }
 
 function RecordCard({ item, domains, onClick }) {
-  return <ControlButton className="ctx-record-card" onClick={onClick}><header><span>{KINDS[item.kind] || item.kind}</span><span>v{item.context_version}</span></header>{item.evidence_changed ? <Badge tone="amber">근거 변경 확인 필요</Badge> : null}<h4>{item.title}</h4><p>{item.body}</p><footer><span>{domains.find((entry) => entry.id === item.domain_id)?.name || '프로젝트 공통'}</span><span>근거 {item.source_refs?.length || 0}개<ArrowRight size={13} /></span></footer></ControlButton>;
+  return <ControlButton layout="card" className="ctx-record-card" onClick={onClick}><header><span>{KINDS[item.kind] || item.kind}</span><span>v{item.context_version}</span></header>{item.evidence_changed ? <Badge tone="amber">근거 변경 확인 필요</Badge> : null}<h4>{item.title}</h4><p>{item.body}</p><footer><span>{domains.find((entry) => entry.id === item.domain_id)?.name || '프로젝트 공통'}</span><span>근거 {item.source_refs?.length || 0}개<ArrowRight size={13} /></span></footer></ControlButton>;
 }
 
 function ContextDetail({ selected, records, version, route, request, domains, canWrite, canReview, sourceProps, reason, onReason, onClose, onRefine, onDone }) {

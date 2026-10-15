@@ -20,7 +20,7 @@
 | `Input` / `Textarea` | CTDS Input·Textarea. checkbox/radio 유형은 CTDS Checkbox·Radio |
 | `Select` | CTDS Select Root·Trigger·Content·Group·Item. 기존 option 계약은 어댑터에서 변환 |
 | `Tabs` | CTDS Tabs List·Trigger·Panel. 키보드 이동과 선택 표시 제공 |
-| `ControlButton` | CTDS Button asChild. 기존 복합 내용 및 암묵적 submit 호환 |
+| `ControlButton` | CTDS Button asChild. 기존 복합 내용 및 암묵적 submit 호환. 독립 카드에는 AINS 확장 `layout="card"` 명시 |
 | `Disclosure` | CTDS Disclosure. 접힌 입력도 마운트하여 값 보존 |
 | `Toast` / `ErrorNotice` / `Notice` | CTDS Toast Provider·Viewport / Callout |
 | `useConfirm` | CTDS Modal + Button. 비동기 결정·취소·포커스 복귀 |
@@ -38,6 +38,17 @@ FormField는 고유한 ID와 `label[for]`를 연결하고 도움말은 `aria-des
 Select의 보이는 UI는 실제 CTDS/Radix Select다. 숨긴 native select가 name·FormData·required·reset·onChange·ref의 단일 기준이다. 빈 값과 optgroup, disabled 옵션, disabled fieldset을 지원한다. 여러 값 선택은 Checkbox 그룹으로 구현한다. 기본값과 controlled 값은 구분해서 초기화한다.
 
 Textarea는 기존 rows·ref·수동 크기 조절을 보존한다. Disclosure는 닫혀 있어도 폼 요소를 보존하고 inert/aria-hidden으로 접근을 차단한다. 필수 입력 오류가 있으면 해당 영역을 열고 포커스를 옮긴다. ControlButton은 `layout="content"`로 복합 내용 높이를 유지하며 장식은 CTDS variant가 담당한다.
+
+## 카드와 안내 조합의 간격
+
+`layout="content"`와 `layout="card"`는 공식 CTDS API가 아닌 **AINS의 명시적 Button 확장**이다. 원본 Button의 size·variant와 일반 버튼 동작을 유지한다.
+
+- `layout="content"`: 기존 복합 내용의 자연스러운 높이를 보존한다. 기존 사용처의 간격을 일괄 변경하지 않는다.
+- `layout="card"`: 여러 줄 제목·설명·상태가 들어가는 독립된 클릭 카드에 사용한다. 자연스러운 높이와 네 면의 `var(--space-3)` padding을 함께 적용한다. 카드 내부 padding은 이 확장이 담당하며 화면 CSS에서 다시 덮지 않는다.
+- 컴포넌트 사이의 간격은 부모 `.ains-section-stack`이 담당한다. 카드의 **내부** padding과 형제 컴포넌트의 **외부** gap은 서로 다른 공간이다. 같은 경계의 부모 gap에 자식 margin을 다시 더하지 않는다.
+- `Notice`의 행동 버튼은 본문 children에 붙이지 않고 `actions` 슬롯으로 전달한다. 본문의 목록은 `.ains-prose-list`로 브라우저 기본 여백에 의존하지 않도록 한다. Callout의 제목·본문·행동 간격은 CTDS가 담당한다.
+
+이 조합은 필요한 사용처에 명시적으로 적용한다. 모든 기존 페이지나 ControlButton이 카드 레이아웃으로 전환된 것은 아니다.
 
 `ConfirmationProvider`는 동시 요청을 덮어쓰지 않으며 취소·Escape·바깥 클릭·호출자 해제에서 false를 반환한다. 브라우저의 페이지 이탈 보호(beforeunload)는 브라우저가 제공해야 하는 예외로 유지한다. OS 파일 선택기·날짜 선택기의 플랫폼 동작도 유지한다.
 

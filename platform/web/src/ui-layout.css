@@ -1,0 +1,16 @@
+/* AINS composition recipes. CTDS owns the values and density scaling;
+   the parent owns sibling spacing, each card owns its internal inset. */
+.ains-section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.ains-prose-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  overflow-wrap: anywhere;
+}

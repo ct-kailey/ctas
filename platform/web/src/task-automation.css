@@ -2,6 +2,7 @@
 :root { --ains-task-automation-measure-480: 480px; }
 .task-automation { min-width: 0; margin-bottom: var(--space-8); }
 .task-auto-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
+.task-automation > .task-auto-heading { margin-bottom: 0; }
 .task-auto-heading h2, .task-auto-detail h3 { margin: 0; font-size: var(--text-lg); line-height: var(--lh-lg); }
 .task-auto-help, .task-auto-heading p { margin: var(--space-2) 0; color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); }
 .task-auto-board { display: grid; grid-template-columns: repeat(5,minmax(var(--ains-panel-sm),1fr)); gap: var(--space-3); overflow-x: auto; padding-bottom: var(--space-3); }
@@ -18,6 +19,7 @@
 .task-auto-start-review p { margin: var(--space-1) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .task-auto-card { width: 100%; text-align: left; }
 .task-auto-card > span { display: grid; gap: var(--space-2); width: 100%; min-width: 0; }
+.task-auto-card > span > .badge { justify-self: start; }
 .task-auto-card strong, .task-auto-card small { overflow-wrap: anywhere; }
 .task-auto-card small { color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
 .task-auto-detail { display: grid; gap: var(--space-5); }

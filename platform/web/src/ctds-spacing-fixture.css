@@ -1,0 +1,6 @@
+:root { --ains-viewport-spacing-fixture: 390px; }
+.spacing-fixture { padding: var(--space-6); }
+.spacing-sample { width: 100%; min-width: 0; padding-block: var(--space-4); }
+.spacing-sample[data-width="narrow"] { width: min(100%, var(--ains-viewport-spacing-fixture)); }
+.spacing-token-probe { position: absolute; visibility: hidden; height: var(--control-h-sm); padding: var(--space-3); }
+.spacing-sample > .spacing-ordinary { align-self: start; }
