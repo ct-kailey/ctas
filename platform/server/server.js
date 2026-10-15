@@ -38,6 +38,7 @@ const {mountProjectNoraRoutes}=require('./project-nora-routes');
 const {mountTaskAutomationRoutes}=require('./task-automation-routes');
 const {mountTaskDraftRoutes}=require('./task-draft-routes');
 const {mountImplementationNoteRoutes}=require('./implementation-note-routes');
+const {mountProjectJourneyRoutes}=require('./project-journey-routes');
 
 function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {}, nora = {} }) {
   const sharedViews = createSharedViews(pool, { appOrigin, production });
@@ -116,6 +117,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   const taskAutomation=mountTaskAutomationRoutes(project,{pool,write,review,owner:roles('owner'),provider:nora.tasks});
   mountTaskDraftRoutes(project,{pool,write});
   mountImplementationNoteRoutes(project,{pool,write,review,taskAutomation});
+  mountProjectJourneyRoutes(project,{pool,review});
   mountDashboardRoutes(project,{pool});
   mountProjectMemberRoutes(project,{pool});
   mountCommercialRoutes(project,{pool,write,review});

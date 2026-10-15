@@ -5,6 +5,9 @@ import {
   cloneElement,
   forwardRef,
   isValidElement,
+  useCallback,
+  useEffect,
+  useRef,
   useState,
   type HTMLAttributes,
   type ReactElement,
@@ -14,6 +17,7 @@ import { Slot, Slottable } from "@radix-ui/react-slot";
 
 import { Icon } from "../Icon";
 import { Shortcut } from "../Shortcut";
+import { Tooltip } from "../Tooltip";
 import styles from "./MenuItem.module.css";
 
 export type MenuItemSize = "sm" | "md";
@@ -91,6 +95,20 @@ export type MenuItemProps = Omit<HTMLAttributes<HTMLDivElement>, "onClick"> & {
   collapsed?: boolean;
 
   /**
+   * true면 라벨이 ellipsis로 잘리거나 collapsed=true일 때 자동으로 Tooltip을 띄워
+   * 풀 라벨을 노출. Sidebar.Item처럼 좁은 폭이 상수인 사용처에서 유용.
+   *
+   * ⚠️ Dropdown/Context/Select/CommandPalette 어댑터(Radix Item + asChild) 안에서는
+   * 기본값 false 유지 — Radix의 asChild 체인 중간에 Tooltip이 끼면 포커스/하이라이트
+   * 라우팅과 포털 중첩이 꼬인다. 이 환경에서 Tooltip이 꼭 필요하면 사용처가
+   * MenuItem 바깥을 자체 Tooltip으로 감싸는 쪽이 안전.
+   *
+   * 라벨이 순수 텍스트(ReactNode에 요소가 섞이지 않음)일 때만 작동 — 복잡 ReactNode는
+   * Tooltip 콘텐츠를 안전하게 결정할 기준이 없어 무시.
+   */
+  truncateTooltip?: boolean;
+
+  /**
    * root click 핸들러. leadingActions/trailingActions 내부 요소에서 발생한 클릭은
    * 자동으로 무시되지 않으므로, 하위 액션은 e.stopPropagation()을 스스로 호출해야 한다.
    * (일반적으로 IconButton onClick 안에서 처리.)
@@ -164,6 +182,24 @@ function firstCharOfChildren(children: ReactNode): string | null {
   return Array.from(trimmed)[0] ?? null;
 }
 
+/** children을 평탄화해 Tooltip 콘텐츠용 문자열로 환산. 순수 텍스트가 아니면 null.
+ *  (<Icon> 같은 요소가 섞인 커스텀 라벨에선 Tooltip을 띄우지 않음 — 어떤 텍스트로
+ *  보여줄지 결정할 안전한 기준이 없기 때문.) */
+function textFromChildren(children: ReactNode): string | null {
+  let text = "";
+  let onlyPlain = true;
+  Children.forEach(children, (child) => {
+    if (typeof child === "string" || typeof child === "number") {
+      text += String(child);
+    } else if (child != null && child !== false) {
+      onlyPlain = false;
+    }
+  });
+  if (!onlyPlain) return null;
+  const trimmed = text.trim();
+  return trimmed || null;
+}
+
 /** MenuItemAction을 { node, hoverOnly } 튜플로 정규화. */
 function normalizeAction(
   action: MenuItemAction,
@@ -235,7 +271,7 @@ const SectionHeader = forwardRef<HTMLDivElement, SectionHeaderProps>(
     if (!collapsible) {
       return (
         <div ref={ref} className={rootClass} role="presentation" {...rest}>
-          <span className={styles.label}>{children}</span>
+          <span className={styles.label} data-menuitem-label>{children}</span>
         </div>
       );
     }
@@ -264,7 +300,7 @@ const SectionHeader = forwardRef<HTMLDivElement, SectionHeaderProps>(
         }}
         {...rest}
       >
-        <span className={styles.label}>
+        <span className={styles.label} data-menuitem-label>
           {children}
           <Icon
             name="caret-down"
@@ -295,6 +331,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
       disabled = false,
       asChild = false,
       collapsed = false,
+      truncateTooltip = false,
       collapsible = false,
       open: openProp,
       defaultOpen = true,
@@ -314,6 +351,31 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
        대신 키보드 접근을 위해 tabIndex + Enter/Space 핸들러를 직접 세팅. */
     const Comp = asChild ? Slot : "div";
     const iconSize = ICON_SIZE[size];
+
+    /* 라벨 ellipsis 감지 — label span의 scrollWidth > clientWidth면 잘린 상태.
+       잘렸을 때만 아래에서 Tooltip으로 감싸 풀 라벨 노출. truncateTooltip이 꺼진
+       사용처(Dropdown/Context/Select/CommandPalette 어댑터 등)에선 ResizeObserver를
+       아예 만들지 않아 CPU 비용도 들지 않음.
+       ref callback은 element 교체 시마다 ResizeObserver를 재부착. */
+    const [truncated, setTruncated] = useState(false);
+    const observerRef = useRef<ResizeObserver | null>(null);
+    const labelRefCallback = useCallback(
+      (node: HTMLSpanElement | null) => {
+        observerRef.current?.disconnect();
+        observerRef.current = null;
+        if (!truncateTooltip || !node) {
+          if (!node) setTruncated(false);
+          return;
+        }
+        const check = () => setTruncated(node.scrollWidth > node.clientWidth + 1);
+        check();
+        const ro = new ResizeObserver(check);
+        ro.observe(node);
+        observerRef.current = ro;
+      },
+      [truncateTooltip],
+    );
+    useEffect(() => () => observerRef.current?.disconnect(), []);
 
     /* leading: checked면 맨 앞에 자동 checkmark */
     const leadingComposed: MenuItemAction[] = checked
@@ -414,7 +476,7 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
       );
     }
 
-    return (
+    const node = (
       <Comp
         ref={ref}
         className={rootClass}
@@ -445,11 +507,11 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
           !effectiveCollapsed &&
           (hasDescription ? (
             <span className={styles.labelStack}>
-              <span className={styles.label}>{children}</span>
+              <span className={styles.label} data-menuitem-label ref={labelRefCallback}>{children}</span>
               <span className={styles.description}>{description}</span>
             </span>
           ) : (
-            <span className={styles.label}>{children}</span>
+            <span className={styles.label} data-menuitem-label ref={labelRefCallback}>{children}</span>
           ))
         )}
         {hasTrailing && (
@@ -458,6 +520,25 @@ const MenuItem = forwardRef<HTMLDivElement, MenuItemProps>(
           </span>
         )}
       </Comp>
+    );
+
+    /* Tooltip 래핑 조건 — truncateTooltip이 켜진 경우에만 작동.
+       1) collapsed 상태: 라벨이 아이콘으로 수렴되어 보이지 않으므로 항상 풀 라벨을 띄움.
+       2) expanded + 라벨이 실제 ellipsis로 잘림: 중복 노출 없이 "안 보이는 부분만" 복원.
+       둘 다 children이 순수 텍스트일 때만 — 복잡 ReactNode 라벨은 Tooltip 콘텐츠로
+       무엇을 보일지 안전하게 결정할 기준이 없음. (asChild=링크 위임이어도 Tooltip은
+       MenuItem 바깥에서 감싸지므로 체인은 Tooltip → Slot → Link로 유지된다.)
+
+       side는 항상 right — 메뉴는 세로 리스트라 top/bottom으로 띄우면 바로 위/아래
+       아이템을 가린다. 뷰포트 끝에선 Radix가 자동 flip. */
+    const labelText = textFromChildren(children);
+    const shouldTooltip =
+      truncateTooltip && labelText != null && (effectiveCollapsed || truncated);
+    if (!shouldTooltip) return node;
+    return (
+      <Tooltip content={<span className={styles.tooltipLabel}>{labelText}</span>} side="right" sideOffset={8}>
+        {node}
+      </Tooltip>
     );
   },
 );

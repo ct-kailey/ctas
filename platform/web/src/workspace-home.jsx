@@ -6,6 +6,7 @@ import { Tabs } from './ui.jsx';
 import { MetricCard } from './components/ctds/MetricCard/MetricCard';
 import { ListItem } from './components/ctds/ListItem/ListItem';
 import { WORKFLOW_STEPS } from './workspace-flow.mjs';
+import { ProjectJourney } from './project-journey.jsx';
 import './workspace-home.css';
 
 const GRADES = {
@@ -90,7 +91,7 @@ function AttentionProjectSelect({ project, projects, onProjectSelect }) {
 }
 
 /** One project, one workflow. This view links to existing source actions without approving or dismissing records. */
-export function ProjectHome({ project, projects = [], overview, onNavigate, onProjectSelect, onUpload, onNewProject, attention, onRefreshAttention, attentionError, attentionLoading }) {
+export function ProjectHome({ project, projects = [], overview, onNavigate, onProjectSelect, onUpload, onNewProject, attention, onRefreshAttention, attentionError, attentionLoading, request, onDirty, notify, onOpenSource }) {
   const documents = overview?.documents || [];
   const recentDocuments = documents.slice().sort((a, b) => String(b.revisions?.[0]?.created_at || b.created_at || '').localeCompare(String(a.revisions?.[0]?.created_at || a.created_at || ''))).slice(0, 4);
   const counts = overview?.counts || {};
@@ -104,6 +105,7 @@ export function ProjectHome({ project, projects = [], overview, onNavigate, onPr
     { label: '진행 중인 분석', value: counts.active_jobs ?? (overview?.jobs || []).filter(item => ['queued', 'running'].includes(item.status)).length, tab: 'source-review' },
   ];
   return <div className="workspace-home">
+    <ProjectJourney onNavigate={onNavigate} key={project.id} project={project} request={request} canWrite={canWrite} onDirty={onDirty} notify={notify} onOpenSource={onOpenSource} />
     <section className="workspace-home-section" aria-label="프로젝트 알림">
       <SectionHead title="지금 확인할 것" count={!attentionError && attention ? attention.counts.all : undefined}>
         <div className="workspace-attention-controls"><AttentionProjectSelect project={project} projects={projects} onProjectSelect={onProjectSelect} /><Button type="button" variant="ghost" rightIcon={<ArrowRight size={15} />} onClick={() => onNavigate('alerts')}>알림함 전체 보기</Button></div>

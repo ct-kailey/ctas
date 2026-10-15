@@ -272,6 +272,9 @@ const SidebarItem = forwardRef<HTMLDivElement, SidebarItemProps>(function Sideba
   const leadingActions: MenuItemAction[] = icon ? [icon] : [];
   const trailingActions: MenuItemAction[] = trailing ? [trailing] : [];
 
+  /* ellipsis 시 Tooltip, collapsed 시 항상 Tooltip은 MenuItem이 자체 처리.
+     children을 넘기면 복잡 ReactNode라 Tooltip이 안 뜰 수 있으므로, 평문 라벨만 있을 땐
+     label 문자열을 그대로 children으로 흘려 MenuItem이 안전하게 Tooltip 콘텐츠를 결정하게 함. */
   return (
     <MenuItem
       ref={ref}
@@ -280,13 +283,13 @@ const SidebarItem = forwardRef<HTMLDivElement, SidebarItemProps>(function Sideba
       disabled={disabled}
       asChild={asChild}
       collapsed={collapsed}
+      truncateTooltip
       leadingActions={leadingActions}
       trailingActions={trailingActions}
       shortcut={shortcut}
       hasSubmenu={hasSubmenu}
       onClick={onClick}
       aria-label={collapsed ? label : undefined}
-      title={collapsed ? label : undefined}
     >
       {children ?? label}
     </MenuItem>

@@ -1,6 +1,6 @@
 # AINS · CTDS
 
-CTDS 0.3.2의 copy-based React 컴포넌트를 React/Vite 호스트에 적용한다.
+CTDS 0.3.4의 copy-based React 컴포넌트를 React/Vite 호스트에 적용한다.
 기본 축은 [ctds.config.json](./ctds.config.json)이 단일 원본이다.
 
 ## 디자인 방향

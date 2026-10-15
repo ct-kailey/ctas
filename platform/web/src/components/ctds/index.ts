@@ -28,7 +28,6 @@ export * from "./Disclosure";
 export * from "./Drawer";
 export * from "./DropdownMenu";
 export * from "./EmptyState";
-export * from "./EventCard";
 export * from "./EventChip";
 export * from "./FileIcon";
 export * from "./FilterButton";

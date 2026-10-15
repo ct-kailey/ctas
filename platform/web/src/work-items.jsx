@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, CalendarDays, CheckCheck, Download, FolderKa
 import { Badge, Button, Empty, ErrorNotice, FormField, Modal, Spinner, dateTime, projectPath, Input, Textarea, Select, ControlButton, Disclosure, Tabs, Notice } from './ui.jsx';
 import './work-items.css';
 import { TaskAutomationBoard } from './task-automation.jsx';
+import { useConfirm } from './confirmation.jsx';
 
 const STATES = { todo: ['할 일', 'quiet'], in_progress: ['진행 중', 'blue'], blocked: ['차단됨', 'red'], qa: ['QA 대기', 'amber'], done: ['완료', 'green'] };
 const NEXT = { todo: ['in_progress', 'blocked'], in_progress: ['todo', 'blocked', 'qa'], blocked: ['todo', 'in_progress', 'qa'], qa: ['todo', 'in_progress', 'blocked', 'done'], done: ['todo'] };
@@ -13,11 +14,16 @@ const overdue = (item, date) => item.status !== 'done' && item.due_on && item.du
 const initialForm = item => ({ status: item.status, assignee_id: item.assignee_id || '', due_on: item.due_on || '', blocker: item.blocker || '', note: '', qa_evidence: '' });
 function StateBadge({ status }) { return <Badge tone={STATES[status]?.[1]}>{STATES[status]?.[0] || status}</Badge>; }
 
-export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId, onDirty, onOpenSettings, onOpenQuestions, onOpenSourceRevision }) {
+export function WorkItems({ projectId, request, role, userId, notify, onChanged, onOpenImplementation, onOpenGovernance, initialItemId, initialAutomationTarget, onDirty, onOpenSettings, onOpenQuestions, onOpenSourceRevision }) {
   const sharedView = useSharedView();
   const route = projectPath(projectId), canReview = !sharedView && REVIEWERS.includes(role);
   const [data, setData] = useState(null), [plans, setPlans] = useState([]), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('all'), [query, setQuery] = useState(''), [selected, setSelected] = useState(null), [importing, setImporting] = useState(false), [opening, setOpening] = useState(false), [detailError, setDetailError] = useState(null);
+  const [dirtyFields, setDirtyFields] = useState({ automation: false, legacy: false });
+  const automationDirty = useCallback(value => setDirtyFields(current => current.automation === value ? current : { ...current, automation: value }), []);
+  const legacyDirty = useCallback(value => setDirtyFields(current => current.legacy === value ? current : { ...current, legacy: value }), []);
+  useEffect(() => { onDirty?.(dirtyFields.automation || dirtyFields.legacy); }, [dirtyFields, onDirty]);
+  useEffect(() => () => onDirty?.(false), [onDirty]);
   const alive = useRef(true), controller = useRef(null), detailController = useRef(null), initialDetail = useRef(null);
   const load = useCallback(async () => {
     controller.current?.abort(); const c = new AbortController(); controller.current = c; setBusy(true);
@@ -51,7 +57,7 @@ export function WorkItems({ projectId, request, role, userId, notify, onChanged,
     return matches && `${item.source_task.title} ${item.source_task.description} ${item.assignee_name || ''} ${item.plan_title}`.toLowerCase().includes(query.toLowerCase().trim());
   });
   return <section className="work-board" aria-label="기능별 작업 관리">
-    <TaskAutomationBoard projectId={projectId} request={request} role={role} notify={notify} onDirty={onDirty} onChanged={onChanged} onSettings={onOpenSettings} onQuestions={onOpenQuestions} onSourceRevision={onOpenSourceRevision} />
+    <TaskAutomationBoard key={`${projectId}:${initialAutomationTarget?.type || ''}:${initialAutomationTarget?.id || ''}`} projectId={projectId} initialTarget={initialAutomationTarget} request={request} role={role} notify={notify} onDirty={automationDirty} onChanged={onChanged} onSettings={onOpenSettings} onQuestions={onOpenQuestions} onSourceRevision={onOpenSourceRevision} />
     <div className="work-board-intro"><div><h2>작업 목록</h2><p>{sharedView ? '작업별 담당자·기한·진행 상태와 이력을 확인하세요.' : '작업을 선택해 담당자·기한·상태를 변경하세요.'}</p></div><div className="inline-actions">{onOpenGovernance ? <Button variant="secondary" onClick={onOpenGovernance}>작업 전 점검·범위 승인</Button> : null}<Button variant="secondary" icon={RefreshCw} busy={busy} onClick={load}>새로고침</Button>{canReview ? <Button icon={Plus} onClick={() => setImporting(true)} disabled={!data}>승인 계획 가져오기</Button> : null}</div></div>
     <ErrorNotice error={error} onRetry={load} />
     <ErrorNotice error={detailError?.error} onRetry={detailError ? () => open({ id: detailError.id }) : undefined} />
@@ -66,7 +72,7 @@ export function WorkItems({ projectId, request, role, userId, notify, onChanged,
       <p className="work-board-footnote">작업 등록 후 담당자가 진행 내용을 기록하고, 검토자가 QA 근거를 확인해 완료를 확정합니다.</p>
     </>}
     {importing ? <ImportPlan plans={plans} imported={imported} route={route} request={request} onClose={() => setImporting(false)} onDone={async () => { setImporting(false); await saved('승인한 계획을 기능별 작업으로 등록했습니다.'); }} onOpenImplementation={() => { setImporting(false); onOpenImplementation(); }} /> : null}
-    {selected ? <WorkDetail key={selected.id} initial={selected} members={data?.members || []} route={route} request={request} role={role} userId={userId} onClose={() => setSelected(null)} onSaved={saved} onOpenImplementation={() => { setSelected(null); onOpenImplementation(); }} /> : null}
+    {selected ? <WorkDetail key={selected.id} initial={selected} members={data?.members || []} route={route} request={request} role={role} userId={userId} onDirty={legacyDirty} onClose={() => setSelected(null)} onSaved={saved} onOpenImplementation={onOpenImplementation} /> : null}
   </section>;
 }
 
@@ -79,10 +85,19 @@ function ImportPlan({ plans, imported, route, request, onClose, onDone, onOpenIm
   return <Modal title="승인 계획 가져오기" eyebrow="CONFIRM THE WORK" onClose={onClose} busy={busy} wide><form onSubmit={submit}><div className="modal-body"><p className="form-intro">업무 실행 검토에서 승인 계획의 작업 전 점검과 범위 승인을 먼저 완료한 뒤 업무로 등록합니다. 담당자와 마감일은 등록 후 정합니다.</p>{!available.length ? <Empty compact title="새로 가져올 승인 계획이 없습니다" action={<Button type="button" variant="secondary" onClick={onOpenImplementation}>AI 구현 작업 열기</Button>}>이미 등록했거나 기획·설정이 변경된 계획은 제외됩니다. 최신 계획을 승인해 주세요.</Empty> : <><FormField label="승인된 계획"><Select value={id} disabled={busy} onChange={e => { setId(e.target.value); setAck(false); }}>{available.map(p => <option key={p.id} value={p.id}>{p.result.title} · {dateTime(p.created_at)}</option>)}</Select></FormField><ol className="work-import-tasks">{plan?.result.tasks.map(task => <li key={task.id}><strong>{task.title}</strong><p>{task.description}</p><ul>{task.acceptance_criteria.map((criterion, i) => <li key={i}>{criterion}</li>)}</ul></li>)}</ol><label className="checkbox-label"><Input type="checkbox" required disabled={busy} checked={ack} onChange={e => setAck(e.target.checked)} /><span>작업 범위와 완료 기준을 확인했고, 팀 업무로 등록합니다.</span></label><p className="work-board-footnote">코드 작성은 AI 구현 작업에서 별도로 실행 요청합니다.</p></>}<ErrorNotice error={error} /></div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose} disabled={busy}>닫기</Button>{plan ? <Button type="submit" icon={Plus} busy={busy} disabled={!ack}>{plan.result.tasks.length}개 작업 등록</Button> : null}</footer></form></Modal>;
 }
 
-function WorkDetail({ initial, members, route, request, role, userId, onClose, onSaved, onOpenImplementation }) {
+function WorkDetail({ initial, members, route, request, role, userId, onClose, onSaved, onOpenImplementation, onDirty }) {
   const sharedView = useSharedView();
+  const confirm = useConfirm();
   const [item, setItem] = useState(initial), [form, setForm] = useState(() => initialForm(initial)), [busy, setBusy] = useState(false), [error, setError] = useState(null);
   const alive = useRef(true); useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const original = initialForm(item), dirty = busy || Object.keys(original).some(key => form[key] !== original[key]);
+  useEffect(() => { onDirty?.(dirty); }, [dirty, onDirty]);
+  useEffect(() => () => onDirty?.(false), [onDirty]);
+  async function close() {
+    if (busy) return;
+    if (dirty && !await confirm('작성 중인 작업 변경 내용을 버리고 닫을까요?', { confirmLabel: '변경 내용 버리기' })) return;
+    if (alive.current) onClose();
+  }
   const reviewer = !sharedView && REVIEWERS.includes(role), canEdit = !sharedView && (reviewer || (role === 'member' && item.assignee_id === userId));
   const stale = item.stale_reasons.length > 0, dependencyPending = item.dependencies.some(d => d.status !== 'done');
   const options = [item.status, ...NEXT[item.status]].filter(s => reviewer || (s !== 'done' && item.status !== 'done') || s === item.status);
@@ -98,7 +113,7 @@ function WorkDetail({ initial, members, route, request, role, userId, onClose, o
     if (form.status === 'done' && item.status !== 'done') body.qa_evidence = form.qa_evidence.trim();
     try { const result = await request(`${route}/work-items/${item.id}`, { method: 'PATCH', body }); if (alive.current) { setItem(result.item); setForm(initialForm(result.item)); await onSaved('작업 상태와 검토 이력을 저장했습니다.'); } } catch (err) { if (alive.current) setError(err); } finally { if (alive.current) setBusy(false); }
   }
-  return <Modal title={item.source_task.title} eyebrow={`${item.source_task_id} · ${item.plan_title}`} busy={busy} onClose={onClose} wide><div className="modal-body work-detail">
+  return <Modal title={item.source_task.title} eyebrow={`${item.source_task_id} · ${item.plan_title}`} busy={busy} onClose={close} wide><div className="modal-body work-detail">
     <div className="work-detail-status"><StateBadge status={item.status} /><span>최근 변경 {dateTime(item.updated_at)}</span></div><p className="work-description">{item.source_task.description}</p>
     {stale ? <Notice className="notice warning"><AlertTriangle size={18} /><div><strong>기획 또는 프로젝트 설정이 바뀌었습니다.</strong><p>최신 계획을 검토해 주세요. 기록 추가·배정·차단 처리는 가능하지만 진행·QA·완료로 넘길 수 없습니다.</p></div></Notice> : null}
     <section className="work-detail-section"><h3>완료 기준</h3><ul>{item.source_task.acceptance_criteria.map((criterion, i) => <li key={i}>{criterion}</li>)}</ul></section>
@@ -113,5 +128,5 @@ function WorkDetail({ initial, members, route, request, role, userId, onClose, o
       <div className="work-save"><span>{reviewer ? '완료는 QA 검토 후 확정해 주세요.' : '담당자·기한 변경과 완료 확정은 검토자가 진행합니다.'}</span><Button type="submit" icon={CheckCheck} busy={busy}>변경 이력 저장</Button></div>
     </form> : <p className="role-note">진행 내용은 배정된 담당자 또는 검토자가 기록합니다.</p>}
     <section className="work-detail-section"><h3>변경·검토 이력 <small>{item.history.length}건</small></h3><ol className="work-history">{item.history.map(event => <li key={event.id}><div><strong>{event.actor_name}</strong><time>{dateTime(event.created_at)}</time></div><p>{event.note}</p>{event.before && event.before.status !== event.after.status ? <span className="work-history-change">{STATES[event.before.status][0]} → {STATES[event.after.status][0]}</span> : null}{event.before && event.before.assignee_id !== event.after.assignee_id ? <span className="work-history-change">담당자: {members.find(m => m.id === event.after.assignee_id)?.name || (event.after.assignee_id ? '이전 구성원' : '미배정')}</span> : null}{event.before && event.before.due_on !== event.after.due_on ? <span className="work-history-change">마감일: {event.after.due_on || '미정'}</span> : null}{event.qa_evidence ? <blockquote><strong>QA 검토 근거</strong><p>{event.qa_evidence}</p></blockquote> : null}</li>)}</ol></section>
-  </div><footer className="modal-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onOpenImplementation}>AI 구현 결과 확인</Button><Button type="button" variant="secondary" disabled={busy} onClick={onClose}>닫기</Button></footer></Modal>;
+  </div><footer className="modal-actions"><Button type="button" variant="secondary" disabled={busy} onClick={onOpenImplementation}>AI 구현 결과 확인</Button><Button type="button" variant="secondary" disabled={busy} onClick={close}>닫기</Button></footer></Modal>;
 }

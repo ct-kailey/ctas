@@ -41,13 +41,19 @@
    - grid → inline-flex center: 라벨/trailing이 사라진 상태에서 아이콘 정중앙 정렬
    - width = min-height: 완전한 정사각. 시각 폭이 rail 폭과 정합.
    - padding-inline·gap 제거: 정사각 안에 아이콘 하나만 놓이도록.
+   - align-self: center: flex-column rail(.menu-rail)처럼 cross-axis가 가로인 부모 안에서
+     item이 왼쪽으로 쏠리는 걸 방지. parent가 flex가 아니면 무해.
+   - margin-inline: auto: block/grid 부모(라벨 숨긴 Sidebar.Item 등)에서도 가로 중앙.
    - transition: width는 부모(Sidebar) 애니메이션과 짝지어져 자연스럽게. */
 .root[data-collapsed] {
   display: inline-flex;
+  align-items: center;
   justify-content: center;
   gap: 0;
   padding-inline: 0;
   width: var(--menu-item-h-md);
+  align-self: center;
+  margin-inline: auto;
 }
 .sm.root[data-collapsed] {
   width: var(--menu-item-h-sm);
@@ -135,8 +141,11 @@
 }
 .trailing {
   color: var(--fg-subtle);
-  /* trailing 자체는 라벨과 자연스러운 여백을 두되, 내부 첫 아이템은 margin 없음 */
-  margin-inline-start: var(--space-4);
+  /* 라벨 ↔ trailing 사이 여백은 root grid의 gap(--space-2)이 전담.
+     여기 margin-inline-start를 더 두면 trailing이 왼쪽으로 쏠려 보이고
+     라벨 ellipsis가 실제 trailing 폭보다 훨씬 일찍 걸린다 (라벨 1fr 트랙이
+     그만큼 좁아지므로). min-width:0은 trailing 안쪽 콘텐츠가 길어질 때
+     부모 1fr 트랙을 밀지 않도록 유지. */
   min-width: 0;
 }
 
@@ -200,13 +209,29 @@
   margin-inline-start: max(var(--menu-slot-gap), var(--half-overflow));
 }
 
-/* label */
+/* label — grid의 1fr 가운데 열. 긴 라벨은 ellipsis.
+   inline-flex가 아니라 block으로 두어야 text-overflow: ellipsis가 실제로 그려진다
+   (ellipsis는 블록 포매팅 컨텍스트의 line-box 끝에서만 생성). min-width:0 없이는
+   1fr 트랙이 콘텐츠 min-content로 터져 ellipsis가 안 걸리는 함정도 함께 방지. */
 .label {
-  display: inline-flex;
-  align-items: center;
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tooltip 안 라벨 — 긴 문장은 자연스레 wrap. max-width로 2~3줄 안에 수렴.
+   Tooltip 콘텐츠는 기본이 nowrap(한 줄 유지)이라, 긴 메뉴 라벨이 뷰포트까지
+   쭉 뻗어 꼬리가 괴상하게 멀어진다. word-break는 CJK가 섞인 라벨에서
+   줄바꿈이 안 먹는 걸 보완. */
+.tooltipLabel {
+  display: block;
+  max-width: 22ch;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: var(--lh-tight);
 }
 
 /* 2줄 레이아웃 — description prop이 있을 때만 활성.

@@ -488,7 +488,7 @@ export const shadows: [string, string, string][] = [
   ["shadow-sm", "var(--shadow-sm)", "Card 기본"],
   ["shadow-md", "var(--shadow-md)", "Dropdown, Popover"],
   ["shadow-lg", "var(--shadow-lg)", "Modal"],
-  ["shadow-xl", "var(--shadow-xl)", "Command Palette"],
+  ["shadow-xl", "var(--shadow-xl)",],
   ["shadow-inner", "var(--shadow-inner)", "눌린 상태"],
 ];
 
@@ -554,8 +554,6 @@ export const componentSlugs: Record<string, string> = {
   "App Frame": "layout/app-frame",
   Stepper: "nav/stepper",
   "Context Menu": "overlay/context-menu",
-  "Command Palette": "overlay/command-palette",
-  "Accordion": "overlay/accordion",
   Callout: "feedback/callout",
   Modal: "feedback/modal",
   Drawer: "feedback/drawer",
@@ -564,7 +562,6 @@ export const componentSlugs: Record<string, string> = {
   "Table Row": "data/table-row",
   "Table Row Select": "data/table-row-select",
   "Table Row Edit": "data/table-row-edit",
-  "Event Card": "data/event-card",
   "Event Chip": "data/event-chip",
   "List Item": "data/list-item",
   "Metric Card": "data/metric-card",
@@ -619,7 +616,7 @@ export const components: { id: string; title: string; items: string[] }[] = [
     title: "Data Display",
     items: [
       "Table Header", "Table Row", "Table Row Select", "Table Row Edit",
-      "List Item", "Metric Card", "Gallery Item", "File Icon", "Attachment Item", "Event Chip", "Event Card",
+      "List Item", "Metric Card", "Gallery Item", "File Icon", "Attachment Item", "Event Chip",
       "Empty State", "Description List", "Timeline",
     ],
   },
@@ -643,8 +640,7 @@ export const components: { id: string; title: string; items: string[] }[] = [
     id: "overlay",
     title: "Overlay / Menu",
     items: [
-      "Context Menu", "Command Palette",
-      "Accordion", "Collapsible", "Toggle Group",
+      "Context Menu", "Collapsible", "Toggle Group",
     ],
   },
   {

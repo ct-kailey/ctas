@@ -7,6 +7,7 @@ import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationBlockerLab
 import { retainProjectRequest } from './nora-workspace-state.mjs';
 import { mergeTaskDraftPage, taskDraftSourceUrl } from './task-draft-state.mjs';
 import { ImplementationNotesPanel, RelatedImplementationNotes } from './implementation-notes.jsx';
+import { journeyTaskSelection } from './project-journey-navigation.mjs';
 import './task-automation.css';
 
 function useAutomationResource(path, request, poll = automationActive) {
@@ -74,11 +75,11 @@ function RiskAnalysis({ analysis, taskCount, onQuestions }) {
   </article>;
 }
 
-export function TaskAutomationBoard({ projectId, request, role, notify, onDirty, onChanged, onSettings, onQuestions, onSourceRevision }) {
+export function TaskAutomationBoard({ projectId, request, role, notify, onDirty, onChanged, onSettings, onQuestions, onSourceRevision, initialTarget }) {
   const sharedView = useSharedView(), route = `${projectPath(projectId)}/task-automation`;
   const remote = useAutomationResource(route, request), drafts = useTaskDrafts(`${projectPath(projectId)}/task-drafts`, request);
-  const [selectedId, setSelectedId] = useState(null), [selectedDraftId, setSelectedDraftId] = useState(null);
-  const [noteTarget, setNoteTarget] = useState(null), [dirtyFields, setDirtyFields] = useState({});
+  const [selectedId, setSelectedId] = useState(() => journeyTaskSelection(initialTarget).taskId), [selectedDraftId, setSelectedDraftId] = useState(() => journeyTaskSelection(initialTarget).draftId);
+  const [noteTarget, setNoteTarget] = useState(() => journeyTaskSelection(initialTarget).noteId ? { id: initialTarget.id, nonce: crypto.randomUUID() } : null), [dirtyFields, setDirtyFields] = useState({});
   const automationDirty = useCallback(value => setDirtyFields(current => ({ ...current, automation: value })), []);
   const notesDirty = useCallback(value => setDirtyFields(current => ({ ...current, notes: value })), []);
   useEffect(() => { onDirty?.(Object.values(dirtyFields).some(Boolean)); }, [dirtyFields, onDirty]);

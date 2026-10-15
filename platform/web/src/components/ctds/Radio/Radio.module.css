@@ -4,6 +4,7 @@
    같은 배경 레이어에 그려지므로 서브픽셀 어긋남이 없다). 접근성 = <input type="radio">.
    FilterButton type="radio"도 indicator를 재사용한다. */
 .root {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);

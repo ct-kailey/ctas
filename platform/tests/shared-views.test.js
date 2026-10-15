@@ -92,6 +92,11 @@ test('temporary shared links authorize only selected read projections and preser
     const notes = await call('/api/projects/selected-one/implementation-notes', { headers });
     assert.equal(notes.status, 200);
     assert.deepEqual((await notes.json()).notes, []);
+    const journey = await call('/api/projects/selected-one/journey', { headers });
+    assert.equal(journey.status, 200);
+    assert.equal((await journey.json()).permissions.record_milestone, false);
+    assert.equal((await call('/api/projects/selected-one/journey/events', { headers })).status, 200);
+    assert.equal((await call('/api/projects/private/journey', { headers })).status, 404);
     assert.equal((await call('/api/projects/private/implementation-notes', { headers })).status, 404);
     assert.equal((await call('/api/projects/private/overview', { headers })).status, 404);
     assert.equal((await call('/api/projects/selected-two/documents', { headers })).status, 404);
@@ -107,6 +112,7 @@ test('temporary shared links authorize only selected read projections and preser
     const headers = { Cookie: adminLogin.cookie + '; ' + anonymous.cookie, Origin: origin, 'Content-Type': 'application/json', 'X-CSRF-Token': anonymous.data.csrfToken };
     const paths = ['/api/projects', '/api/shared-views', '/api/projects/selected-one/documents', '/api/projects/selected-one/reviews/' + randomUUID() + '/decision', '/api/implementation-runner/' + randomUUID() + '/claim'];
     for (const path of paths) assert.equal((await call(path, { method: 'POST', headers, body: '{}' })).status, 403, path);
+    assert.equal((await call('/api/projects/selected-one/journey/milestones', { method: 'POST', headers, body: '{}' })).status, 403);
     for (const suffix of ['', '/' + randomUUID() + '/feedback', '/' + randomUUID() + '/review', '/' + randomUUID() + '/followup']) {
       assert.equal((await call('/api/projects/selected-one/implementation-notes' + suffix, { method: 'POST', headers, body: '{}' })).status, 403);
     }

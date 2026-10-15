@@ -88,3 +88,7 @@ vara의 Sidebar·Topbar·MenuItem·Tabs를 Vite 업무 화면에서 재사용한
 ## 적용 검사
 
 `npm run check:ctds`는 토큰 검사와 JSX AST 기반 실제 컴포넌트 검사를 함께 실행한다. 현재 운영 호스트인 `platform/web/src` 최상위 `.jsx` 파일을 검사하며 복사한 `components/`, 검토한 `ui.jsx`·`ui-controls.jsx`, 개발 fixture는 별도 검증한다. 검사 대상에 새 native 입력·버튼·select·details·dialog, 수동 tab/listbox·notice, 버튼형 링크, window.confirm/alert/prompt가 생기면 실패한다. CTDS asChild 슬롯과 검토한 폼 어댑터 내부만 예외다. 개발 전용 `/ctds-contract.html`은 프로덕션 빌드 입력에서 제외된다. 이 페이지에서 브라우저 폼 계약을 검증한다.
+
+## CTDS 0.3.4 업데이트
+
+수정하지 않은 MenuItem·Sidebar와 관련 문서는 공식 버전으로 갱신했다. 메뉴 라벨 말줄임 툴팁의 `@radix-ui/react-tooltip`을 production 의존성으로 등록했다. 기존 AINS 폼 어댑터는 유지하며 Checkbox·Radio에는 upstream의 root 위치 기준 보정을 병합했다.

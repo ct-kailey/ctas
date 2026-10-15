@@ -8,7 +8,7 @@ export const WORKFLOW_STEPS = [
   { id: 'prepare', label: '프로젝트 관리', description: '구성원과 개발 저장소, 실행 환경을 설정합니다.', primaryTab: 'members', tabs: ['members', 'settings'], management: true },
 ];
 export const WORKSPACE_VIEWS = {
-  home: { label: '홈', description: '확인할 알림과 진행 중인 업무를 살펴보세요.' },
+  home: { label: '홈', description: '계약·기획부터 최종 전달까지의 기록과 작업 진행률을 확인하세요.' },
   alerts: { label: '알림함', description: '프로젝트를 선택해 검토할 내용과 지연된 업무를 확인하세요.' },
   settings: { label: '저장소·AI 설정', description: '개발할 저장소를 연결하고 AI 실행 환경을 설정하세요.' },
   members: { label: '구성원', description: '함께 일하는 사람과 권한, 담당 업무를 확인하세요.' },

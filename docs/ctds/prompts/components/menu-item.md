@@ -82,6 +82,7 @@ type MenuItemAction =
   active={boolean}                       // 현재 페이지/선택 아이템 강조
   disabled={boolean}
   collapsed={boolean}                    // icon-only. leading 하나만 남기고 label/trailing/shortcut 전부 숨김. (Sidebar가 자동 주입)
+  truncateTooltip={boolean}              // 라벨이 …로 잘리거나 collapsed일 때 호버 Tooltip으로 풀 라벨 노출. Sidebar.Item 자동 ON. Dropdown/Context/Select 어댑터 안에선 Radix asChild 체인 꼬임 방지로 끄는 걸 권장.
   asChild={boolean}                      // Radix Slot — <Link>/<a>/DropdownMenu.Item 등에 위임
   onClick={(e) => void}
 />

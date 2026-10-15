@@ -3,6 +3,7 @@
    시각 요소 = .indicator, 접근성 = 실제 <input type="checkbox"> (.visually-hidden).
    FilterButton type="checkbox"도 indicator를 재사용한다. */
 .root {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
