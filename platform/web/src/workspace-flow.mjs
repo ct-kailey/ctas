@@ -3,7 +3,7 @@ export const WORKFLOW_STEPS = [
   { id: 'collect', label: '자료·기록', description: '계약서·기획서·회의록을 한곳에 등록하고 분류합니다.', primaryTab: 'documents', tabs: ['documents', 'channels', 'transcriptions', 'integrations', 'overview', 'commercial'], navigationTabs: ['documents'] },
   { id: 'context', label: '요구사항·결정', description: '원문과 Nora 분석을 대조하고 반영할 내용을 확정합니다.', primaryTab: 'source-review', tabs: ['source-review', 'context', 'reviews', 'activity'], navigationTabs: ['source-review', 'context', 'activity'] },
   { id: 'plan', label: '작업·고객 질문', description: '작업을 배정하고 기한·답변·작업 전후 점검을 관리합니다.', primaryTab: 'work-items', tabs: ['work-items', 'questions', 'work-governance'] },
-  { id: 'execute', label: 'AI 개발', description: '확정한 요구사항으로 개발 계획을 만들고 코드·테스트·PR을 검토합니다.', primaryTab: 'implementation', tabs: ['implementation', 'github-delivery'] },
+  { id: 'execute', label: 'AI 개발', description: '진행 중인 작업과 실행 이력, 코드 변경·웹 미리보기를 확인합니다.', primaryTab: 'implementation', tabs: ['implementation', 'github-delivery'] },
   { id: 'domain-guide', label: '도메인 가이드', description: '프로젝트 개요·용어·업무 흐름·확정 정책을 출처와 함께 학습합니다.', primaryTab: 'domain-guide', tabs: ['domain-guide'] },
   { id: 'knowledge', label: '재사용 자료', description: '검토한 해결 사례를 찾아 현재 프로젝트에 적용합니다.', primaryTab: 'context', tabs: ['context'] },
   { id: 'prepare', label: '프로젝트 관리', description: '구성원과 개발 저장소, 실행 환경을 설정합니다.', primaryTab: 'members', tabs: ['members', 'settings'], management: true },
@@ -26,7 +26,7 @@ export const WORKSPACE_VIEWS = {
   'work-governance': { label: '작업 전·후 점검', description: '작업 전에는 충돌과 범위를 확인하고, 완료 후에는 결과를 요구사항과 대조하세요.' },
   'work-items': { label: '작업 배정·진행', description: '작업별 대표 담당자와 기한을 정하고 진행 상태를 갱신하세요.' },
   questions: { label: '고객 질문·답변', description: '질문할 내용과 답변 기한을 기록하고, 받은 답변을 연결된 작업에 반영하세요.' },
-  implementation: { label: '개발 계획·실행', description: '확정본을 선택해 개발 계획을 요청하고, 계획과 작업 범위를 승인한 뒤 실행하세요.' },
+  implementation: { label: 'AI 개발 작업', description: '작업을 선택해 실행 이력·다음 할 일·코드 변경과 실제 동작을 확인하세요.' },
   'github-delivery': { label: '변경 코드·PR', description: '코드 변경과 테스트 결과를 검토하고 승인한 변경을 Draft PR로 보내세요.' },
   activity: { label: '활동 이력', description: '문서 등록·변경 승인·작업 실행 이력을 확인하세요.' },
 };

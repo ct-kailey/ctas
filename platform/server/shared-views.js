@@ -22,6 +22,7 @@ const READ_PATHS = [
   /^\/task-automation\/areas\/?$/,
   new RegExp(`^/task-automation/tasks/${ID}/?$`),
   new RegExp(`^/task-automation/tasks/${ID}/areas/?$`),
+  new RegExp(`^/task-automation/tasks/${ID}/activity/?$`),
   /^\/(?:overview|dashboard|attention|settings|members|domains|documents|feed|work-items|implementation-plans|implementation-requests|channel-sources|channel-inbox|context|commercial|questions|question-reminders|work-governance|github-deliveries|transcriptions)\/?$/,
   new RegExp(`^/(?:revisions|reviews|work-items|implementation-plans|implementation-requests|channel-inbox|questions|github-deliveries|transcriptions)/${ID}/?$`),
   /^\/context\/(?:sources|search|timeline|insights|ai-runs)\/?$/,

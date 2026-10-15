@@ -36,6 +36,7 @@ const {mountExecutionQueueBridge,mountExecutionQueueRoutes}=require('./execution
 const {kakaoWatcherScript}=require('./kakao-watcher-download');
 const {mountProjectNoraRoutes}=require('./project-nora-routes');
 const {mountTaskAutomationRoutes}=require('./task-automation-routes');
+const {mountTaskPreviewRoutes}=require('./task-preview');
 const {mountTaskAreaRoutes}=require('./task-area-routes');
 const {mountTaskDraftRoutes}=require('./task-draft-routes');
 const {mountImplementationNoteRoutes}=require('./implementation-note-routes');
@@ -119,6 +120,7 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   const write=roles('owner','reviewer','member'), review=roles('owner','reviewer');
   mountProjectNoraRoutes(project,{pool,owner:roles('owner'),...nora});
   const taskAutomation=mountTaskAutomationRoutes(project,{pool,write,review,owner:roles('owner'),provider:nora.tasks});
+  mountTaskPreviewRoutes(project,{pool,appOrigin});
   mountTaskAreaRoutes(project,{pool,write});
   mountTaskDraftRoutes(project,{pool,write});
   mountImplementationNoteRoutes(project,{pool,write,review,taskAutomation});
