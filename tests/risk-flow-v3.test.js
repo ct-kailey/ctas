@@ -30,6 +30,9 @@ test('oversized question results fail closed without dropping questions or relax
 test('bounded prompt revision has a separate flow identity and gives both agents the schema budget',()=>{
   const flow=v3.buildRiskFlow({projectId:'project',spaceId:'space'});
   assert.ok(flow.slug.endsWith('-r'+v3.FLOW_REVISION));
+  assert.notEqual(flow.name,'AINS 프로젝트 질문·작업별 실행 검토 v3');
+  assert.notEqual(flow.name,v3.buildRiskFlow({projectId:'other-project',spaceId:'space'}).name);
+  assert.equal(flow.payload.meta.name,flow.name);
   assert.equal(flow.payload.meta.ains_risk_flow_revision,v3.FLOW_REVISION);
   for(const agent of flow.payload.agents){
     for(const field of ['questions','risks','tasks','temporary_decisions','work_gaps'])assert.ok(agent.prompt.includes(`${field} <= ${v3.MODEL_RESULT_SCHEMA.properties[field].maxItems}`));

@@ -17,9 +17,24 @@ test('risk validation failures preserve the verified Nora trace without acceptin
   assert.equal(f.calls.filter(call=>call.name==='get_trace').length,1);
  }
 });
+test('risk setup failures are retry-safe before dispatch while run failures retain uncertainty and trace',async()=>{
+ for(const stage of ['list_flows','apply_flow','get_flow','publish_flow']){
+  const f=fixture({v3:true,toolError:name=>{if(name===stage)throw Object.assign(new Error('Synthetic setup failure'),{code:'NORA_MCP_TOOL_FAILED',noSideEffects:false});}});
+  await assert.rejects(f.service.analyzeRisk(f.input),{code:'NORA_MCP_TOOL_FAILED',noSideEffects:true});
+  assert.equal(f.calls.filter(call=>call.name==='run_flow').length,0);
+ }
+ const changed=fixture({v3:true,afterPublish:flow=>{flow.payload.agents[0].nativeTools=['unsafe-tool'];}});
+ await assert.rejects(changed.service.analyzeRisk(changed.input),{code:'NORA_RISK_FLOW_CHANGED',noSideEffects:true});
+ assert.equal(changed.calls.filter(call=>call.name==='run_flow').length,0);
+ for(const stage of ['run_flow','get_trace']){
+  const f=fixture({v3:true,toolError:name=>{if(name===stage)throw Object.assign(new Error('Synthetic dispatch failure'),{code:'NORA_MCP_TOOL_FAILED',noSideEffects:false,trace_id:TRACE});}});
+  await assert.rejects(f.service.analyzeRisk(f.input),{code:'NORA_MCP_TOOL_FAILED',noSideEffects:false,trace_id:TRACE});
+  assert.equal(f.calls.filter(call=>call.name==='run_flow').length,1);
+ }
+});
 test('revised managed risk flow preserves historical published flows and rejects edits to the new one',async()=>{
  const f=fixture({v3:true}),slug=defaultSlug(PROJECT,'3'),oldSlug=slug.replace(/-r\d+$/,'');
- const legacy={id:oldSlug,payload:{historical:'published evidence'},publishState:{publishedVersionId:'historical-version',hasUnpublishedChanges:false}};
+ const legacy={id:oldSlug,name:'AINS 프로젝트 질문·작업별 실행 검토 v3',payload:{historical:'published evidence'},publishState:{publishedVersionId:'historical-version',hasUnpublishedChanges:false}};
  f.flows.set(oldSlug,structuredClone(legacy));
  await f.service.analyzeRisk(f.input);
  assert.deepEqual(f.flows.get(oldSlug),legacy);
@@ -59,10 +74,11 @@ function fixture(options={}){
   const provider={callTool:async call=>{
     assert.equal(call.projectId,PROJECT);assert.equal(call.workspaceId,WORKSPACE);calls.push(call);
     const {name,arguments:args}=call;
+    options.toolError?.(name,args);
     if(name==='get_local_sdk_connections'){const connection={id:'sdk-fixture',provider:'codex',workingFolder:'/tmp/ctas-sdk',connected:true,busy:false};options.sdkConnection?.(connection,calls.filter(c=>c.name===name).length);return {connections:options.noSdk?[]:[connection]};}
     if(name==='connect_local_sdk')return {id:'request-fixture',provider:args.provider,workingFolder:args.workingFolder,status:'pending'};
     if(name==='list_flows')return [...flows.values()].map(f=>({id:f.id,name:f.id}));
-    if(name==='apply_flow'){assert.equal(args.expectedRevision,'0');assert.ok(!flows.has(args.slug));flows.set(args.slug,{id:args.slug,payload:structuredClone(args.payload),publishState:{hasUnpublishedChanges:true}});return {id:args.slug};}
+    if(name==='apply_flow'){assert.equal(args.expectedRevision,'0');assert.ok(!flows.has(args.slug));assert.ok(![...flows.values()].some(flow=>flow.name?.toLowerCase()===args.name?.toLowerCase()),'Nora display names must be unique in a workspace');flows.set(args.slug,{id:args.slug,name:args.name,payload:structuredClone(args.payload),publishState:{hasUnpublishedChanges:true}});return {id:args.slug};}
     if(name==='publish_flow'){const f=flows.get(args.slug);f.publishState={publishedVersionId:'version-1',hasUnpublishedChanges:false};options.afterPublish?.(f);return {versionId:'version-1'};}
     if(name==='get_flow'){const f=structuredClone(flows.get(args.slug));if(options.staleVersion&&raw)f.publishState.publishedVersionId='version-2';return f;}
     if(name==='run_flow'){

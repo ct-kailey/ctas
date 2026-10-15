@@ -237,7 +237,15 @@ function createNoraTaskProvider({pool,provider,git}){
     },
     async listFlows(input){await bound(input);const list=values(await call(input,'list_flows'),'flows');const flows=[];for(let i=0;i<list.length;i+=4){const group=await Promise.all(list.slice(i,i+4).filter(f=>SLUG.test(f.id||'')).map(async f=>{const full=await flow(input,f.id);return full.publishState?.publishedVersionId&&!full.publishState.hasUnpublishedChanges?{slug:f.id,name:String(f.name||f.id).slice(0,200),published:true}:null;}));flows.push(...group.filter(Boolean));}return{flows};},
     async analyzeRisk(input){
-      const contract=riskContract(input.snapshot);contract.validateRiskRequest(input.snapshot,{projectId:input.projectId,workspaceId:input.workspaceId});const selected=await managedRisk(input);assertRiskIsolation(selected.payload);if(selected.memorySpaces?.length)fail('NORA_RISK_FLOW_ISOLATION_REQUIRED','리스크 분석 흐름에서 외부 메모리 연결을 해제하세요.');
+      let contract,selected;
+      try{
+        contract=riskContract(input.snapshot);contract.validateRiskRequest(input.snapshot,{projectId:input.projectId,workspaceId:input.workspaceId});selected=await managedRisk(input);assertRiskIsolation(selected.payload);if(selected.memorySpaces?.length)fail('NORA_RISK_FLOW_ISOLATION_REQUIRED','리스크 분석 흐름에서 외부 메모리 연결을 해제하세요.');
+      }catch(error){
+        // A setup write may have created a draft/published flow, but no risk
+        // execution, questions or tasks have been dispatched. A manual retry
+        // rechecks the exact managed template before ever calling run_flow.
+        error.noSideEffects=true;throw error;
+      }
       const result=await run(input,selected,{snapshot:input.snapshot,input_sha256:input.snapshotHash});
       try{return contract.validateRiskResult(result,input.snapshot,input.snapshotHash,{expectedTraceId:result.trace_id});}
       catch(error){
