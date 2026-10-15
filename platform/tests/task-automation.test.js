@@ -33,6 +33,15 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   async reconcileMerge(i){calls.push(['reconcile',i]);return {project_id:i.projectId,task_id:i.taskId,input_sha256:i.snapshotHash,pr_number:12,head_sha:i.expectedHeadSha,target_branch:i.targetBranch,merged:true,merge_commit_sha:MERGE};},...overrides};}
  async function fixture({provider=remote(),category='policy',complete=true,mode='strict',policyText='승인 조건을 만족해야 한다.'}={}) {
   const p=await transaction(pool,async db=>{const p=(await db.query("INSERT INTO projects(name) VALUES('합성 정책 자동화') RETURNING id")).rows[0].id;for(const role of ['owner','reviewer','member','viewer'])await db.query('INSERT INTO memberships(project_id,user_id,role) VALUES($1,$2,$3)',[p,users[role],role]);await queueBinding(db,p,users.owner,'t_'+randomUUID().replaceAll('-',''));await db.query("UPDATE project_nora_workspaces SET status='ready',stage='complete',space_id=$2,connector_id='synthetic_github' WHERE project_id=$1",[p,'space_'+p]);await db.query("UPDATE project_settings SET goal='정책 구현',repository_url='https://github.com/acme/demo.git',base_branch='main',version=version+1 WHERE project_id=$1",[p]);await db.query("UPDATE project_settings SET repository_check=$2 WHERE project_id=$1",[p,{status:'ready',head_sha:BASE,credential_source:'nora'}]);return p;});
+  const legacyProvider=provider;
+  provider={...legacyProvider,async analyzeRisk(input){
+   const raw=await legacyProvider.analyzeRisk(input);
+   return {...raw,schema_version:input.snapshot.schema_version,temporary_decisions:raw.temporary_decisions||[],work_gaps:raw.work_gaps||[],risks:raw.risks.map((r,i)=>({id:r.id||'risk'+i,category:'business_rule',deferred_by:null,...r})),questions:raw.questions.map((q,i)=>({id:q.id||'question'+i,category:'business_rule',deferred_by:null,...q}))};
+  },async develop(input){
+   const raw=await legacyProvider.develop(input),report=raw.implementation_report||{completion:'complete',remaining_criteria:[],notes:[]};
+   const notes=report.notes.map(n=>({...n,question_ids:input.developmentContext.questions.map(q=>q.id),implemented_at:null,code_paths:n.kind==='temporary_decision'?['a']:[]}));
+   return {...raw,schema_version:'3.0',development_context_sha256:require('../server/context-contract').hash(input.developmentContext),implementation_report:{...report,contract_version:'3.0',notes,question_outcomes:input.developmentContext.questions.map(q=>({question_id:q.id,status:notes.some(n=>n.kind==='temporary_decision')?'temporary_implemented':notes.some(n=>n.kind==='work_gap')?'deferred':'not_applicable',note_ids:notes.map(n=>n.id),explanation:'합성 테스트에서 실제 반환한 구현 결과와 연결'}))}};
+  }};
   const service=A.createTaskAutomation({pool,provider});await service.saveSettings(p,users.owner,{expected_version:1,enabled:true,risk_flow_slug:null,development_flow_slug:'project-development',preview_origins:['https://preview.example.test'],uncertainty_mode:mode});
   const source=await ledger.createRecord(p,users.owner,{title:'정책서',document_category:category,text:policyText});
   const rev=(await pool.query('SELECT * FROM revisions WHERE id=$1',[source.revision_id])).rows[0];
@@ -107,17 +116,17 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
    if(name==='get_flow')return structuredClone(flows.get(args.slug));
    if(name==='run_flow'){
     riskCalls++;const request=args.variables.automation_request,input=request.snapshot,followup=!!input.feedback;
-    const output={schema_version:'2.0',project_id:input.project_id,request_id:input.request_id,input_sha256:request.input_sha256,risks:[],questions:followup?[]:[{id:'sort-question',category:'ui_behavior',question:'표시 순서는 무엇인가?',evidence:sourceEvidence,deferred_by:choice.id}],tasks:[{title:followup?'피드백 정렬 보완':'임시 정렬',description:followup?'구체적인 피드백을 별도 작업으로 구현':'가나다 순 임시 표시',acceptance_criteria:['정렬된 목록 표시'],evidence:sourceEvidence}],temporary_decisions:followup?[]:[{...choice,task_indexes:[0],issue_refs:[{kind:'question',id:'sort-question'}]}],work_gaps:[]};
+    const output={schema_version:input.schema_version,project_id:input.project_id,request_id:input.request_id,input_sha256:request.input_sha256,risks:[],questions:followup?[]:[{id:'sort-question',category:'ui_behavior',question:'표시 순서는 무엇인가?',evidence:sourceEvidence,deferred_by:choice.id}],tasks:[{title:followup?'피드백 정렬 보완':'임시 정렬',description:followup?'구체적인 피드백을 별도 작업으로 구현':'가나다 순 임시 표시',acceptance_criteria:['정렬된 목록 표시'],evidence:sourceEvidence}],temporary_decisions:followup?[]:[{...choice,task_indexes:[0],issue_refs:[{kind:'question',id:'sort-question'}]}],work_gaps:[]};
     const trace='trc_provisional_'+riskCalls;runs.set(trace,{traceId:trace,status:'completed',payload:{tenant_id:workspaceId,graph_slug:args.slug,flow_input:JSON.stringify(request),flow_output:JSON.stringify(output)}});
     return {status:'ok',rawStatus:'completed',traceId:trace,output:JSON.stringify(output)};
    }
    if(name==='get_trace')return runs.get(args.traceId);throw Error(name);
   }};
-  const actual=createNoraTaskProvider({pool,provider:transport,git:{}}),provider=remote({analyzeRisk:i=>actual.analyzeRisk(i),async develop(i){assert.equal(i.snapshot.implementation_notes.length,1);const raw=await remote().develop(i);return {...raw,schema_version:'2.0',implementation_report:{contract_version:'2.0',completion:'partial',remaining_criteria:['정렬된 목록 표시'],notes:[{...choice,id:'remaining-sort',kind:'work_gap',temporary_approach:null,title:'최종 정렬 적용 대기'}]}};}});
+  const actual=createNoraTaskProvider({pool,provider:transport,git:{}}),provider=remote({analyzeRisk:i=>actual.analyzeRisk(i),async develop(i){assert.equal(i.snapshot.implementation_notes.length,1);const raw=await remote().develop(i);return {...raw,schema_version:'2.0',implementation_report:{contract_version:'2.0',completion:'partial',remaining_criteria:['정렬된 목록 표시'],notes:[choice,{...choice,id:'remaining-sort',kind:'work_gap',temporary_approach:null,title:'최종 정렬 적용 대기'}]}};}});
   const f=await fixture({provider,mode:'provisional',policyText:'목록 정렬 기준은 미정이다.'}),first=await todo(f),notes=createImplementationNotes({pool});
-  const detail=await f.service.getTask(f.p,users.owner,first.id);assert.equal(detail.input_snapshot.schema_version,'2.0');assert.equal(detail.input_snapshot.implementation_notes.length,1);assert.equal(hash(detail.input_snapshot),detail.input_sha256);
-  let archived=await notes.list(f.p,users.owner,{automation_task_id:first.id});assert.equal(archived.notes.length,1);assert.equal(archived.notes[0].origin,'nora');assert.match(archived.notes[0].trace_id,/^trc_provisional_/);assert.equal(archived.notes[0].status,'open');
-  await f.service.transition(f.p,users.member,first.id,{status:'in_progress',expected_version:first.version});await f.worker.runOnce();const qa=await f.service.getTask(f.p,users.owner,first.id);assert.equal(qa.status,'qa');assert.equal(qa.artifact.implementation_report.completion,'partial');assert.equal(qa.artifact.implementation_report.remaining_criteria.length,1);
+  const detail=await f.service.getTask(f.p,users.owner,first.id);assert.equal(detail.input_snapshot.schema_version,'3.0');assert.equal(detail.input_snapshot.implementation_notes.length,1);assert.equal(hash(detail.input_snapshot),detail.input_sha256);
+  let archived=await notes.list(f.p,users.owner,{automation_task_id:first.id});assert.equal(archived.notes.length,0);assert.equal(detail.requires_provisional_confirmation,true);assert.equal((await f.service.startCheck(f.p,users.owner,first.id)).questions.length,1);
+  await f.service.transition(f.p,users.member,first.id,{status:'in_progress',expected_version:first.version,provisional_consent:{review_token:(await f.service.startCheck(f.p,users.member,first.id)).review_token}});await f.worker.runOnce();const qa=await f.service.getTask(f.p,users.owner,first.id);assert.equal(qa.status,'qa');assert.equal(qa.artifact.implementation_report.completion,'partial');assert.equal(qa.artifact.implementation_report.remaining_criteria.length,1);
   archived=await notes.list(f.p,users.owner,{automation_task_id:first.id});assert.equal(archived.notes.length,2);
   await f.service.approveMerge(f.p,users.owner,first.id,{expected_version:qa.version,head_sha:HEAD,note:'임시 표시와 미완료 정렬 범위를 확인했습니다.'});await f.worker.runOnce();assert.equal((await f.service.getTask(f.p,users.owner,first.id)).status,'done');
   assert.ok((await notes.list(f.p,users.owner,{automation_task_id:first.id})).notes.every(n=>n.status==='open'));
@@ -146,16 +155,18 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   const frozen=(await pool.query('SELECT input_snapshot FROM task_automation_analyses WHERE id=$1',[followup.id])).rows[0].input_snapshot;assert.equal(frozen.feedback.original_task.artifact,null);
   await f.worker.runOnce();const view=await f.service.overview(f.p,users.owner);assert.equal(view.tasks.length,2);assert.equal(view.tasks.find(t=>t.id===task.id).status,'blocked');assert.equal(view.tasks.find(t=>t.id!==task.id).status,'todo');
  });
- await t.test('blocked risk choices remain archived and archive failure rolls back all generated tasks',async()=>{
+ await t.test('blocked risk proposals never become implementation history and post-development archive conflicts stay atomic',async()=>{
   const {createImplementationNotes}=require('../server/implementation-notes'),evidence=[{segment_id:'s1',quote:'목록 정렬 기준은 미정이다.'}];
   const note={id:'choice1',kind:'temporary_decision',category:'ui_behavior',reversible:true,title:'임시 순서',uncertainty:'정렬 기준 미정',temporary_approach:'가나다 순',rationale:'화면 확인 가능',impact:'표시 순서 차이',replacement_condition:'피드백 후 변경',evidence,task_indexes:[0],issue_refs:[{kind:'question',id:'question1'}]};
   const make=blocked=>remote({async analyzeRisk(i){return {schema_version:'2.0',project_id:i.projectId,request_id:i.requestId,input_sha256:i.snapshotHash,trace_id:'trc_risk_synthetic12345',risks:[],questions:[{id:'question1',category:blocked?'authorization':'ui_behavior',question:blocked?'권한 범위는 무엇인가?':'정렬 기준은 무엇인가?',evidence,deferred_by:'choice1'}],temporary_decisions:[note],work_gaps:[],tasks:[{title:'목록',description:'목록 표시',acceptance_criteria:['목록 표시'],evidence}]};}});
   const blocked=await fixture({provider:make(true),mode:'provisional',policyText:'목록 정렬 기준은 미정이다.'});await blocked.worker.runOnce();const view=await blocked.service.overview(blocked.p,users.owner);assert.equal(view.tasks.length,0);assert.equal(view.analyses[0].status,'blocked');
-  const archived=(await pool.query('SELECT * FROM project_implementation_notes WHERE project_id=$1',[blocked.p])).rows;assert.equal(archived.length,1);assert.equal(archived[0].automation_task_id,null);assert.equal(archived[0].analysis_id,view.analyses[0].id);
-  const f=await fixture({provider:make(false),mode:'provisional',policyText:'목록 정렬 기준은 미정이다.'}),intake=(await pool.query('SELECT * FROM task_automation_intake WHERE project_id=$1',[f.p])).rows[0];
-  const analysis=await f.service.analyze(f.p,users.owner,{revision_id:f.source.revision_id,request_id:intake.request_id}),tid=A.stableId(analysis.id,'task','0'),noteId=A.stableId(analysis.id,tid,'risk-note','choice1');
-  await createImplementationNotes({pool}).create(f.p,users.owner,{...require('../../nora/task-automation/risk-flow-v2').noteSnapshot(note),request_id:noteId,source_revision_id:f.source.revision_id,analysis_id:analysis.id});
-  await f.worker.runOnce();const failed=await f.service.overview(f.p,users.owner);assert.equal(failed.tasks.length,0);assert.equal(failed.analyses[0].status,'failed');assert.equal((await pool.query("SELECT 1 FROM project_implementation_notes WHERE project_id=$1 AND origin='nora'",[f.p])).rowCount,0);
+  const archived=(await pool.query('SELECT * FROM project_implementation_notes WHERE project_id=$1',[blocked.p])).rows;assert.equal(archived.length,0);
+  const p=make(false);p.develop=async i=>({...await remote().develop(i),implementation_report:{contract_version:'2.0',completion:'complete',remaining_criteria:[],notes:[Object.fromEntries(Object.entries(note).filter(([k])=>!['task_indexes','issue_refs'].includes(k)))]}});
+  const f=await fixture({provider:p,mode:'provisional',policyText:'목록 정렬 기준은 미정이다.'}),task=await todo(f),check=await f.service.startCheck(f.p,users.owner,task.id);
+  await f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version,provisional_consent:{review_token:check.review_token}});
+  const job=(await pool.query("SELECT id FROM task_automation_jobs WHERE task_id=$1 AND kind='develop'",[task.id])).rows[0],noteId=A.stableId(job.id,task.id,'development-note','choice1');
+  await createImplementationNotes({pool}).create(f.p,users.owner,{...require('../../nora/task-automation/risk-flow-v2').noteSnapshot(note),request_id:noteId,source_revision_id:f.source.revision_id,analysis_id:task.analysis_id,automation_task_id:task.id});
+  await f.worker.runOnce();const failed=await f.service.getTask(f.p,users.owner,task.id);assert.equal(failed.execution_status,'failed');assert.equal(failed.artifact,null);assert.equal((await pool.query("SELECT 1 FROM project_implementation_notes WHERE project_id=$1 AND origin='nora'",[f.p])).rowCount,0);
  });
  await t.test('settings clients that omit uncertainty_mode preserve provisional mode',async()=>{
   const f=await fixture({mode:'provisional',category:'meeting'}),s=(await f.service.overview(f.p,users.owner)).settings;
@@ -171,4 +182,59 @@ test('policy automation creates reviewed drafts or tasks and merges only exact a
   await f.service.reconcileMerge(f.p,users.reviewer,r.id,{expected_version:unknown.version});await f.worker.runOnce();assert.equal((await f.service.getTask(f.p,users.owner,r.id)).status,'done');
  });
  await t.test('changed source settings prevent stale task execution and no provider call occurs',async()=>{const f=await fixture(),r=await todo(f),s=(await f.service.overview(f.p,users.owner)).settings;await f.service.saveSettings(f.p,users.owner,{expected_version:s.version,enabled:true,risk_flow_slug:null,development_flow_slug:'new-published-flow',preview_origins:s.preview_origins});await assert.rejects(f.service.transition(f.p,users.member,r.id,{expected_version:r.version,status:'in_progress'}),{code:'TASK_SOURCE_STALE'});assert.equal(calls.filter(c=>c[0]==='develop'&&c[1].taskId===r.id).length,0);});
+ await t.test('per-task consent is required even in legacy strict settings; cancellation queues nothing and confirmed retries dispatch once',async()=>{
+  const evidence=[{segment_id:'s1',quote:'목록 정렬 기준은 미정이다.'}],choice={id:'choice',kind:'temporary_decision',category:'ui_behavior',reversible:true,title:'목록 정렬',uncertainty:'정렬 기준 미정',temporary_approach:'가나다 순',rationale:'검토 가능한 목록 제공',impact:'목록 표시 순서',replacement_condition:'최종 정렬 기준 답변 수신',evidence};
+  const provider=remote({async analyzeRisk(i){return {schema_version:'3.0',project_id:i.projectId,request_id:i.requestId,input_sha256:i.snapshotHash,trace_id:'trc_risk_consent_synthetic',risks:[],questions:[{id:'sort-q',category:'ui_behavior',question:'어떤 순서로 정렬할까요?',evidence,deferred_by:'choice'}],temporary_decisions:[{...choice,task_indexes:[0],issue_refs:[{kind:'question',id:'sort-q'}]}],work_gaps:[],tasks:[{title:'목록 구현',description:'목록 구현',acceptance_criteria:['목록 표시'],evidence}]};},async develop(i){return {...await remote().develop(i),implementation_report:{completion:'complete',remaining_criteria:[],notes:[choice]}};}});
+  const f=await fixture({provider,mode:'strict',policyText:'목록 정렬 기준은 미정이다.'}),task=await todo(f);
+  const before=await f.service.startCheck(f.p,users.member,task.id);assert.equal(before.requires_confirmation,true);assert.equal(before.questions[0].status,'draft');assert.equal(task.requires_provisional_confirmation,true);
+  assert.equal((await pool.query('SELECT 1 FROM project_implementation_notes WHERE project_id=$1',[f.p])).rowCount,0);
+  await assert.rejects(f.service.transition(f.p,users.member,task.id,{status:'in_progress',expected_version:task.version}),{code:'TASK_PROVISIONAL_CONFIRMATION_REQUIRED'});
+  assert.equal((await pool.query("SELECT 1 FROM task_automation_jobs WHERE task_id=$1 AND kind='develop'",[task.id])).rowCount,0);
+  const body={status:'in_progress',expected_version:task.version,provisional_consent:{review_token:before.review_token}};
+  await Promise.all([f.service.transition(f.p,users.member,task.id,body),f.service.transition(f.p,users.member,task.id,body)]);
+  await assert.rejects(f.service.transition(f.p,users.owner,task.id,body),{code:'TASK_VERSION_CONFLICT'});
+  await f.worker.runOnce();const qa=await f.service.getTask(f.p,users.owner,task.id);assert.equal(qa.status,'qa');
+  assert.equal((await f.service.transition(f.p,users.member,task.id,body)).status,'qa','lost response can be replayed after execution without a duplicate job');
+  assert.equal((await pool.query("SELECT 1 FROM task_automation_jobs WHERE task_id=$1 AND kind='develop'",[task.id])).rowCount,1);
+  const note=(await pool.query('SELECT * FROM project_implementation_notes WHERE automation_task_id=$1',[task.id])).rows[0];
+  assert.equal(note.execution_context.questions[0].id,before.questions[0].id);assert.equal(note.execution_context.questions[0].status,'draft');assert.equal(note.execution_context.pr_url,qa.artifact.pr_url);assert.deepEqual(note.execution_context.code_paths,['a']);assert.equal(note.execution_context.implemented_at,null);assert.ok(note.created_at);assert.equal(note.execution_context.confirmed_by,users.member);
+  assert.equal((await pool.query('SELECT status FROM project_questions WHERE id=$1',[before.questions[0].id])).rows[0].status,'draft','temporary development does not resolve customer questions');
+  await assert.rejects(pool.query("UPDATE automation_tasks SET execution_context=execution_context||'{\"provisional_authorized\":false}'::jsonb WHERE id=$1",[task.id]),{code:'23514'});
+  await assert.rejects(pool.query("UPDATE project_implementation_notes SET execution_context='{}' WHERE id=$1",[note.id]),{code:'23514'});
+ });
+ await t.test('a changed customer answer invalidates the modal token and the accepted answer snapshot reaches development without marking it approved',async()=>{
+  const evidence=[{segment_id:'s1',quote:'목록 정렬 기준은 미정이다.'}],choice={id:'sort',kind:'temporary_decision',category:'ui_behavior',reversible:true,title:'정렬',uncertainty:'정렬 기준 미정',temporary_approach:'가나다 순',rationale:'목록 검토',impact:'표시 순서',replacement_condition:'답변 후 보완',evidence};
+  const provider=remote({async analyzeRisk(i){return {schema_version:'3.0',project_id:i.projectId,request_id:i.requestId,input_sha256:i.snapshotHash,trace_id:'trc_question_changed_synthetic',risks:[],questions:[{id:'q',category:'ui_behavior',question:'정렬 순서는?',evidence,deferred_by:'sort'}],temporary_decisions:[{...choice,task_indexes:[0],issue_refs:[{kind:'question',id:'q'}]}],work_gaps:[],tasks:[{title:'정렬',description:'정렬 구현',acceptance_criteria:['목록 표시'],evidence}]};},async develop(i){assert.equal(i.developmentContext.questions[0].answer.text,'최신순으로 정렬해 주세요.');assert.equal(i.developmentContext.questions[0].status,'answered_pending');return {...await remote().develop(i),implementation_report:{completion:'complete',remaining_criteria:[],notes:[choice]}};}});
+  const f=await fixture({provider,policyText:'목록 정렬 기준은 미정이다.'}),task=await todo(f),check=await f.service.startCheck(f.p,users.owner,task.id),q=check.questions[0],qservice=require('../server/question-ledger').createQuestionService(pool);
+  await qservice.markAsked(f.p,users.owner,q.id,{expected_version:q.version,asked_by:'담당자',asked_at:new Date(Date.now()-5000).toISOString(),note:'기존 고객 질문 발송 기록'});
+  await qservice.answer(f.p,users.owner,q.id,{expected_version:q.version+1,text:'최신순으로 정렬해 주세요.',responded_by:'고객',responded_at:new Date().toISOString(),channel:'메일',source_refs:[]});
+  await assert.rejects(f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version,provisional_consent:{review_token:check.review_token}}),{code:'TASK_PROVISIONAL_CONTEXT_CHANGED'});
+  const fresh=await f.service.startCheck(f.p,users.owner,task.id);assert.notEqual(fresh.review_token,check.review_token);assert.equal(fresh.questions[0].status,'answered_pending');
+  const other=await fixture({category:'meeting'});await assert.rejects(f.service.startCheck(other.p,users.owner,task.id),{code:'TASK_NOT_FOUND'});
+  await f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version,provisional_consent:{review_token:fresh.review_token}});await f.worker.runOnce();assert.equal((await f.service.getTask(f.p,users.owner,task.id)).status,'qa');
+  assert.equal((await qservice.get(f.p,users.owner,q.id)).status,'answered_pending');
+ });
+ await t.test('history-agent failure preserves the remote trace and never reruns development automatically',async()=>{
+  const f=await fixture({provider:remote({async develop(i){calls.push(['history-failure',i]);throw Object.assign(new Error('history failed after development'),{code:'NORA_DEVELOPMENT_REPORT_INVALID',trace_id:'trc_history_failure_synthetic'});}})}),task=await todo(f);
+  await f.service.transition(f.p,users.member,task.id,{status:'in_progress',expected_version:task.version});await f.worker.runOnce();
+  const current=await f.service.getTask(f.p,users.owner,task.id);assert.equal(current.execution_status,'uncertain');assert.equal(current.execution_trace_id,'trc_history_failure_synthetic');
+  await f.worker.runOnce();assert.equal(calls.filter(c=>c[0]==='history-failure'&&c[1].taskId===task.id).length,1);
+  assert.equal((await pool.query("SELECT trace_id FROM task_automation_jobs WHERE task_id=$1 AND kind='develop'",[task.id])).rows[0].trace_id,current.execution_trace_id);
+ });
+
+ await t.test('a verified code change with failing CI or no preview keeps its actual history but cannot enter QA or merge',async()=>{
+  const evidence=[{segment_id:'s1',quote:'목록 정렬 기준은 미정이다.'}],gap={id:'remaining',kind:'work_gap',category:'ui_behavior',reversible:true,title:'최종 정렬 검토',uncertainty:'표시 기준 미확정',temporary_approach:null,rationale:'결과 검토 대기',impact:'목록 표시',replacement_condition:'검토 후 보완',evidence};
+  const provider=remote({async analyzeRisk(i){return {schema_version:'3.0',project_id:i.projectId,request_id:i.requestId,input_sha256:i.snapshotHash,trace_id:'trc_review_pending_synthetic',risks:[],questions:[],temporary_decisions:[],work_gaps:[],tasks:[{title:'목록',description:'목록 구현',acceptance_criteria:['목록 표시'],evidence}]};},async develop(i){const raw=await remote().develop(i);return {...raw,artifact:{...raw.artifact,preview_url:null,checks:[{name:'unit',status:'failed'},{name:'웹 프리뷰 배포',status:'pending'}]},implementation_report:{completion:'partial',remaining_criteria:['목록 표시'],notes:[gap]}};}});
+  const f=await fixture({provider,policyText:'목록 정렬 기준은 미정이다.'}),task=await todo(f);await f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version});await f.worker.runOnce();
+  const blocked=await f.service.getTask(f.p,users.owner,task.id);assert.equal(blocked.status,'blocked');assert.equal(blocked.artifact.preview_url,null);assert.equal(blocked.artifact.pr_number,12);assert.equal((await pool.query('SELECT 1 FROM project_implementation_notes WHERE automation_task_id=$1',[task.id])).rowCount,1);
+  await assert.rejects(f.service.approveMerge(f.p,users.owner,task.id,{expected_version:blocked.version,head_sha:HEAD,note:'미검증 결과 병합 시도'}),{code:'TASK_REVIEW_STALE'});
+ });
+
+ await t.test('context changes during development block approval but do not discard the verified PR and execution history',async()=>{
+  const provider=remote({async develop(i){await pool.query("UPDATE project_settings SET goal='개발 중 갱신된 프로젝트 목표',version=version+1,repository_check=NULL WHERE project_id=$1",[i.projectId]);return remote().develop(i);}}),f=await fixture({provider}),task=await todo(f);
+  await f.service.transition(f.p,users.owner,task.id,{status:'in_progress',expected_version:task.version});await f.worker.runOnce();
+  const current=await f.service.getTask(f.p,users.owner,task.id);assert.equal(current.status,'blocked',JSON.stringify({status:current.status,execution_status:current.execution_status,error_code:current.error_code}));assert.equal(current.error_code,'TASK_SOURCE_STALE');assert.equal(current.artifact.pr_number,12);assert.ok(current.execution_context.confirmed_at);assert.equal(current.execution_trace_id,'trc_develop_synthetic123');
+  await assert.rejects(f.service.approveMerge(f.p,users.owner,task.id,{expected_version:current.version,head_sha:HEAD,note:'변경 전 근거로 생성된 PR'}),{code:'TASK_MERGE_UNAVAILABLE'});
+ });
+
 });

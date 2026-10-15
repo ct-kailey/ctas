@@ -24,6 +24,30 @@ export function automationBlockerLabel(value) {
 export function automationPermissions(role, sharedView) {
   return { canWrite: !sharedView && ['owner', 'reviewer', 'member'].includes(role), canReview: !sharedView && ['owner', 'reviewer'].includes(role), canConfigure: !sharedView && role === 'owner' };
 }
+export function automationCanStart(task, permissions, capabilities) {
+  return Boolean(task?.status === 'todo' && task?.execution_status === 'idle' && permissions?.canWrite === true && capabilities?.development === true);
+}
+
+export function automationStartCheck(value, taskId) {
+  if (!value || value.task_id !== taskId || !Number.isSafeInteger(value.task_version) || value.task_version < 1 || typeof value.requires_confirmation !== 'boolean' ||
+      (value.requires_confirmation && !/^[a-f0-9]{64}$/i.test(value.review_token || ''))) {
+    throw new Error('개발 시작 전 확인 정보를 읽지 못했습니다. 작업 목록을 새로고침한 뒤 다시 시도해 주세요.');
+  }
+  return { ...value, questions: Array.isArray(value.questions) ? value.questions : [], temporary_decisions: Array.isArray(value.temporary_decisions) ? value.temporary_decisions : [], work_gaps: Array.isArray(value.work_gaps) ? value.work_gaps : [] };
+}
+
+// Both the board move and detail action use this sequence. A read or a cancelled
+// confirmation never mutates the task; changed evidence must be confirmed anew.
+export async function startAutomationTask({ request, taskPath, taskId, confirm, isActive = () => true, signal }) {
+  const check = automationStartCheck(await request(`${taskPath}/start-check`, { signal }), taskId);
+  if (!isActive()) return { status: 'cancelled' };
+  if (check.requires_confirmation && !await confirm(check)) return { status: 'cancelled' };
+  if (!isActive()) return { status: 'cancelled' };
+  const body = { status: 'in_progress', expected_version: check.task_version };
+  if (check.requires_confirmation) body.provisional_consent = { review_token: check.review_token };
+  const result = await request(taskPath, { method: 'PATCH', body });
+  return { status: 'started', result };
+}
 export function automationColumn(task) {
   return AUTOMATION_COLUMNS.some(([id]) => id === task.status) ? task.status : 'blocked';
 }

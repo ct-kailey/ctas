@@ -90,3 +90,34 @@ test('concurrent feedback resets paginated history before a new note version can
   assert.throws(() => mergeImplementationNoteHistory(first, { ...next, history_offset: 1 }, true));
   assert.throws(() => mergeImplementationNoteHistory(first, { ...next, history: [], history_has_more: true }, true));
 });
+
+test('automatic development history distinguishes the actual implementation time from the later saved record', async () => {
+  const { implementationExecutionView } = await state();
+  const note = { origin: 'nora', created_at: '2026-10-15T05:00:00Z', execution_context: { contract_version: '1.0', confirmed_at: '2026-10-15T04:00:00Z', implemented_at: '2026-10-15T04:50:00Z', question_ids: [uuid(1)], questions: [{ id: uuid(1), question: '한도는?', answer: '10건', status: 'answered' }, { id: uuid(2), question: '다른 작업의 질문' }], question_outcomes: [{ question_id: uuid(1), status: 'answered_applied', explanation: '받은 답변의 10건 한도를 적용함' }], code_paths: ['src/limit.js'], head_sha: 'a'.repeat(40), pr_url: 'https://github.com/ct-kailey/ctas/pull/42' } };
+  const view = implementationExecutionView(note);
+  assert.equal(view.implementedAt, '2026-10-15T04:50:00Z');
+  assert.equal(view.recordedAt, note.created_at);
+  assert.equal(view.developmentCompletedAt, null);
+  const traced = implementationExecutionView({ ...note, execution_context: { ...note.execution_context, implemented_at: null, development_completed_at: '2026-10-15T04:55:00Z' } });
+  assert.equal(traced.developmentCompletedAt, '2026-10-15T04:55:00Z');
+  assert.equal(traced.implementedAt, null);
+  assert.equal(traced.recordedAt, '2026-10-15T05:00:00Z');
+  assert.equal(implementationExecutionView({ ...note, execution_context: { ...note.execution_context, development_completed_at: 'unverified' } }).developmentCompletedAt, null);
+  assert.equal(view.questions.length, 1);
+  assert.equal(view.questions[0].answer, '10건');
+  assert.equal(view.questions[0].outcomeLabel, '받은 답변 반영');
+  assert.equal(view.prUrl, 'https://github.com/ct-kailey/ctas/pull/42');
+  assert.deepEqual(view.codePaths, ['src/limit.js']);
+  assert.equal(implementationExecutionView({ ...note, execution_context: { ...note.execution_context, implemented_at: null } }).implementedAt, null);
+  assert.equal(implementationExecutionView({ ...note, execution_context: { ...note.execution_context, implemented_at: 'unverified' } }).implementedAt, null);
+  assert.equal(implementationExecutionView({ ...note, origin: 'manual' }), null);
+  assert.equal(implementationExecutionView({ ...note, execution_context: null }), null);
+});
+
+test('shared history omits code and external PR links, and invalid PR URLs are never rendered', async () => {
+  const { implementationExecutionView } = await state();
+  const note = { origin: 'nora', created_at: '2026-10-15T05:00:00Z', execution_context: { contract_version: '1.0', code_paths: ['src/private.js'], head_sha: 'a'.repeat(40), pr_url: 'https://github.com/ct-kailey/ctas/pull/42', question_ids: [], questions: [] } };
+  const shared = implementationExecutionView(note, true);
+  assert.equal(shared.prUrl, null); assert.equal(shared.headSha, null); assert.deepEqual(shared.codePaths, []);
+  for (const pr_url of ['javascript:alert(1)', 'https://github.com.evil.test/ct-kailey/ctas/pull/42', 'https://user@github.com/ct-kailey/ctas/pull/42', 'http://github.com/ct-kailey/ctas/pull/42', 'https://github.com/ct-kailey/ctas/issues/42', 'https://github.com/ct-kailey/ctas/pull/42?token=secret']) assert.equal(implementationExecutionView({ ...note, execution_context: { ...note.execution_context, pr_url } }).prUrl, null);
+});

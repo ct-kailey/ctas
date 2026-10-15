@@ -37,13 +37,13 @@ test('task automation HTTP preserves role, project, shared-view and exact-commit
     async capabilities() { return { risk_analysis: true, development: true, merge: true, blockers: [] }; },
     async analyzeRisk(input) {
       calls.push(['risk', input]);
-      return { schema_version: '1.0', project_id: input.projectId, request_id: input.requestId, input_sha256: input.snapshotHash,
+      return { schema_version: '3.0', temporary_decisions:[],work_gaps:[], project_id: input.projectId, request_id: input.requestId, input_sha256: input.snapshotHash,
         trace_id: 'trc_http_risk_synthetic', risks: [], questions: [], tasks: [{ title: '정책 구현', description: '승인 조건 구현',
           acceptance_criteria: ['승인 조건 검증'], evidence: [{ segment_id: 's1', quote: '승인 조건' }] }] };
     },
     async develop(input) {
       calls.push(['develop', input]);
-      return { schema_version: '1.0', project_id: input.projectId, task_id: input.taskId, input_sha256: input.snapshotHash,
+      return { schema_version: '3.0',development_context_sha256:require('../server/context-contract').hash(input.developmentContext),implementation_report:{contract_version:'3.0',completion:'complete',remaining_criteria:[],notes:[],question_outcomes:[]}, project_id: input.projectId, task_id: input.taskId, input_sha256: input.snapshotHash,
         trace_id: 'trc_http_development_synthetic', artifact: { pr_number: 12, pr_url: 'https://github.com/acme/demo/pull/12',
           head_sha: HEAD, base_sha: BASE, target_branch: 'main', preview_url: 'https://preview.example.test/build/12',
           diff: 'diff --git a/policy b/policy\n+approved policy', checks: [{ name: 'policy test', status: 'passed' }] } };
@@ -118,6 +118,8 @@ test('task automation HTTP preserves role, project, shared-view and exact-commit
     assert.equal(overview.tasks.length, 1);
     task = overview.tasks[0];
     assert.equal(task.status, 'todo');
+    const check=await request(path+'/tasks/'+task.id+'/start-check',{as:'viewer'});assert.equal(check.task_id,task.id);assert.equal(check.requires_confirmation,false);
+    await request(otherPath+'/tasks/'+task.id+'/start-check',{status:404,code:'TASK_NOT_FOUND'});
     assert.equal(task.input_snapshot, undefined);
     assert.equal(calls.filter(c => c[0] === 'risk').length, 1);
     await request(otherPath + '/tasks/' + task.id, { status: 404, code: 'TASK_NOT_FOUND' });

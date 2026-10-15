@@ -111,22 +111,22 @@ async function history(db, p, u, note, requestId, fingerprint, kind, detail) {
     [p, u, 'implementation_note.' + kind, note.id, { request_id: requestId, note_kind: note.kind, title: note.title, version: kind === 'created' ? 1 : note.version + 1 }]);
   return { note: publicNote(await getNote(db, p, note.id)), replayed: false };
 }
-async function insertNote(db, { projectId: p, actorId: u, input, origin, traceId }) {
-  const fingerprint = hash({ input, origin, trace_id: traceId });
+async function insertNote(db, { projectId: p, actorId: u, input, origin, traceId, executionContext = null }) {
+  const fingerprint = hash({ input, origin, trace_id: traceId, ...(executionContext?{execution_context:executionContext}:{}) });
   const prior = await replay(db, p, u, input.request_id, fingerprint);
   if (prior) return prior;
   const revision = await source(db, p, input.source_revision_id), evidence = validateEvidence(revision, input.evidence);
   const analysisId = await linkedRecords(db, p, input, revision.id);
   const row = (await db.query(`INSERT INTO project_implementation_notes(id,project_id,kind,origin,trace_id,title,uncertainty,temporary_approach,rationale,impact,replacement_condition,evidence,
-    source_revision_id,source_document_id,source_sha256,source_title,automation_task_id,task_draft_id,analysis_id,request_sha256,created_by)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING *`,
+    source_revision_id,source_document_id,source_sha256,source_title,automation_task_id,task_draft_id,analysis_id,request_sha256,created_by,execution_context)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22) RETURNING *`,
   [input.request_id,p,input.kind,origin,traceId,input.title,input.uncertainty,input.temporary_approach,input.rationale,input.impact,input.replacement_condition,JSON.stringify(evidence),
-    revision.id,revision.document_id,revision.sha256,revision.title,input.automation_task_id,input.task_draft_id,analysisId,fingerprint,u])).rows[0];
-  return history(db,p,u,row,input.request_id,fingerprint,'created',{ origin, trace_id: traceId, source_revision_id: revision.id, source_sha256: revision.sha256 });
+    revision.id,revision.document_id,revision.sha256,revision.title,input.automation_task_id,input.task_draft_id,analysisId,fingerprint,u,executionContext])).rows[0];
+  return history(db,p,u,row,input.request_id,fingerprint,'created',{ origin, trace_id: traceId, source_revision_id: revision.id, source_sha256: revision.sha256, ...(executionContext?{execution_context:executionContext}:{}) });
 }
 
 // These helpers join the caller's transaction; they never contact Nora or dispatch work.
-async function appendNoraNotes(db, { projectId, actorId, sourceRevisionId, analysisId = null, notes, traceId }) {
+async function appendNoraNotes(db, { projectId, actorId, sourceRevisionId, analysisId = null, notes, traceId, executionContexts = {} }) {
   if (typeof traceId !== 'string' || !/^trc_[A-Za-z0-9_-]{1,200}$/.test(traceId)) fail('IMPLEMENTATION_NOTE_TRACE_REQUIRED', '실제 Nora 실행 추적 ID가 필요합니다.');
   if (!Array.isArray(notes) || notes.length > 100) fail('IMPLEMENTATION_NOTE_INPUT_INVALID', '한 분석의 기록은 100개 이하여야 합니다.');
   const inputs = notes.map(note => parseNote({ ...note, source_revision_id: sourceRevisionId, analysis_id: note.analysis_id ?? analysisId }));
@@ -135,7 +135,7 @@ async function appendNoraNotes(db, { projectId, actorId, sourceRevisionId, analy
   // Global ordering avoids deadlocks when two workers retry the same note set.
   for (const requestId of inputs.map(n => n.request_id).sort()) await requestLock(db, requestId);
   const results = [];
-  for (const input of inputs) results.push(await insertNote(db, { projectId, actorId, input, origin: 'nora', traceId }));
+  for (const input of inputs) results.push(await insertNote(db, { projectId, actorId, input, origin: 'nora', traceId, executionContext: executionContexts[input.request_id] || null }));
   return results.map(r => ({ ...r.note, replayed: r.replayed }));
 }
 function assertVersion(row, expectedVersion) {

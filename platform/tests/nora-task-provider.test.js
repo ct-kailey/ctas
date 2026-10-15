@@ -4,18 +4,33 @@ const assert=require('node:assert/strict');
 const {createNoraTaskProvider,defaultSlug}=require('../server/nora-task-provider');
 const {buildRiskFlow}=require('../../nora/task-automation/risk-flow');
 const PROJECT='project_fixture',WORKSPACE='t_fixture_workspace',SPACE='space_fixture',HASH='a'.repeat(64),BASE='b'.repeat(40),HEAD='c'.repeat(40),MERGE='d'.repeat(40),TRACE='trc_fixture12345678';
+test('v3 risk is generated independently and v3 development sends the backend-confirmed question snapshot',async()=>{
+ const f=fixture({v3:true}),risk=await f.service.analyzeRisk(f.input);assert.equal(risk.schema_version,'3.0');assert.ok(f.flows.has(defaultSlug(PROJECT,'3')));
+ const result=await f.service.develop(f.input);assert.equal(result.schema_version,'3.0');assert.deepEqual(result.artifact.changed_files,['src/app.js']);
+ const request=f.calls.findLast(c=>c.name==='run_flow').arguments.variables.automation_request;assert.deepEqual(request.development_context,f.input.developmentContext);assert.equal(request.development_context_sha256,require('../server/context-contract').hash(f.input.developmentContext));assert.equal(result.implementation_report.contract_version,'3.0');
+});
+test('v3 requires a sequential tool-free history agent and preserves exact confirmed question identity',async()=>{
+ const changed=fixture({v3:true,output:r=>{r.development_context_sha256='e'.repeat(64);}});await assert.rejects(changed.service.develop(changed.input),{code:'NORA_DEVELOPMENT_CONTEXT_MISMATCH',noSideEffects:false,trace_id:TRACE});assert.equal(changed.invocations.some(i=>i.operation==='get_pull_request'),false);
+ for(const customDevelopment of [f=>f.payload.agents[1].requiresApproval=true,f=>f.payload.agents[1].retry.rules[0].action.target={fromNode:f.payload.agents[0].id},f=>f.payload.edges=[]]){const f=fixture({v3:true,customDevelopment});await assert.rejects(f.service.develop(f.input));assert.equal(f.calls.some(c=>c.name==='run_flow'),false);}
+});
+test('v3 retains actual code and history when CI fails or preview is not ready; merge still requires both',async()=>{
+ const f=fixture({v3:true,gitResult:(op,v)=>{if(op==='list_check_runs')v.check_runs[0].conclusion='failure';if(op==='list_deployments')v.splice(0);}});
+ const result=await f.service.develop(f.input);assert.equal(result.artifact.preview_url,null);assert.ok(result.artifact.checks.some(c=>c.status==='failed'));assert.ok(result.artifact.checks.some(c=>c.name==='웹 프리뷰 배포'&&c.status==='pending'));assert.equal(result.implementation_report.contract_version,'3.0');assert.ok(result.artifact.diff);
+ await assert.rejects(f.service.merge({...f.input,artifact:result.artifact}),{code:'NORA_TASK_CHECKS_PENDING'});assert.equal(f.invocations.filter(i=>i.operation==='merge_pull_request').length,0);
+});
 function fixture(options={}){
   const snapshot={schema_version:'1.0',project_id:PROJECT,request_id:'request_fixture',source:{revision_id:'revision_fixture',document_id:'document_fixture',title:'원문',category:'specification',sha256:'e'.repeat(64),segments:[{segment_id:'seg-1',requirement_key:null,text:'이메일 로그인 기능을 제공한다.',locator:{kind:'text',label:'본문'},extraction_status:'ok'}]},context:{version:0,records:[]},project:{name:'합성 프로젝트',goal:'이메일 로그인',settings_version:1},repository:{url:'https://github.com/acme/demo',base_branch:'main',head_sha:BASE},nora:{workspace_id:WORKSPACE},automation:{settings_version:1,risk_flow_slug:null,development_flow_slug:'development-flow',preview_origins:['https://preview.example']}};
-  if(options.v2){snapshot.schema_version='2.0';snapshot.automation.uncertainty_mode='provisional';snapshot.feedback=null;snapshot.implementation_notes=[];}
+  if(options.v2||options.v3){snapshot.schema_version=options.v3?'3.0':'2.0';snapshot.automation.uncertainty_mode=options.v3?'per_task':'provisional';snapshot.feedback=null;snapshot.implementation_notes=[];}
   const input={projectId:PROJECT,workspaceId:WORKSPACE,snapshot,snapshotHash:HASH,settings:{...snapshot.automation},taskId:'task_fixture',task:{title:'이메일 로그인'},expectedHeadSha:HEAD,targetBranch:'main'};
+  if(options.v3){input.developmentContext={contract_version:'1.0',provisional_authorized:false,confirmed_at:new Date().toISOString(),questions:[]};input.task.acceptance_criteria=['이메일 로그인이 가능하다.'];}
   const artifact={pr_number:1,head_sha:HEAD,base_sha:BASE,preview_url:'https://preview.example/app'};input.artifact=artifact;
   const riskResult={schema_version:'1.0',project_id:PROJECT,request_id:snapshot.request_id,input_sha256:HASH,risks:[],questions:[],tasks:[{title:'이메일 로그인',description:'이메일 로그인 기능 제공',acceptance_criteria:['이메일 로그인이 가능하다.'],evidence:[{segment_id:'seg-1',quote:'이메일 로그인 기능을 제공한다.'}]}]};
-  if(options.v2){riskResult.schema_version='2.0';riskResult.temporary_decisions=[];riskResult.work_gaps=[];}
+  if(options.v2||options.v3){riskResult.schema_version=options.v3?'3.0':'2.0';riskResult.temporary_decisions=[];riskResult.work_gaps=[];}
   const row={project_id:PROJECT,workspace_id:WORKSPACE,space_id:SPACE,connector_id:'connector_fixture',status:'ready',version:1};
   const pool={query:async(sql,args)=>{assert.ok(sql.includes('project_nora_workspaces'));assert.equal(args[0],PROJECT);return {rows:[row]};}};
   const calls=[],invocations=[],flows=new Map();let raw,request,merged=false;
   function fullFlow(slug){return {id:slug,payload:buildRiskFlow({projectId:PROJECT,spaceId:SPACE,slug}).payload,publishState:{publishedVersionId:'version-1',hasUnpublishedChanges:false}};}
-  const dev=fullFlow('development-flow');Object.assign(dev.payload.meta,{ains_repository_url:'https://github.com/acme/demo.git',ains_default_branch:'main'});options.customDevelopment?.(dev);flows.set('development-flow',dev);
+  const dev=fullFlow('development-flow');if(options.v3)dev.payload=require('../../nora/task-automation/development-flow').buildDevelopmentFlow({projectId:PROJECT,repositoryUrl:'https://github.com/acme/demo',baseBranch:'main',connectorId:'connector_fixture',slug:'development-flow',operations:[]}).payload;Object.assign(dev.payload.meta,{ains_repository_url:'https://github.com/acme/demo.git',ains_default_branch:'main'});options.customDevelopment?.(dev);flows.set('development-flow',dev);
   if(options.customRisk){input.settings.risk_flow_slug='custom-risk';const full=fullFlow('custom-risk');options.customRisk(full);flows.set('custom-risk',full);}
   const provider={callTool:async call=>{
     assert.equal(call.projectId,PROJECT);assert.equal(call.workspaceId,WORKSPACE);calls.push(call);
@@ -27,9 +42,10 @@ function fixture(options={}){
     if(name==='run_flow'){
       request=args.variables.automation_request;assert.equal(args.input,JSON.stringify(request));assert.equal(args.test,false);
       const output=args.slug==='development-flow'?{project_id:PROJECT,task_id:input.taskId,input_sha256:HASH,artifact:structuredClone(artifact)}:structuredClone(riskResult);
-      options.output?.(output);raw={status:'ok',rawStatus:'completed',traceId:TRACE,output:JSON.stringify(output)};return raw;
+      if(options.v3&&args.slug==='development-flow')Object.assign(output,{schema_version:'3.0',development_context_sha256:require('../server/context-contract').hash(input.developmentContext),implementation_report:{contract_version:'3.0',completion:'complete',notes:[],remaining_criteria:[],question_outcomes:[]}});
+      options.output?.(output);raw={status:'ok',rawStatus:'completed',traceId:TRACE,output:JSON.stringify(output)};return options.flowEnvelope?{kind:'flowRun',ok:!options.badEnvelope,status:options.badEnvelope?'failed':'ok',slug:args.slug,run:raw}:raw;
     }
-    if(name==='get_trace'){const trace={traceId:TRACE,status:'completed',payload:{tenant_id:WORKSPACE,graph_slug:calls.findLast(c=>c.name==='run_flow').arguments.slug,flow_input:JSON.stringify(request),flow_output:raw.output}};options.trace?.(trace);return trace;}
+    if(name==='get_trace'){const trace={traceId:TRACE,status:'completed',payload:{tenant_id:WORKSPACE,graph_slug:calls.findLast(c=>c.name==='run_flow').arguments.slug,flow_input:JSON.stringify(request),flow_output:raw.output}};if(options.v3&&trace.payload.graph_slug==='development-flow'){const [dev,history]=flows.get('development-flow').payload.agents,final=JSON.parse(raw.output),journal={...structuredClone(final),development_journal:structuredClone(final.implementation_report)};delete journal.implementation_report;options.journal?.(journal);const at=new Date(Date.now()-1000).toISOString();trace.payload.nodes={[dev.id]:{id:dev.id,kind:'agent',status:'completed',started_at:at,completed_at:at,result:JSON.stringify(journal)},[history.id]:{id:history.id,kind:'agent',status:'completed',parent_node_id:dev.id,started_at:at,result:raw.output,tool_calls:[]}};}options.trace?.(trace);return trace;}
     throw new Error('Unexpected tool '+name);
   }};
   const operationParams={apply_task_patch:['task_id','expected_base_sha','patch'],get_pull_request:['pull_number'],list_check_runs:['ref'],list_deployments:['sha'],list_deployment_statuses:['deployment_id'],compare:['base','head'],merge_pull_request:['pull_number','sha','expected_base_sha','merge_method']};
@@ -145,4 +161,21 @@ test('verified completed v2 trace may report blocked work without fabricating a 
  const f=fixture({v2:true,customDevelopment:f=>{f.payload.meta.ains_task_contract_version='2';},output:r=>{r.schema_version='2.0';r.artifact=null;r.implementation_report={contract_version:'2.0',completion:'blocked',remaining_criteria:[],notes:[{id:'gap1',kind:'work_gap',category:'ui_behavior',reversible:true,title:'화면 미완료',uncertainty:'화면 선택 필요',temporary_approach:null,rationale:'표시 형식 확인',impact:'화면 일부 미완료',replacement_condition:'표시 형식 확정',evidence:[{segment_id:'seg-1',quote:'이메일 로그인 기능을 제공한다.'}]}]};}});
  const result=await f.service.develop(f.input);assert.equal(result.artifact,null);assert.equal(result.trace_id,TRACE);assert.equal(result.implementation_report.completion,'blocked');assert.equal(f.invocations.length,0);
  const partial=fixture({v2:true,customDevelopment:f=>{f.payload.meta.ains_task_contract_version='2';},output:r=>{r.schema_version='2.0';r.artifact=null;r.implementation_report={contract_version:'2.0',completion:'complete',remaining_criteria:[],notes:[]};}});await assert.rejects(partial.service.develop(partial.input),{code:'NORA_TASK_ARTIFACT_INVALID'});
+});
+
+test('v3 verifies actual sequential developer and history trace rather than trusting the last model output',async()=>{
+ for(const trace of [t=>{delete t.payload.nodes;},t=>{Object.values(t.payload.nodes)[1].parent_node_id='other';},t=>{Object.values(t.payload.nodes)[1].tool_calls=[{name:'write'}];},t=>{Object.values(t.payload.nodes)[0].completed_at='2100-01-01T00:00:00Z';}]){const f=fixture({v3:true,trace});await assert.rejects(f.service.develop(f.input),{code:'NORA_DEVELOPMENT_HISTORY_TRACE_INVALID',trace_id:TRACE,noSideEffects:false});}
+ for(const journal of [j=>{j.artifact.head_sha='e'.repeat(40);},j=>{j.development_journal.completion='blocked';},j=>{j.development_journal.remaining_criteria=['이메일 로그인이 가능하다.'];}]){const f=fixture({v3:true,journal});await assert.rejects(f.service.develop(f.input),{code:'NORA_DEVELOPMENT_HISTORY_CHANGED',trace_id:TRACE,noSideEffects:false});}
+ const f=fixture({v3:true});assert.ok(Date.parse((await f.service.develop(f.input)).development_completed_at));
+});
+test('new task capabilities require v3 even if old project setting says strict',async()=>{
+ const f=fixture();f.input.developmentContractVersion='3';f.input.settings.uncertainty_mode='strict';const c=await f.service.capabilities(f.input);assert.equal(c.development,false);assert.ok(c.blockers.some(b=>b.code==='NORA_DEVELOPMENT_NOTES_CONTRACT_REQUIRED'));
+});
+
+test('current Nora flowRun envelope and server-fixed execution variables are handled',async()=>{
+ const f=fixture({v3:true,flowEnvelope:true});await f.service.develop(f.input);const vars=f.calls.find(c=>c.name==='run_flow').arguments.variables;assert.equal(vars.execution_task_id,f.input.taskId);assert.equal(vars.execution_base_sha,BASE);assert.equal(vars.execution_task_branch,'ains/task/'+f.input.taskId);assert.equal(vars.execution_base_branch,'main');
+ const bad=fixture({v3:true,flowEnvelope:true,badEnvelope:true});await assert.rejects(bad.service.develop(bad.input),{code:'NORA_TASK_RUN_INCOMPLETE',trace_id:TRACE,noSideEffects:false});
+});
+test('v3 writing tools must fix task and base scope to declared server variables',async()=>{
+ for(const change of [t=>t.params.find(p=>p.name==='task_id').source='llm',t=>t.params.find(p=>p.name==='expected_base_sha').fixedValue='another-sha']){const f=fixture({v3:true,customDevelopment:flow=>{const p=require('../../nora/task-automation/development-flow').buildDevelopmentFlow({projectId:PROJECT,repositoryUrl:'https://github.com/acme/demo',baseBranch:'main',connectorId:'connector_fixture',slug:'development-flow',operations:[{id:'apply_task_patch',params:['repo','task_id','expected_base_sha','patch']}]}).payload;change(p.toolBlocks[0]);flow.payload=p;}});await assert.rejects(f.service.develop(f.input),{code:'NORA_DEVELOPMENT_FLOW_SCOPE_REQUIRED',noSideEffects:true});assert.equal(f.calls.some(c=>c.name==='run_flow'),false);}
 });

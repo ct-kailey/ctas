@@ -3,7 +3,8 @@ import { ArrowRight, ExternalLink, GitMerge, RefreshCw, ShieldCheck, Sparkles } 
 import { Badge, Button, ControlButton, Disclosure, ErrorNotice, FormField, Input, Modal, Notice, Select, Spinner, Textarea, dateTime, projectPath } from './ui.jsx';
 import { useSharedView } from './shared-view.jsx';
 import { useConfirm } from './confirmation.jsx';
-import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationBlockerLabel, automationColumn, automationExecutionLabel, automationMergeReadiness, automationPermissions, automationPreviewUrl, automationUncertaintyMode, parsePreviewOrigins } from './task-automation-state.mjs';
+import { Modal as CTDSModal } from './components/ctds/Modal/Modal';
+import { AUTOMATION_COLUMNS, RISK_STATES, automationActive, automationBlockerLabel, automationCanStart, automationColumn, automationExecutionLabel, automationMergeReadiness, automationPermissions, automationPreviewUrl, automationUncertaintyMode, parsePreviewOrigins, startAutomationTask } from './task-automation-state.mjs';
 import { retainProjectRequest } from './nora-workspace-state.mjs';
 import { mergeTaskDraftPage, taskDraftSourceUrl } from './task-draft-state.mjs';
 import { ImplementationNotesPanel, RelatedImplementationNotes } from './implementation-notes.jsx';
@@ -54,7 +55,7 @@ function useTaskDrafts(path, request) {
 function CapabilityNotice({ capabilities, onSettings }) {
   const blockers = capabilities?.blockers || [];
   if (!blockers.length) return null;
-  return <Notice tone="warning" title="자동 작업 연결을 확인해 주세요"><ul>{blockers.map((value, index) => <li key={index}>{automationBlockerLabel(value)}</li>)}</ul>{onSettings ? <Button type="button" variant="secondary" onClick={onSettings}>프로젝트 연결 설정</Button> : null}</Notice>;
+  return <Notice tone="warning" title="자동 작업 연결을 확인해 주세요" actions={onSettings ? <Button type="button" variant="secondary" onClick={onSettings}>프로젝트 연결 설정</Button> : null}><ul className="ains-prose-list">{blockers.map((value, index) => <li key={index}>{automationBlockerLabel(value)}</li>)}</ul></Notice>;
 }
 
 function IntakeNotice({ items = [] }) {
@@ -67,7 +68,7 @@ function RiskAnalysis({ analysis, taskCount, onQuestions }) {
   const risks = analysis.risks || [];
   return <article className="task-auto-analysis"><header><Badge tone={analysis.status === 'blocked' ? 'amber' : analysis.status === 'completed' ? 'green' : 'quiet'}>{RISK_STATES[analysis.status] || '상태 확인 필요'}</Badge><strong>{analysis.title || analysis.document_title || '정책 문서 분석'}</strong><time>{dateTime(analysis.created_at)}</time></header>
     {analysis.summary ? <p className="task-auto-help">{analysis.summary}</p> : null}
-    {analysis.uncertainty_mode === 'provisional' ? <p className="task-auto-help">임시 구현 허용 분석 · 임시 구현 기록 {analysis.temporary_decisions?.length || 0}개 · 작업 공백 {analysis.work_gaps?.length || 0}개. 아래 기록 영역에서 선택의 이유와 보완 조건을 검토하세요.</p> : null}
+    {analysis.temporary_decisions?.length || analysis.work_gaps?.length ? <p className="task-auto-help">확인할 구현 내용 {analysis.temporary_decisions?.length || 0}개 · 예상 작업 공백 {analysis.work_gaps?.length || 0}개. 실제 임시 구현 이력은 AI 개발 후 자동으로 기록합니다.</p> : null}
     {analysis.feedback?.note_id ? <p className="task-auto-help">사람의 피드백에 따른 보완 분석입니다. 기존 작업 상태는 보존됩니다.</p> : null}
     {risks.length ? <ul className="task-auto-risks">{risks.map((risk, index) => <li key={risk.id || index}><strong>{risk.title || risk.question || '확인할 위험'}</strong>{risk.description || risk.reason || risk.message ? <p>{risk.description || risk.reason || risk.message}</p> : null}{risk.blocking || risk.severity === 'blocking' ? <Badge tone="amber">고객 확인 필요</Badge> : null}</li>)}</ul> : analysis.status === 'completed' ? <p className="task-auto-help">차단 위험 없이 분석을 마쳤습니다. 연결된 작업 {taskCount}개를 확인하세요.</p> : null}
     {analysis.question_ids?.length ? <><p className="task-auto-help">고객에게 확인할 질문 초안 {analysis.question_ids.length}개가 등록되었습니다. 내용을 검토해 전달하세요.</p>{onQuestions ? <Button type="button" variant="secondary" onClick={onQuestions}>고객 질문 확인</Button> : null}</> : null}
@@ -75,22 +76,67 @@ function RiskAnalysis({ analysis, taskCount, onQuestions }) {
   </article>;
 }
 
+function ProvisionalStartConfirmation({ task, check, onConfirm, onCancel }) {
+  const questions = check.questions || [];
+  return <CTDSModal open title="임시 구현 확인" description={questions.length ? '고객 검토가 필요한 질문이 남아있습니다. 임의로 임시 구현을 진행하고 히스토리를 남길까요?' : '확인이 필요한 내용이 남아있습니다. 임의로 임시 구현을 진행하고 히스토리를 남길까요?'} onOpenChange={open => { if (!open) onCancel(); }} dismissLabel="취소" data-ctds="modal" footer={<><Button type="button" variant="secondary" onClick={onCancel}>취소</Button><Button type="button" onClick={onConfirm}>확인 · AI 개발 시작</Button></>}>
+    <div className="task-auto-start-review"><strong>{task.title}</strong>
+      {questions.length ? <section><h3>확인할 질문 · {questions.length}개</h3><ul>{questions.map(question => <li key={question.id}><strong>{question.title || '고객 확인 사항'}</strong><p>{question.question}</p>{question.answer ? <p className="task-auto-help">전달받은 답변: {question.answer}</p> : null}</li>)}</ul></section> : null}
+      {check.temporary_decisions.length || check.work_gaps.length ? <Disclosure><summary>기존 임시 구현 제안·작업 공백 · {check.temporary_decisions.length + check.work_gaps.length}개</summary><ul>{[...check.temporary_decisions, ...check.work_gaps].map((item, index) => <li key={item.id || index}><strong>{item.title || '확인할 내용'}</strong>{item.uncertainty ? <p>{item.uncertainty}</p> : null}</li>)}</ul></Disclosure> : null}
+      <p className="task-auto-help">Nora가 개발을 진행한 뒤 어떤 내용을 언제, 어떻게 임시로 구현했는지 자동으로 기록합니다. 고객 답변과 피드백은 이 기록에 연결해 보완할 수 있습니다.</p>
+    </div>
+  </CTDSModal>;
+}
+
 export function TaskAutomationBoard({ projectId, request, role, notify, onDirty, onChanged, onSettings, onQuestions, onSourceRevision, initialTarget }) {
   const sharedView = useSharedView(), route = `${projectPath(projectId)}/task-automation`;
   const remote = useAutomationResource(route, request), drafts = useTaskDrafts(`${projectPath(projectId)}/task-drafts`, request);
   const [selectedId, setSelectedId] = useState(() => journeyTaskSelection(initialTarget).taskId), [selectedDraftId, setSelectedDraftId] = useState(() => journeyTaskSelection(initialTarget).draftId);
   const [noteTarget, setNoteTarget] = useState(() => journeyTaskSelection(initialTarget).noteId ? { id: initialTarget.id, nonce: crypto.randomUUID() } : null), [dirtyFields, setDirtyFields] = useState({});
+  const [startBusy, setStartBusy] = useState(false), [startError, setStartError] = useState(null), [startConfirmation, setStartConfirmation] = useState(null), [draggedId, setDraggedId] = useState(null);
+  const startSession = useRef(null), draggedTask = useRef(null), startMounted = useRef(true);
   const automationDirty = useCallback(value => setDirtyFields(current => ({ ...current, automation: value })), []);
   const notesDirty = useCallback(value => setDirtyFields(current => ({ ...current, notes: value })), []);
-  useEffect(() => { onDirty?.(Object.values(dirtyFields).some(Boolean)); }, [dirtyFields, onDirty]);
+  useEffect(() => { onDirty?.(startBusy || Object.values(dirtyFields).some(Boolean)); }, [dirtyFields, startBusy, onDirty]);
   useEffect(() => () => onDirty?.(false), [onDirty]);
+  useEffect(() => { startMounted.current = true; return () => { startMounted.current = false; const session = startSession.current; startSession.current = null; session?.controller.abort(); session?.resolve?.(false); }; }, [projectId]);
   function openNote(id) { setSelectedId(null); setSelectedDraftId(null); setNoteTarget({ id, nonce: crypto.randomUUID() }); }
   function createNote(seed) { setSelectedId(null); setSelectedDraftId(null); setNoteTarget({ create: seed, nonce: crypto.randomUUID() }); }
   const permissions = automationPermissions(role, sharedView), tasks = remote.data?.tasks || [], analyses = remote.data?.analyses || [];
   const draftItems = drafts.data?.items || [];
   async function changed(message) { notify?.(message); await remote.load(); await onChanged?.({ quiet: true }); }
-  return <section className="task-automation" aria-label="Nora 정책 분석·개발 작업">
-    <header className="task-auto-heading"><div><h2>정책 분석·AI 개발 작업</h2><p>출처 기반 초안과 Nora가 분석한 작업을 함께 확인하세요. Nora 검증을 마친 작업만 AI 개발을 시작할 수 있습니다.</p></div><Button type="button" variant="secondary" icon={RefreshCw} onClick={() => { void remote.load(); void drafts.load(); }}>새로고침</Button></header>
+  async function start(task, restoreDetail = false) {
+    if (startSession.current || !automationCanStart(task, permissions, remote.data?.capabilities)) return;
+    const session = { controller: new AbortController(), resolve: null };
+    startSession.current = session; setStartBusy(true); setStartError(null); if (restoreDetail) setSelectedId(null);
+    const current = () => startMounted.current && startSession.current === session;
+    try {
+      const outcome = await startAutomationTask({ request, taskPath: `${route}/tasks/${encodeURIComponent(task.id)}`, taskId: task.id, signal: session.controller.signal, isActive: current,
+        confirm: check => new Promise(resolve => { if (!current()) { resolve(false); return; } session.resolve = resolve; setStartConfirmation({ task, check }); }),
+      });
+      if (current() && outcome.status === 'started') await changed('작업을 진행 중으로 옮기고 AI 개발을 요청했습니다. 임시 구현 이력은 개발 후 자동으로 기록합니다.');
+    } catch (err) {
+      if (current() && err.name !== 'AbortError') { setStartError(err); await remote.load(); }
+    } finally {
+      if (current()) { startSession.current = null; setStartBusy(false); setStartConfirmation(null); if (restoreDetail) setSelectedId(task.id); }
+    }
+  }
+  function settleStart(accepted) {
+    const resolve = startSession.current?.resolve;
+    if (!resolve) return;
+    startSession.current.resolve = null; setStartConfirmation(null); resolve(accepted);
+  }
+  function dropTask(event, status) {
+    if (status !== 'in_progress' || !draggedTask.current) return;
+    event.preventDefault();
+    const id = draggedTask.current; draggedTask.current = null; setDraggedId(null);
+    if (event.dataTransfer.getData('application/x-ains-automation-task') !== id) return;
+    const task = tasks.find(item => item.id === id);
+    if (task) void start(task);
+  }
+  return <section className="task-automation ains-section-stack" aria-label="Nora 정책 분석·개발 작업">
+    <header className="task-auto-heading"><div><h2>정책 분석·AI 개발 작업</h2><p>할 일을 진행 중으로 옮기면 AI 개발을 시작합니다. 검토가 필요한 내용은 확인 후 임시로 구현하고 자동 기록합니다.</p></div><Button type="button" variant="secondary" icon={RefreshCw} disabled={startBusy} onClick={() => { void remote.load(); void drafts.load(); }}>새로고침</Button></header>
+    <ErrorNotice error={startError} />
+    {startBusy && !startConfirmation ? <Spinner label="개발 시작 요청을 확인하고 있습니다" /> : null}
     {remote.error ? <div aria-label="정책 분석·개발 작업 조회 오류"><p className="task-auto-help">정책 분석·개발 작업을 불러오지 못했습니다.</p><ErrorNotice error={remote.error} onRetry={remote.load} /></div> : null}
     {drafts.error ? <div aria-label="출처 기반 작업 초안 조회 오류"><p className="task-auto-help">출처 기반 작업 초안을 불러오지 못했습니다.{drafts.data ? ' 이미 표시한 작업은 유지했습니다.' : ''}</p><ErrorNotice error={drafts.error} onRetry={drafts.retry} /></div> : null}
     {!remote.data && remote.loading ? <Spinner label="정책 분석과 개발 작업을 불러오고 있습니다" /> : null}
@@ -102,16 +148,20 @@ export function TaskAutomationBoard({ projectId, request, role, notify, onDirty,
       <div className="task-auto-board" role="region" aria-label="AI 개발 작업 칸반" tabIndex={0}>{AUTOMATION_COLUMNS.map(([status, label]) => {
         const column = tasks.filter(task => automationColumn(task) === status);
         const sourceDrafts = status === 'todo' ? draftItems : [], count = column.length + sourceDrafts.length;
-        return <section className="task-auto-column" key={status} aria-label={label}><header><h3>{label}</h3><Badge tone="quiet">{count}</Badge></header><div className="task-auto-cards">{sourceDrafts.map(item => <ControlButton type="button" variant="outline" className="task-auto-card" key={`draft:${item.id}`} onClick={() => setSelectedDraftId(item.id)}><span><Badge tone="amber">Nora 검증 전</Badge><strong>{item.title}</strong><small>{item.source_title} · 출처 기반 초안</small><small>{item.key}{item.depends_on?.length ? ` · 선행 작업 ${item.depends_on.length}개` : ''}</small></span></ControlButton>)}{column.map(task => <ControlButton type="button" variant="outline" className="task-auto-card" key={`automation:${task.id}`} onClick={() => setSelectedId(task.id)}><span><strong>{task.title}</strong><small>{automationExecutionLabel(task)}</small><small>{status === 'qa' ? '미리보기·코드 확인 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(task.updated_at)} 갱신`}</small></span></ControlButton>)}</div>{!count ? <p className="task-auto-help">작업 없음</p> : null}</section>;
+        return <section className={`task-auto-column${status === 'in_progress' && draggedId ? ' task-auto-drop-target' : ''}`} key={status} aria-label={label} onDragOver={event => { if (status === 'in_progress' && draggedTask.current && !startBusy) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={event => dropTask(event, status)}><header><h3>{label}</h3><Badge tone="quiet">{count}</Badge></header><div className="task-auto-cards">{sourceDrafts.map(item => <ControlButton type="button" variant="outline" layout="card" className="task-auto-card" key={`draft:${item.id}`} disabled={startBusy} onClick={() => setSelectedDraftId(item.id)}><span><Badge tone="amber">Nora 검증 전</Badge><strong>{item.title}</strong><small>{item.source_title} · 출처 기반 초안</small><small>{item.key}{item.depends_on?.length ? ` · 선행 작업 ${item.depends_on.length}개` : ''}</small></span></ControlButton>)}{column.map(task => {
+          const startable = automationCanStart(task, permissions, remote.data?.capabilities);
+          return <div className="task-auto-card-group" key={`automation:${task.id}`}><ControlButton type="button" variant="outline" layout="card" className="task-auto-card" disabled={startBusy} draggable={startable && !startBusy} onDragStart={event => { if (!startable || startBusy) { event.preventDefault(); return; } draggedTask.current = task.id; setDraggedId(task.id); event.dataTransfer.setData('application/x-ains-automation-task', task.id); event.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => { draggedTask.current = null; setDraggedId(null); }} onClick={() => setSelectedId(task.id)}><span><strong>{task.title}</strong>{task.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}<small>{automationExecutionLabel(task)}</small><small>{status === 'qa' ? '미리보기·코드 확인 후 병합 승인' : status === 'done' ? '기준 브랜치 병합 확인됨' : `${dateTime(task.updated_at)} 갱신`}</small></span></ControlButton>{startable ? <Button type="button" variant="ghost" icon={ArrowRight} disabled={startBusy} aria-label={`${task.title} · 진행 중으로 이동하고 AI 개발 시작`} onClick={() => void start(task)}>진행 중으로 이동</Button> : null}</div>;
+        })}</div>{status === 'in_progress' && draggedId ? <p className="task-auto-help">여기에 놓으면 개발 시작을 확인합니다.</p> : !count ? <p className="task-auto-help">작업 없음</p> : null}</section>;
       })}</div>
       {drafts.data?.total ? <div className="inline-actions"><p className="task-auto-help">출처 기반 작업 초안 {draftItems.length} / {drafts.data.total}개 표시</p>{drafts.data.has_more ? <Button type="button" variant="secondary" busy={drafts.loading} onClick={() => drafts.load(true)}>작업 초안 더 불러오기</Button> : null}</div> : null}
       {drafts.data && !drafts.data.has_more && draftItems.length < drafts.data.total ? <Notice title="조회 중 작업 목록이 바뀌었습니다">전체 작업을 확인하려면 목록을 다시 불러와 주세요.<Button type="button" variant="secondary" busy={drafts.loading} onClick={() => drafts.load()}>작업 초안 목록 새로고침</Button></Notice> : null}
-      {!tasks.length && !draftItems.length ? <p className="task-auto-help">자료·기록에 정책 문서를 등록하세요. 추출 후 Nora 리스크 분석을 진행하며, 차단 위험이 없는 결과에서 작업을 등록합니다.</p> : null}
+      {!tasks.length && !draftItems.length ? <p className="task-auto-help">자료·기록에 정책 문서를 등록하고 Nora 리스크 분석을 요청하세요. 실행 가능한 범위를 작업으로 등록하고, 확인할 내용이 있으면 검토 필요로 표시합니다.</p> : null}
     </> : null}
     {remote.data ? <Disclosure><summary>정책 분석·고객 질문 이력 · {analyses.length}건</summary><div className="task-auto-analysis-list">{analyses.length ? analyses.map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={tasks.filter(task => task.analysis_id === analysis.id).length} onQuestions={onQuestions} />) : <p className="task-auto-help">아직 정책 분석 이력이 없습니다.</p>}</div></Disclosure> : null}
     <ImplementationNotesPanel projectId={projectId} request={request} role={role} notify={notify} onDirty={notesDirty} onChanged={async options => { await remote.load(); await onChanged?.(options); }} onSourceRevision={onSourceRevision} target={noteTarget} analyses={analyses} onRefreshAnalysis={remote.load} refreshKey={[...tasks, ...analyses].map(item => `${item.id}:${item.updated_at}:${item.status}`).join('|')} />
-    {selectedId ? <AutomationTaskDetail key={selectedId} id={selectedId} projectId={projectId} route={route} request={request} permissions={permissions} sharedView={sharedView} settings={remote.data?.settings} capabilities={remote.data?.capabilities} onClose={() => setSelectedId(null)} onDirty={automationDirty} onChanged={changed} onOpenNote={openNote} /> : null}
+    {selectedId ? <AutomationTaskDetail key={selectedId} id={selectedId} projectId={projectId} route={route} request={request} permissions={permissions} sharedView={sharedView} settings={remote.data?.settings} capabilities={remote.data?.capabilities} onClose={() => setSelectedId(null)} onDirty={automationDirty} onChanged={changed} onOpenNote={openNote} onStart={task => void start(task, true)} startError={startError} /> : null}
     {selectedDraftId ? <SourceTaskDraftDetail key={selectedDraftId} id={selectedDraftId} projectId={projectId} route={`${projectPath(projectId)}/task-drafts`} request={request} onClose={() => setSelectedDraftId(null)} onDependency={setSelectedDraftId} onSourceRevision={onSourceRevision} onSettings={!sharedView && remote.data?.capabilities?.risk_analysis !== true ? onSettings : undefined} onOpenNote={openNote} onCreateNote={permissions.canWrite ? createNote : undefined} /> : null}
+    {startConfirmation ? <ProvisionalStartConfirmation {...startConfirmation} onCancel={() => settleStart(false)} onConfirm={() => settleStart(true)} /> : null}
   </section>;
 }
 
@@ -128,11 +178,11 @@ function SourceTaskDraftDetail({ id, projectId, route, request, onClose, onDepen
     <section><h3>선행 작업</h3>{item.dependencies?.length ? <ul>{item.dependencies.map(dependency => <li key={dependency.id}><Button type="button" variant="ghost" onClick={() => onDependency(dependency.id)}>{dependency.key} · {dependency.title}</Button></li>)}</ul> : <p className="task-auto-help">등록된 선행 작업이 없습니다.</p>}</section>
     {item.question_notes?.length ? <section><h3>확인할 질문·메모</h3><ul>{item.question_notes.map((note, index) => <li key={index}>{note}</li>)}</ul></section> : null}
     <RelatedImplementationNotes projectId={projectId} request={request} draftId={id} onOpen={onOpenNote} />
-    {onCreateNote ? <Button type="button" variant="secondary" onClick={() => onCreateNote({ source_revision_id: item.source_revision_id, task_draft_id: item.id, evidence: item.evidence })}>임시 구현·작업 공백 기록</Button> : null}
+    {onCreateNote ? <Button type="button" variant="secondary" onClick={() => onCreateNote({ source_revision_id: item.source_revision_id, task_draft_id: item.id, evidence: item.evidence })}>추가 기록 직접 남기기</Button> : null}
   </>}</div><footer className="modal-actions"><Button type="button" variant="secondary" onClick={onClose}>닫기</Button></footer></Modal>;
 }
 
-function AutomationTaskDetail({ id, projectId, route, request, permissions, sharedView, settings, capabilities, onClose, onDirty, onChanged, onOpenNote }) {
+function AutomationTaskDetail({ id, projectId, route, request, permissions, sharedView, settings, capabilities, onClose, onDirty, onChanged, onOpenNote, onStart, startError }) {
   const remote = useAutomationResource(`${route}/tasks/${encodeURIComponent(id)}`, request, data => ['queued', 'running', 'merging'].includes(data.task?.execution_status));
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [note, setNote] = useState(''), [previewAck, setPreviewAck] = useState(false), [diffAck, setDiffAck] = useState(false);
   const [reviewedHead, setReviewedHead] = useState(null), [reconciling, setReconciling] = useState(false), confirm = useConfirm();
@@ -144,6 +194,7 @@ function AutomationTaskDetail({ id, projectId, route, request, permissions, shar
   useEffect(() => { if (task?.execution_status !== 'uncertain') setReconciling(false); }, [task?.execution_status]);
   async function close() { if (!busy && (!dirty || await confirm('작성 중인 작업 검토 내용을 버리고 닫을까요?'))) onClose(); }
   async function openRelatedNote(noteId) { if (!busy && (!dirty || await confirm('작성 중인 작업 검토 내용을 버리고 기록을 열까요?'))) onOpenNote(noteId); }
+  async function beginDevelopment() { if (!busy && automationCanStart(task, permissions, capabilities) && (!dirty || await confirm('작성 중인 작업 검토 내용을 버리고 개발을 시작할까요?'))) onStart(task); }
   async function mutate(suffix, body, method) {
     if (busy || sharedView) return; setBusy(true); setError(null);
     try { const result = await request(`${route}/tasks/${encodeURIComponent(id)}${suffix}`, { method, body }); if (!remote.lifecycle.current.active) return; if (result.task) remote.setData(result); setNote(''); setPreviewAck(false); setDiffAck(false); if (suffix === '/reconcile-merge') setReconciling(true); await remote.load(); await onChanged(suffix === '/reconcile-merge' ? '기존 병합 요청의 결과 확인을 요청했습니다.' : suffix ? '검토한 변경의 병합을 요청했습니다. 병합 결과를 확인하고 있습니다.' : '작업을 진행 중으로 옮기고 AI 개발을 요청했습니다.'); }
@@ -151,12 +202,12 @@ function AutomationTaskDetail({ id, projectId, route, request, permissions, shar
     finally { if (remote.lifecycle.current.active) setBusy(false); }
   }
   const merge = automationMergeReadiness(task, capabilities, settings);
-  return <Modal title={task?.title || 'AI 개발 작업'} eyebrow="정책 분석에서 생성한 작업" busy={busy} onClose={close} wide><div className="modal-body task-auto-detail"><ErrorNotice error={remote.error} onRetry={remote.load} /><ErrorNotice error={error} />{!task ? remote.loading ? <Spinner /> : null : <>
-    <div className="inline-actions"><Badge tone={AUTOMATION_COLUMNS.find(([status]) => status === task.status)?.[2]}>{AUTOMATION_COLUMNS.find(([status]) => status === task.status)?.[1] || '확인 필요'}</Badge><span>{automationExecutionLabel(task)}</span></div>
+  return <Modal title={task?.title || 'AI 개발 작업'} eyebrow="정책 분석에서 생성한 작업" busy={busy} onClose={close} wide><div className="modal-body task-auto-detail"><ErrorNotice error={remote.error} onRetry={remote.load} /><ErrorNotice error={error || startError} />{!task ? remote.loading ? <Spinner /> : null : <>
+    <div className="inline-actions"><Badge tone={AUTOMATION_COLUMNS.find(([status]) => status === task.status)?.[2]}>{AUTOMATION_COLUMNS.find(([status]) => status === task.status)?.[1] || '확인 필요'}</Badge>{task.requires_provisional_confirmation ? <Badge tone="amber">검토 필요</Badge> : null}<span>{automationExecutionLabel(task)}</span></div>
     <p>{task.description}</p><section><h3>완료 기준</h3><ul>{task.acceptance_criteria?.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul></section>
     {task.evidence?.length ? <Disclosure><summary>정책 원문 근거 · {task.evidence.length}개</summary>{task.evidence.map((evidence, index) => <blockquote key={index}><small>{evidence.segment_id}</small><p>{evidence.quote}</p></blockquote>)}</Disclosure> : null}
     {task.error_code ? <Notice tone="warning" title="작업 준비 상태를 확인해 주세요">{automationBlockerLabel(task.error_code)}</Notice> : null}
-    {task.status === 'todo' && permissions.canWrite ? <><Button type="button" icon={ArrowRight} busy={busy} disabled={capabilities?.development !== true} onClick={() => mutate('', { expected_version: task.version, status: 'in_progress' }, 'PATCH')}>진행 중으로 이동 · AI 개발 시작</Button>{capabilities?.development !== true ? <CapabilityNotice capabilities={capabilities} /> : null}</> : null}
+    {task.status === 'todo' && permissions.canWrite ? <><Button type="button" icon={ArrowRight} busy={busy} disabled={!automationCanStart(task, permissions, capabilities)} onClick={beginDevelopment}>진행 중으로 이동 · AI 개발 시작</Button>{capabilities?.development !== true ? <CapabilityNotice capabilities={capabilities} /> : null}</> : null}
     {task.status === 'in_progress' && ['queued', 'running'].includes(task.execution_status) ? <Notice title="AI 개발 결과를 기다리고 있습니다">결과가 준비되면 검수 대기로 이동합니다. 검토 전에는 완료로 표시하지 않습니다.</Notice> : null}
     {artifact?.pr_url ? <section><h3>개발 결과 검토</h3><dl className="task-auto-facts"><div><dt>병합 대상 브랜치</dt><dd>{artifact.target_branch || '확인 필요'}</dd></div><div><dt>변경 커밋</dt><dd><code>{artifact.head_sha || '확인 필요'}</code></dd></div><div><dt>기준 커밋</dt><dd><code>{artifact.base_sha || '확인 필요'}</code></dd></div></dl>
       {!sharedView && preview ? <Button type="button" asChild variant="secondary"><a href={preview} target="_blank" rel="noopener noreferrer">웹 미리보기 열기<ExternalLink size={15} /></a></Button> : !sharedView ? <p>허용된 주소의 웹 미리보기가 아직 없습니다.</p> : null}
@@ -164,7 +215,7 @@ function AutomationTaskDetail({ id, projectId, route, request, permissions, shar
       <h3>검증 결과</h3>{artifact.checks?.length ? <ul>{artifact.checks.map((check, index) => <li key={index}>{check.name} · {{ passed: '통과', failed: '실패', pending: '확인 중' }[check.status] || '확인 필요'}</li>)}</ul> : <p>검증 결과가 없습니다.</p>}
     </section> : null}
     {artifact?.implementation_report ? <section><h3>구현 범위와 남은 작업</h3><Notice tone={artifact.implementation_report.completion === 'complete' ? 'neutral' : 'warning'} title={{ complete: '개발 결과 보고: 완료', partial: '개발 결과 보고: 부분 구현', blocked: '개발 결과 보고: 차단됨' }[artifact.implementation_report.completion] || '개발 결과 보고 확인 필요'}>개발 결과의 보고 상태입니다. 코드·미리보기·남은 공백을 사람이 확인한 뒤 병합을 결정합니다.</Notice>{artifact.implementation_report.remaining_criteria?.length ? <ul>{artifact.implementation_report.remaining_criteria.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul> : null}</section> : null}
-    <RelatedImplementationNotes projectId={projectId} request={request} taskId={id} onOpen={openRelatedNote} />
+    <RelatedImplementationNotes key={task.updated_at} projectId={projectId} request={request} taskId={id} onOpen={openRelatedNote} />
     {task.status === 'qa' ? <p className="task-auto-help">검수 대기는 모든 요구사항의 구현 완료를 뜻하지 않습니다. 위 임시 구현·작업 공백과 실제 코드 변경을 함께 검토하세요.</p> : null}
     {task.status === 'qa' && task.execution_status === 'merging' ? <Notice title="승인한 변경을 병합하고 있습니다">기준 브랜치의 병합 결과가 확인되면 완료로 이동합니다.</Notice> : null}
     {task.execution_status === 'uncertain' && task.review ? <Notice tone="warning" title="기존 병합 요청의 결과를 확인해야 합니다"><p>기준 브랜치의 실제 병합 결과를 확인한 뒤 완료로 표시합니다.</p>{permissions.canReview ? <Button type="button" variant="secondary" icon={RefreshCw} busy={busy || reconciling} onClick={() => mutate('/reconcile-merge', { expected_version: task.version }, 'POST')}>기존 병합 결과 확인</Button> : null}</Notice> : null}
@@ -190,7 +241,7 @@ export function PolicyRiskAnalysis({ projectId, revisionId, sourceReady, request
     catch (err) { if (remote.lifecycle.current.active) { if (!retainProjectRequest(err)) pending.current = null; setError(err); } }
     finally { if (remote.lifecycle.current.active) setBusy(false); }
   }
-  return <section className="task-auto-policy"><h3>정책 리스크·개발 작업</h3><p className="task-auto-help">차단 위험이 있으면 고객 질문 초안을 남기고, 없으면 개발 작업을 등록합니다.</p><ErrorNotice error={remote.error || error} onRetry={remote.load} />
+  return <section className="task-auto-policy"><h3>정책 리스크·개발 작업</h3><p className="task-auto-help">확인할 내용은 고객 질문으로 남기고, 실행 가능한 작업을 등록합니다. 검토가 필요한 작업은 개발 시작 때 임시 구현 여부를 확인합니다.</p><ErrorNotice error={remote.error || error} onRetry={remote.load} />
     {remote.data ? <><CapabilityNotice capabilities={remote.data.capabilities} /><IntakeNotice items={remote.data.intake?.filter(item => item.revision_id === revisionId)} />{!sourceReady ? <p className="task-auto-help">문서 추출과 원문에서 확인이 필요한 구간을 먼저 검토해 주세요.</p> : null}<div className="inline-actions">{canWrite && !sharedView ? <Button type="button" variant="secondary" icon={Sparkles} busy={busy} disabled={active || !sourceReady || !remote.data.capabilities?.risk_analysis} onClick={analyze}>{pending.current ? '같은 리스크 분석 요청 확인' : 'Nora 리스크 분석'}</Button> : null}{onWorkItems ? <Button type="button" variant="secondary" onClick={onWorkItems}>분석·개발 작업 보기</Button> : null}</div>{analyses.slice(0, 1).map(analysis => <RiskAnalysis key={analysis.id} analysis={analysis} taskCount={remote.data.tasks?.filter(task => task.analysis_id === analysis.id).length || 0} onQuestions={onQuestions} />)}</> : remote.loading ? <Spinner label="정책 리스크 분석 상태를 확인하고 있습니다" /> : null}
   </section>;
 }
@@ -215,8 +266,7 @@ export function TaskAutomationSettings({ project, request, notify, onDirty, disa
   const field = key => ({ value: draft[key], disabled: !owner || disabled || busy, onChange: event => setDraft(current => ({ ...current, [key]: event.target.value })) });
   return <section className="repository-check" aria-label="정책 분석·AI 개발 연결"><div className="settings-context-heading"><Sparkles size={19} /><h3>정책 분석·AI 개발</h3></div><ErrorNotice error={remote.error} onRetry={remote.load} />{!draft ? remote.loading ? <Spinner /> : null : <>
     <CapabilityNotice capabilities={remote.data.capabilities} /><form onSubmit={save}><label className="checkbox-label"><Input type="checkbox" checked={draft.enabled} disabled={!owner || disabled || busy} onChange={event => setDraft(current => ({ ...current, enabled: event.target.checked }))} /><span>정책 분석·AI 개발 활성화</span></label>
-      <fieldset disabled={!owner || disabled || busy}><legend>확인 전 요구사항 처리</legend><label className="checkbox-label"><Input type="radio" name="uncertainty-mode" value="strict" checked={draft.uncertainty_mode === 'strict'} onChange={() => setDraft(current => ({ ...current, uncertainty_mode: 'strict' }))} /><span>확인 후 진행 · 차단 위험은 고객 질문으로 확인</span></label><label className="checkbox-label"><Input type="radio" name="uncertainty-mode" value="provisional" checked={draft.uncertainty_mode === 'provisional'} onChange={() => setDraft(current => ({ ...current, uncertainty_mode: 'provisional' }))} /><span>임시 구현 허용 · 선택한 방식과 작업 공백 기록</span></label></fieldset>
-      {draft.uncertainty_mode === 'provisional' ? <Notice tone="warning" title="확인 전 선택을 기록하며 진행합니다">Nora가 허용 가능한 임시 방식을 제안하고 미구현 범위를 기록합니다. 보안·권한·실제 Git 연결·범위 확인과 사람의 코드 검토·병합 승인은 유지합니다.</Notice> : <p className="task-auto-help">기본값입니다. 확인이 필요한 차단 위험은 해소한 뒤 개발 작업으로 이어갑니다.</p>}
+      <Notice title="임시 구현은 작업을 시작할 때 확인합니다">고객 질문이나 확인할 내용이 남은 작업을 진행 중으로 옮기면 확인창을 표시합니다. 확인하면 AI가 개발을 시작하고, 임시로 구현한 내용과 남은 작업 공백을 자동으로 기록합니다.</Notice>
       <ErrorNotice error={flowRemote.error} onRetry={flowRemote.load} />{[['risk_flow_slug', '정책 리스크 분석 흐름', '기본 Nora 리스크 분석 흐름 · 자동 준비'], ['development_flow_slug', 'AI 개발 흐름', '연결 필요']].map(([key, label, empty]) => <FormField label={label} key={key}><Select {...field(key)}><option value="">{empty}</option>{draft[key] && !flows?.some(flow => flow.slug === draft[key]) ? <option value={draft[key]} disabled>{draft[key]} · 현재 설정</option> : null}{flows?.map(flow => <option key={flow.slug} value={flow.slug}>{flow.name || flow.slug}</option>)}</Select></FormField>)}
       <FormField label="웹 미리보기 허용 주소" hint="예: https://preview.example.com — 경로 없이 한 줄에 한 도메인, 최대 10개를 입력하세요."><Textarea {...field('preview_origins')} rows={3} maxLength={4000} /></FormField>
       <p>병합 대상은 프로젝트의 기준 브랜치입니다. 개발 결과·미리보기·테스트를 검토한 뒤 병합을 승인합니다.</p><ErrorNotice error={error} />{owner ? <Button type="submit" variant="secondary" busy={busy} disabled={disabled || !dirty}>분석·개발 연결 저장</Button> : <p>프로젝트 관리자만 연결을 변경할 수 있습니다.</p>}

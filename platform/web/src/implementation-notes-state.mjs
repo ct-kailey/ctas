@@ -1,7 +1,26 @@
 export const IMPLEMENTATION_NOTE_KINDS = { temporary_decision: '임시 구현', work_gap: '작업 공백' };
 export const IMPLEMENTATION_NOTE_STATES = { open: '검토 전', feedback_received: '피드백 등록됨', followup_created: '보완 분석 요청됨', accepted: '임시 구현 수용됨', resolved: '공백 해소 검토됨' };
 export const IMPLEMENTATION_NOTE_HISTORY = { created: '최초 기록', feedback: '사람의 피드백', followup_created: '새 보완 분석 요청', accepted: '임시 구현 수용', resolved: '공백 해소 검토' };
+const QUESTION_OUTCOMES = { temporary_implemented: '임시 구현', answered_applied: '받은 답변 반영', deferred: '작업 공백으로 보관', not_applicable: '이번 작업에 해당 없음' };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function implementationExecutionView(note, sharedView = false) {
+  const context = note?.execution_context;
+  if (note?.origin !== 'nora' || context?.contract_version !== '1.0') return null;
+  const validTime = value => typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null;
+  const questionIds = new Set(context.question_ids || []);
+  const questions = (Array.isArray(context.questions) ? context.questions : []).filter(question => questionIds.has(question.id)).map(question => {
+    const outcome = context.question_outcomes?.find(item => item.question_id === question.id);
+    return { ...question, outcomeLabel: QUESTION_OUTCOMES[outcome?.status] || '반영 결과 확인 필요', explanation: outcome?.explanation || '' };
+  });
+  let prUrl = null;
+  if (!sharedView) {
+    try { const url = new URL(context.pr_url); if (url.protocol === 'https:' && url.hostname === 'github.com' && !url.username && !url.password && !url.port && /^\/[^/]+\/[^/]+\/pull\/\d+$/.test(url.pathname) && !url.search && !url.hash) prUrl = url.href; } catch { /* No verified PR link. */ }
+  }
+  return { recordedAt: validTime(note.created_at), implementedAt: validTime(context.implemented_at), developmentCompletedAt: validTime(context.development_completed_at), confirmedAt: validTime(context.confirmed_at), questions, prUrl,
+    codePaths: !sharedView && Array.isArray(context.code_paths) ? context.code_paths.filter(path => typeof path === 'string') : [],
+    headSha: !sharedView && /^[a-f0-9]{40}$/i.test(context.head_sha || '') ? context.head_sha : null };
+}
 
 export function implementationNotePermissions(role, sharedView) {
   return { canWrite: !sharedView && ['owner', 'reviewer', 'member'].includes(role), canReview: !sharedView && ['owner', 'reviewer'].includes(role) };

@@ -76,3 +76,64 @@ test('missing connections use server-provided reasons without claiming capabilit
   assert.match(automationBlockerLabel('TASK_CONNECTION_REQUIRED'), /Nora.*확인/);
   assert.match(automationBlockerLabel('TASK_SOURCE_STALE'), /재분석/);
 });
+
+test('only idle todo tasks with writer permission and connected development can move to execution', async () => {
+  const { automationCanStart } = await state();
+  const task = { status: 'todo', execution_status: 'idle' };
+  assert.equal(automationCanStart(task, { canWrite: true }, { development: true }), true);
+  for (const status of ['blocked', 'qa', 'in_progress', 'done']) assert.equal(automationCanStart({ ...task, status }, { canWrite: true }, { development: true }), false);
+  for (const execution_status of ['queued', 'running', 'uncertain', 'failed']) assert.equal(automationCanStart({ ...task, execution_status }, { canWrite: true }, { development: true }), false);
+  assert.equal(automationCanStart(task, { canWrite: false }, { development: true }), false);
+  assert.equal(automationCanStart(task, { canWrite: true }, { development: false }), false);
+});
+
+const startCheck = () => ({ task_id: 'task-1', task_version: 3, review_token: 'a'.repeat(64), requires_confirmation: true, questions: [{ id: 'question-1', question: '승인 전 한도는 얼마인가요?', answer: '임시로 10건까지', status: 'answered' }] });
+
+test('a cancelled provisional start only reads evidence and never writes consent or task state', async () => {
+  const { startAutomationTask } = await state(), calls = [];
+  const result = await startAutomationTask({ taskPath: '/tasks/task-1', taskId: 'task-1', request: async (path, options) => { calls.push({ path, options }); return startCheck(); }, confirm: async check => { assert.equal(check.questions[0].answer, '임시로 10건까지'); return false; } });
+  assert.deepEqual(result, { status: 'cancelled' });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, '/tasks/task-1/start-check');
+  assert.equal(calls[0].options.method, undefined);
+});
+
+test('confirmed start sends only the latest task version and exact reviewed evidence token', async () => {
+  const { startAutomationTask } = await state(), calls = [];
+  const result = await startAutomationTask({ taskPath: '/tasks/task-1', taskId: 'task-1', request: async (path, options) => { calls.push({ path, options }); return calls.length === 1 ? startCheck() : { task: { id: 'task-1', status: 'in_progress' } }; }, confirm: async () => true });
+  assert.equal(result.status, 'started');
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[1], { path: '/tasks/task-1', options: { method: 'PATCH', body: { status: 'in_progress', expected_version: 3, provisional_consent: { review_token: 'a'.repeat(64) } } } });
+});
+
+test('unambiguous tasks begin immediately after server check without provisional consent', async () => {
+  const { startAutomationTask } = await state(), calls = [];
+  const result = await startAutomationTask({ taskPath: '/tasks/task-1', taskId: 'task-1', request: async (path, options) => { calls.push({ path, options }); return calls.length === 1 ? { ...startCheck(), requires_confirmation: false, review_token: null } : { task: {} }; }, confirm: async () => { assert.fail('No extra confirmation for an unambiguous task'); } });
+  assert.equal(result.status, 'started');
+  assert.deepEqual(calls[1].options.body, { status: 'in_progress', expected_version: 3 });
+});
+
+test('changed or unavailable evidence does not retry development using stale consent', async () => {
+  const { startAutomationTask } = await state(), calls = [];
+  const changed = Object.assign(new Error('고객 질문이 변경되었습니다.'), { status: 409, code: 'TASK_PROVISIONAL_CONTEXT_CHANGED' });
+  await assert.rejects(startAutomationTask({ taskPath: '/tasks/task-1', taskId: 'task-1', request: async (path, options) => { calls.push({ path, options }); if (calls.length === 1) return startCheck(); throw changed; }, confirm: async () => true }), error => error === changed);
+  assert.equal(calls.length, 2);
+  let fetched = 0;
+  await assert.rejects(startAutomationTask({ taskPath: '/tasks/task-1', taskId: 'task-1', request: async () => { fetched += 1; throw new Error('네트워크 오류'); }, confirm: async () => assert.fail('No confirmation without current evidence') }), /네트워크/);
+  assert.equal(fetched, 1);
+});
+
+test('navigation or unmount while reading or confirming cannot start development', async () => {
+  const { startAutomationTask } = await state();
+  for (const cancelAt of ['read', 'confirm']) {
+    let active = true, writes = 0;
+    const result = await startAutomationTask({ taskPath: '/tasks/task-1', taskId: 'task-1', isActive: () => active, request: async (path, options) => { if (options?.method === 'PATCH') writes += 1; if (cancelAt === 'read') active = false; return startCheck(); }, confirm: async () => { active = false; return true; } });
+    assert.equal(result.status, 'cancelled'); assert.equal(writes, 0);
+  }
+});
+
+test('invalid or cross-task start checks fail closed instead of bypassing confirmation', async () => {
+  const { automationStartCheck } = await state();
+  for (const value of [null, { ...startCheck(), task_id: 'other-task' }, { ...startCheck(), task_version: 0 }, { ...startCheck(), requires_confirmation: undefined }, { ...startCheck(), review_token: 'invalid' }]) assert.throws(() => automationStartCheck(value, 'task-1'), /확인 정보/);
+  assert.deepEqual(automationStartCheck(startCheck(), 'task-1').work_gaps, []);
+});

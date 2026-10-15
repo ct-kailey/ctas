@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Plus, RefreshCw, Search } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Plus, RefreshCw, Search } from 'lucide-react';
 import { Badge, Button, ControlButton, Disclosure, ErrorNotice, FormField, Input, Notice, Select, Spinner, Tabs, Textarea, dateTime, projectPath } from './ui.jsx';
 import { useSharedView } from './shared-view.jsx';
 import { useConfirm } from './confirmation.jsx';
 import { retainProjectRequest } from './nora-workspace-state.mjs';
 import { RISK_STATES } from './task-automation-state.mjs';
-import { IMPLEMENTATION_NOTE_HISTORY, IMPLEMENTATION_NOTE_KINDS, IMPLEMENTATION_NOTE_STATES, implementationNoteCreatePayload, implementationNoteDraft, implementationNoteEvidence, implementationNotePermissions, implementationNoteReviewStatus, mergeImplementationNotesPage, mergeImplementationNoteHistory } from './implementation-notes-state.mjs';
+import { IMPLEMENTATION_NOTE_HISTORY, IMPLEMENTATION_NOTE_KINDS, IMPLEMENTATION_NOTE_STATES, implementationExecutionView, implementationNoteCreatePayload, implementationNoteDraft, implementationNoteEvidence, implementationNotePermissions, implementationNoteReviewStatus, mergeImplementationNotesPage, mergeImplementationNoteHistory } from './implementation-notes-state.mjs';
 import './implementation-notes.css';
 
 function useNotesList(path, request) {
@@ -25,7 +25,7 @@ function useNotesList(path, request) {
 }
 
 function NoteBadges({ note }) {
-  return <span className="implementation-note-badges"><Badge tone={note.kind === 'work_gap' ? 'red' : 'amber'}>{IMPLEMENTATION_NOTE_KINDS[note.kind] || '기록 확인 필요'}</Badge><Badge tone="quiet">{IMPLEMENTATION_NOTE_STATES[note.status] || '상태 확인 필요'}</Badge></span>;
+  return <span className="implementation-note-badges"><Badge tone={note.kind === 'work_gap' ? 'red' : 'amber'}>{IMPLEMENTATION_NOTE_KINDS[note.kind] || '기록 확인 필요'}</Badge><Badge tone="quiet">{IMPLEMENTATION_NOTE_STATES[note.status] || '상태 확인 필요'}</Badge>{note.origin === 'nora' && note.execution_context?.contract_version === '1.0' ? <Badge tone="blue">자동 기록</Badge> : null}</span>;
 }
 
 export function RelatedImplementationNotes({ projectId, request, taskId, draftId, onOpen }) {
@@ -56,7 +56,7 @@ export function ImplementationNotesPanel({ projectId, request, role, notify, onD
   useEffect(() => { if (target && seenTarget.current !== target) { seenTarget.current = target; void select(target); } }, [target, select]);
   async function changed(message) { notify?.(message); await remote.load(); await onChanged?.({ quiet: true }); }
   return <section className="implementation-notes" aria-label="임시 구현·작업 공백" ref={panel}>
-    <header className="task-auto-heading"><div><h2>임시 구현·작업 공백</h2><p>기획 확인 전 선택한 방식과 아직 구현하지 못한 범위를 남기고, 사람의 피드백으로 후속 작업을 이어갑니다.</p></div>{!selected ? <div className="implementation-note-actions"><Button type="button" variant="secondary" icon={RefreshCw} onClick={() => remote.load()}>새로고침</Button>{permissions.canWrite ? <Button type="button" variant="secondary" icon={Plus} onClick={() => select({ create: {} })}>기록 남기기</Button> : null}</div> : null}</header>
+    <header className="task-auto-heading"><div><h2>임시 구현·작업 공백</h2><p>AI가 개발 후 임시 구현 방식과 남은 공백을 자동으로 기록합니다. 내용을 검토하고 피드백을 남겨 보완하세요.</p></div>{!selected ? <div className="implementation-note-actions"><Button type="button" variant="secondary" icon={RefreshCw} onClick={() => remote.load()}>새로고침</Button>{permissions.canWrite ? <Button type="button" variant="secondary" icon={Plus} onClick={() => select({ create: {} })}>추가 기록 직접 남기기</Button> : null}</div> : null}</header>
     {selected ? <><Button type="button" variant="ghost" icon={ArrowLeft} disabled={editingBusy} onClick={() => select(null)}>기록 목록으로</Button>{selected.create ? <ImplementationNoteCreate key={selected.nonce || 'create'} route={route} projectId={projectId} request={request} seed={selected.create} canWrite={permissions.canWrite} onDirty={setDirty} onBusy={setEditingBusy} onCreated={async note => { setDirty(false); setSelected({ id: note.id }); await changed('임시 구현·작업 공백을 원문 근거와 함께 기록했습니다.'); }} /> : <ImplementationNoteDetail key={selected.id} id={selected.id} route={route} projectId={projectId} request={request} permissions={permissions} onDirty={setDirty} onBusy={setEditingBusy} onChanged={changed} onSourceRevision={onSourceRevision} analyses={analyses} onRefreshAnalysis={onRefreshAnalysis} />}</> : <>
       <div className="implementation-note-filters"><Tabs value={kind || 'all'} onValueChange={value => setKind(value === 'all' ? '' : value)} variant="segmented" size="sm"><Tabs.List aria-label="기록 종류"><Tabs.Trigger value="all">전체</Tabs.Trigger><Tabs.Trigger value="temporary_decision">임시 구현</Tabs.Trigger><Tabs.Trigger value="work_gap">작업 공백</Tabs.Trigger></Tabs.List></Tabs><FormField label="검토 상태"><Select value={status} onChange={event => setStatus(event.target.value)}><option value="">모든 상태</option>{Object.entries(IMPLEMENTATION_NOTE_STATES).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></FormField></div>
       <ErrorNotice error={remote.error} onRetry={remote.retry} />{!remote.data ? remote.loading ? <Spinner label="임시 구현·작업 공백 기록을 불러오고 있습니다" /> : null : <><div className="implementation-note-list">{remote.data.notes.map(note => <ControlButton key={note.id} type="button" variant="outline" onClick={() => select({ id: note.id })}><span><NoteBadges note={note} /><strong>{note.title}</strong><small>{note.source_title} · {dateTime(note.updated_at)}</small></span></ControlButton>)}</div>{!remote.data.notes.length ? <p className="task-auto-help">이 조건에 맞는 기록이 없습니다. 기록 유무만으로 작업 완료를 판단하지 않습니다.</p> : null}<NotePagination remote={remote} /></>}
@@ -112,7 +112,7 @@ function ImplementationNoteCreate({ route, projectId, request, seed, canWrite, o
 
 function ImplementationNoteDetail({ id, route, projectId, request, permissions, onDirty, onBusy, onChanged, onSourceRevision, analyses, onRefreshAnalysis }) {
   const [data, setData] = useState(null), [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false), [mode, setMode] = useState(''), [text, setText] = useState(''), [evidence, setEvidence] = useState(null), [attempt, setAttempt] = useState(null), [conflict, setConflict] = useState(false);
-  const lifecycle = useRef({ active: true, sequence: 0, controller: null, data: null, more: false }), confirm = useConfirm();
+  const lifecycle = useRef({ active: true, sequence: 0, controller: null, data: null, more: false }), confirm = useConfirm(), sharedView = useSharedView();
   const [draftVersion, setDraftVersion] = useState(null), [historyChanged, setHistoryChanged] = useState(false);
   const load = useCallback(async (more = false) => {
     lifecycle.current.controller?.abort(); const controller = new AbortController(), sequence = ++lifecycle.current.sequence;
@@ -127,6 +127,7 @@ function ImplementationNoteDetail({ id, route, projectId, request, permissions, 
   useEffect(() => { onBusy(busy); return () => onBusy(false); }, [busy, onBusy]);
   useEffect(() => { onDirty(dirty); return () => onDirty(false); }, [dirty, onDirty]);
   const note = data?.note, reviewStatus = implementationNoteReviewStatus(note), locked = busy || Boolean(attempt);
+  const execution = implementationExecutionView(note, sharedView);
   async function changeMode(value) { if (locked || dirty && !await confirm('작성 중인 피드백·검토 내용을 버릴까요?')) return; setMode(value); setDraftVersion(note.version); setText(''); setEvidence(null); setError(null); }
   async function mutate(action) {
     if (busy || conflict || action === 'review' && !permissions.canReview || action !== 'review' && !permissions.canWrite) return;
@@ -138,8 +139,13 @@ function ImplementationNoteDetail({ id, route, projectId, request, permissions, 
     finally { if (lifecycle.current.active) setBusy(false); }
   }
   return <article className="implementation-note-detail"><ErrorNotice error={loadError} onRetry={() => load(lifecycle.current.more)} />{!note ? loading ? <Spinner /> : null : <>
-    <header><NoteBadges note={note} /><h3>{note.title}</h3><p className="task-auto-help">{note.origin === 'nora' ? 'Nora 분석 기록' : '사람이 남긴 기록'} · {dateTime(note.created_at)} · 버전 {note.version}</p></header>
+    <header><NoteBadges note={note} /><h3>{note.title}</h3><p className="task-auto-help">{execution ? 'AI 개발 후 자동 기록' : note.origin === 'nora' ? 'Nora 분석 중 제안' : '사람이 남긴 기록'} · {dateTime(note.created_at)} · 버전 {note.version}</p></header>
     <dl className="implementation-note-facts">{[[note.kind === 'temporary_decision' ? '확인 전 요구사항' : '미구현·누락된 범위', note.uncertainty], ...(note.kind === 'temporary_decision' ? [['선택한 임시 구현 방식', note.temporary_approach]] : []), ['판단 이유', note.rationale], ['영향', note.impact], ['교체·보완할 조건', note.replacement_condition]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+    {execution ? <section><h4>AI 개발·기록 근거</h4><dl className="implementation-note-facts"><div><dt>임시 구현 확인 시각</dt><dd>{dateTime(execution.confirmedAt)}</dd></div>{execution.developmentCompletedAt ? <div><dt>AI 개발 종료</dt><dd>{dateTime(execution.developmentCompletedAt)}</dd></div> : null}<div><dt>구현 커밋 시각</dt><dd>{execution.implementedAt ? dateTime(execution.implementedAt) : '커밋 근거에서 확인되지 않음'}</dd></div><div><dt>기록 저장 시각</dt><dd>{dateTime(execution.recordedAt)}</dd></div>{execution.headSha ? <div><dt>변경 커밋</dt><dd><code>{execution.headSha}</code></dd></div> : null}</dl>
+      {execution.codePaths.length ? <Disclosure><summary>변경 파일 · {execution.codePaths.length}개</summary><ul>{execution.codePaths.map(path => <li key={path}><code>{path}</code></li>)}</ul></Disclosure> : null}
+      {execution.prUrl ? <Button type="button" variant="secondary" asChild><a href={execution.prUrl} target="_blank" rel="noopener noreferrer">연결된 PR 확인<ExternalLink size={15} /></a></Button> : null}
+      {execution.questions.length ? <Disclosure open><summary>개발 당시 고객 질문과 반영 결과 · {execution.questions.length}개</summary>{execution.questions.map(question => <article key={question.id}><strong>{question.title || '고객 확인 사항'}</strong><p>{question.question}</p>{question.answer ? <p>전달받은 답변: {question.answer}</p> : <p className="task-auto-help">개발 시작 당시 답변이 없었습니다.</p>}<p><strong>{question.outcomeLabel}</strong>{question.explanation ? ` · ${question.explanation}` : ''}</p></article>)}</Disclosure> : null}
+    </section> : null}
     <section><h4>최초 기록의 원문 근거</h4>{onSourceRevision ? <Button type="button" variant="ghost" disabled={dirty || busy} onClick={() => onSourceRevision(note.source_revision_id)}>{note.source_title || '원문 버전 열기'}</Button> : <p>{note.source_title}</p>}{note.evidence?.map((item, index) => <blockquote key={index}><small>{item.locator?.label || item.segment_id}</small><p>{item.quote}</p></blockquote>)}</section>
     <Notice title="기록의 검토와 코드 배포는 별도입니다">{note.status === 'accepted' ? '사람이 임시 구현을 수용한 이력입니다.' : note.status === 'resolved' ? '사람이 근거를 확인하고 공백 해소를 검토한 이력입니다.' : '최초 판단은 보존하고 피드백·후속 분석·검토 이력을 추가합니다.'} Git 접근, 범위 확인, 코드 검토와 병합 승인은 기존 절차를 따릅니다.</Notice>
     <section><h4>피드백·검토 이력</h4>{historyChanged ? <p className="task-auto-help">새 이력이 추가되어 최신 기록부터 다시 불러왔습니다. 작성 중 내용은 유지했습니다.</p> : null}{data.history?.some(item => item.detail?.analysis_id) && onRefreshAnalysis ? <Button type="button" variant="ghost" disabled={busy} onClick={onRefreshAnalysis}>보완 분석 상태 새로고침</Button> : null}<div className="implementation-note-history">{data.history?.map(item => <article key={item.id}><strong>{IMPLEMENTATION_NOTE_HISTORY[item.kind] || '기록 변경'}</strong><small>{dateTime(item.created_at)}</small>{item.detail?.text || item.detail?.note ? <p>{item.detail.text || item.detail.note}</p> : null}{item.detail?.analysis_id ? <p className="task-auto-help">보완 분석 · {RISK_STATES[analyses?.find(analysis => analysis.id === item.detail.analysis_id)?.status] || '현재 상태 조회 필요'}</p> : null}{item.detail?.result_evidence?.map((source, index) => <blockquote key={index}><p>{source.quote}</p>{onSourceRevision ? <Button type="button" variant="ghost" disabled={dirty || busy} onClick={() => onSourceRevision(source.id)}>검토 근거 원문</Button> : null}</blockquote>)}</article>)}</div>{data.history_total ? <small>{data.history.length} / {data.history_total}건 표시</small> : null}{data.history_has_more ? <Button type="button" variant="secondary" busy={loading} disabled={busy} onClick={() => load(true)}>이전 이력 더 불러오기</Button> : null}</section>
