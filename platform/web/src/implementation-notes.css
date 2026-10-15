@@ -1,0 +1,21 @@
+.implementation-notes { min-width: 0; padding-block: var(--space-6); margin-bottom: var(--space-6); border-block: var(--hairline) solid var(--border); scroll-margin-top: var(--space-6); }
+.implementation-note-actions, .implementation-note-badges { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); }
+.implementation-note-filters { display: flex; align-items: end; flex-wrap: wrap; gap: var(--space-4); margin-bottom: var(--space-4); }
+.implementation-note-list, .implementation-note-detail, .implementation-note-form, .implementation-note-evidence, .implementation-related-notes { display: grid; gap: var(--space-4); min-width: 0; }
+.implementation-note-list { margin-block: var(--space-3); }
+.implementation-note-list > button { width: 100%; text-align: left; }
+.implementation-note-list > button > span { display: grid; gap: var(--space-2); width: 100%; min-width: 0; }
+.implementation-note-list strong, .implementation-note-list small { overflow-wrap: anywhere; }
+.implementation-note-list small, .implementation-note-history small { color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.implementation-note-detail h3, .implementation-note-form h3 { font-size: var(--text-lg); line-height: var(--lh-lg); margin: 0; }
+.implementation-note-detail h4, .implementation-note-form h4, .implementation-related-notes h3 { font-size: var(--text-base); line-height: var(--lh-base); margin: 0; }
+.implementation-note-detail p, .implementation-note-source-text, .implementation-note-facts dd { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-base); }
+.implementation-note-facts { display: grid; gap: var(--space-4); margin: 0; }
+.implementation-note-facts dt { font-size: var(--text-sm); color: var(--fg-muted); margin-bottom: var(--space-1); }
+.implementation-note-facts dd { margin: 0; }
+.implementation-note-history { display: grid; gap: var(--space-4); margin-block: var(--space-3); }
+.implementation-note-history article { border-left: var(--hairline) solid var(--border); padding-left: var(--space-3); }
+.implementation-note-history article > strong, .implementation-note-history article > small { display: block; }
+.implementation-note-form { margin-top: var(--space-4); }
+.implementation-note-form fieldset { border: 0; padding: 0; margin: 0; }
+.implementation-note-form legend { font-size: var(--text-sm); margin-bottom: var(--space-2); }

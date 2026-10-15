@@ -3,6 +3,7 @@ export const AUTOMATION_COLUMNS = [
 ];
 export const AUTOMATION_EXECUTION = { idle: '개발 시작 전', queued: '개발 대기', running: 'AI 개발 중', ready: '개발 완료 · 검수 대기', merging: '승인한 변경 병합 중', uncertain: '실행 결과 확인 필요', failed: '실행 실패', awaiting_connection: '연결 준비 필요' };
 export const RISK_STATES = { queued: '분석 대기', running: '리스크 분석 중', completed: '분석 완료', blocked: '고객 확인 필요', awaiting_connection: '분석 연결 필요', failed: '분석 실패', uncertain: '분석 결과 확인 필요' };
+export function automationUncertaintyMode(value) { return value === 'provisional' ? 'provisional' : 'strict'; }
 const BLOCKERS = {
   NORA_WORKSPACE_REQUIRED: 'Nora 워크스페이스 ID 등록', NORA_WORKSPACE_NOT_READY: 'Nora 워크스페이스 접근 확인', NORA_AUTH_REQUIRED: 'Nora 계정 연결',
   NORA_SERVICE_UNAVAILABLE: 'Nora 서비스 연결', NORA_RISK_ANALYSIS_UNAVAILABLE: 'Nora 리스크 분석 연결', NORA_RISK_FLOW_REQUIRED: '프로젝트 리스크 분석 흐름 준비',
@@ -27,6 +28,7 @@ export function automationColumn(task) {
   return AUTOMATION_COLUMNS.some(([id]) => id === task.status) ? task.status : 'blocked';
 }
 export function automationExecutionLabel(task) {
+  if (task?.status === 'qa' && task?.execution_status === 'ready' && task?.artifact?.implementation_report?.completion === 'partial') return '부분 구현 · 검수 대기';
   return task?.status === 'done' ? '승인한 변경 병합 완료' : AUTOMATION_EXECUTION[task?.execution_status] || '상태 확인 필요';
 }
 export function automationActive(data) {

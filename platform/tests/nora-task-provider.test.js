@@ -6,9 +6,11 @@ const {buildRiskFlow}=require('../../nora/task-automation/risk-flow');
 const PROJECT='project_fixture',WORKSPACE='t_fixture_workspace',SPACE='space_fixture',HASH='a'.repeat(64),BASE='b'.repeat(40),HEAD='c'.repeat(40),MERGE='d'.repeat(40),TRACE='trc_fixture12345678';
 function fixture(options={}){
   const snapshot={schema_version:'1.0',project_id:PROJECT,request_id:'request_fixture',source:{revision_id:'revision_fixture',document_id:'document_fixture',title:'원문',category:'specification',sha256:'e'.repeat(64),segments:[{segment_id:'seg-1',requirement_key:null,text:'이메일 로그인 기능을 제공한다.',locator:{kind:'text',label:'본문'},extraction_status:'ok'}]},context:{version:0,records:[]},project:{name:'합성 프로젝트',goal:'이메일 로그인',settings_version:1},repository:{url:'https://github.com/acme/demo',base_branch:'main',head_sha:BASE},nora:{workspace_id:WORKSPACE},automation:{settings_version:1,risk_flow_slug:null,development_flow_slug:'development-flow',preview_origins:['https://preview.example']}};
+  if(options.v2){snapshot.schema_version='2.0';snapshot.automation.uncertainty_mode='provisional';snapshot.feedback=null;snapshot.implementation_notes=[];}
   const input={projectId:PROJECT,workspaceId:WORKSPACE,snapshot,snapshotHash:HASH,settings:{...snapshot.automation},taskId:'task_fixture',task:{title:'이메일 로그인'},expectedHeadSha:HEAD,targetBranch:'main'};
   const artifact={pr_number:1,head_sha:HEAD,base_sha:BASE,preview_url:'https://preview.example/app'};input.artifact=artifact;
   const riskResult={schema_version:'1.0',project_id:PROJECT,request_id:snapshot.request_id,input_sha256:HASH,risks:[],questions:[],tasks:[{title:'이메일 로그인',description:'이메일 로그인 기능 제공',acceptance_criteria:['이메일 로그인이 가능하다.'],evidence:[{segment_id:'seg-1',quote:'이메일 로그인 기능을 제공한다.'}]}]};
+  if(options.v2){riskResult.schema_version='2.0';riskResult.temporary_decisions=[];riskResult.work_gaps=[];}
   const row={project_id:PROJECT,workspace_id:WORKSPACE,space_id:SPACE,connector_id:'connector_fixture',status:'ready',version:1};
   const pool={query:async(sql,args)=>{assert.ok(sql.includes('project_nora_workspaces'));assert.equal(args[0],PROJECT);return {rows:[row]};}};
   const calls=[],invocations=[],flows=new Map();let raw,request,merged=false;
@@ -116,4 +118,31 @@ test('generic branch write capabilities cannot bypass task-branch or human merge
   const f=fixture({omitOperations:['apply_task_patch'],gitSnapshot:s=>{s.operations.set('apply_patch',{id:'apply_patch',params:['repo','branch','base_sha','patch']});}});
   assert.equal((await f.service.capabilities(f.input)).development,false);await assert.rejects(f.service.develop(f.input));assert.equal(f.calls.filter(c=>c.name==='run_flow').length,0);
   const wrong=fixture({gitResult:(op,v)=>{if(op==='get_pull_request')v.head.ref='main';}});await assert.rejects(wrong.service.develop(wrong.input),{code:'NORA_TASK_PR_CHANGED'});
+});
+
+test('v2 managed risk uses a new flow and returns a result that worker can validate again',async()=>{
+ const f=fixture({v2:true}),V=require('../../nora/task-automation/risk-flow-v2'),result=await f.service.analyzeRisk(f.input);
+ assert.ok(f.flows.has(defaultSlug(PROJECT,'2')));assert.equal(f.flows.has(defaultSlug(PROJECT)),false);assert.equal(result.schema_version,'2.0');assert.equal(result.execution_blocked,false);
+ assert.equal(V.validateRiskResult(result,f.input.snapshot,HASH).tasks.length,1);assert.equal(JSON.stringify(result).includes('execution_blocked'),false);
+});
+test('custom risk requires declared v2 contract and exact output schema before execution',async()=>{
+ for(const customRisk of [()=>{},f=>{f.payload.meta.ains_risk_contract_version='2';}]){const f=fixture({v2:true,customRisk});await assert.rejects(f.service.analyzeRisk(f.input),{code:'NORA_RISK_V2_CONTRACT_REQUIRED',noSideEffects:true});assert.equal(f.calls.filter(c=>c.name==='run_flow').length,0);}
+ const f=fixture({v2:true,customRisk:f=>{f.payload.meta.ains_risk_contract_version='2';f.payload.agents.at(-1).outputRules=[{kind:'json',mode:'validate',schema:require('../../nora/task-automation/risk-flow-v2').MODEL_RESULT_SCHEMA}];}});assert.equal((await f.service.analyzeRisk(f.input)).schema_version,'2.0');
+});
+test('provisional development fails safely before dispatch without archive contract capability',async()=>{
+ const f=fixture({v2:true}),c=await f.service.capabilities(f.input);assert.equal(c.development,false);assert.ok(c.blockers.some(b=>b.code==='NORA_DEVELOPMENT_NOTES_CONTRACT_REQUIRED'));
+ await assert.rejects(f.service.develop(f.input),{code:'NORA_DEVELOPMENT_NOTES_CONTRACT_REQUIRED',noSideEffects:true});assert.equal(f.calls.filter(c=>c.name==='run_flow').length,0);assert.equal(f.invocations.length,0);
+});
+test('v2 development carries immutable notes and requires a source-grounded completion report',async()=>{
+ const contract=f=>{f.payload.meta.ains_task_contract_version='2';};
+ const missing=fixture({v2:true,customDevelopment:contract});await assert.rejects(missing.service.develop(missing.input),{code:'NORA_DEVELOPMENT_NOTES_REQUIRED'});
+ const f=fixture({v2:true,customDevelopment:contract,output:r=>{r.schema_version='2.0';r.implementation_report={contract_version:'2.0',completion:'complete',remaining_criteria:[],notes:[]};}});
+ const result=await f.service.develop(f.input);assert.equal(result.implementation_report.completion,'complete');const input=f.calls.find(c=>c.name==='run_flow').arguments.variables.automation_request;
+ assert.equal(input.development_contract.version,'2.0');assert.deepEqual(input.snapshot.implementation_notes,[]);assert.ok(input.development_contract.report_schema);
+});
+
+test('verified completed v2 trace may report blocked work without fabricating a PR artifact',async()=>{
+ const f=fixture({v2:true,customDevelopment:f=>{f.payload.meta.ains_task_contract_version='2';},output:r=>{r.schema_version='2.0';r.artifact=null;r.implementation_report={contract_version:'2.0',completion:'blocked',remaining_criteria:[],notes:[{id:'gap1',kind:'work_gap',category:'ui_behavior',reversible:true,title:'화면 미완료',uncertainty:'화면 선택 필요',temporary_approach:null,rationale:'표시 형식 확인',impact:'화면 일부 미완료',replacement_condition:'표시 형식 확정',evidence:[{segment_id:'seg-1',quote:'이메일 로그인 기능을 제공한다.'}]}]};}});
+ const result=await f.service.develop(f.input);assert.equal(result.artifact,null);assert.equal(result.trace_id,TRACE);assert.equal(result.implementation_report.completion,'blocked');assert.equal(f.invocations.length,0);
+ const partial=fixture({v2:true,customDevelopment:f=>{f.payload.meta.ains_task_contract_version='2';},output:r=>{r.schema_version='2.0';r.artifact=null;r.implementation_report={contract_version:'2.0',completion:'complete',remaining_criteria:[],notes:[]};}});await assert.rejects(partial.service.develop(partial.input),{code:'NORA_TASK_ARTIFACT_INVALID'});
 });

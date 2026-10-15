@@ -37,6 +37,7 @@ const {kakaoWatcherScript}=require('./kakao-watcher-download');
 const {mountProjectNoraRoutes}=require('./project-nora-routes');
 const {mountTaskAutomationRoutes}=require('./task-automation-routes');
 const {mountTaskDraftRoutes}=require('./task-draft-routes');
+const {mountImplementationNoteRoutes}=require('./implementation-note-routes');
 
 function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = false, staticDir = path.resolve(__dirname, '../..', 'dist'), google = {}, googleClient, contextAI = {}, provider = {}, integration = {}, transcription = {}, semantic = {}, workAI = {}, questions = {}, governance = {}, githubDelivery = {}, repositoryAccess = {}, nora = {} }) {
   const sharedViews = createSharedViews(pool, { appOrigin, production });
@@ -112,8 +113,9 @@ function createApp({ pool, appOrigin = 'http://127.0.0.1:3100', production = fal
   function roles(...allowed) { return (req,_res,next) => allowed.includes(req.projectRole) ? next() : next(error('FORBIDDEN','이 작업을 수행할 권한이 없습니다.',403)); }
   const write=roles('owner','reviewer','member'), review=roles('owner','reviewer');
   mountProjectNoraRoutes(project,{pool,owner:roles('owner'),...nora});
-  mountTaskAutomationRoutes(project,{pool,write,review,owner:roles('owner'),provider:nora.tasks});
+  const taskAutomation=mountTaskAutomationRoutes(project,{pool,write,review,owner:roles('owner'),provider:nora.tasks});
   mountTaskDraftRoutes(project,{pool,write});
+  mountImplementationNoteRoutes(project,{pool,write,review,taskAutomation});
   mountDashboardRoutes(project,{pool});
   mountProjectMemberRoutes(project,{pool});
   mountCommercialRoutes(project,{pool,write,review});

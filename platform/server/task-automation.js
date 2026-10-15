@@ -4,6 +4,8 @@ const { transaction } = require('./db');
 const { membership } = require('./context-ledger');
 const { hash, id } = require('./context-contract');
 const { repositoryCoordinates } = require('./repository-check');
+const notes = require('./implementation-notes');
+const riskV2 = require('../../nora/task-automation/risk-flow-v2');
 const WRITERS = ['owner','reviewer','member'], REVIEWERS = ['owner','reviewer'];
 const SHA = /^[a-f0-9]{40}$/;
 function fail(code, message, status = 409) { throw Object.assign(new Error(message), { code, status }); }
@@ -17,7 +19,7 @@ async function settings(db,p) { return (await db.query('SELECT * FROM task_autom
 async function audit(db,p,u,kind,entity,detail={}) { await db.query('INSERT INTO events(project_id,actor_id,kind,entity_id,detail) VALUES($1,$2,$3,$4,$5)', [p,u,'task_automation.'+kind,entity,JSON.stringify(detail)]); }
 async function task(db,p,tid,forUpdate=false) { const r = (await db.query(`SELECT * FROM automation_tasks WHERE project_id=$1 AND id=$2${forUpdate?' FOR UPDATE':''}`, [p,id(tid)])).rows[0]; if (!r) fail('TASK_NOT_FOUND','이 프로젝트의 자동화 작업을 찾을 수 없습니다.',404); return r; }
 function publicTask(row,detail=false) { return { ...row, version:Number(row.version), input_snapshot:detail?row.input_snapshot:undefined, artifact:row.artifact?{...row.artifact,...(!detail?{diff:undefined}:{})}:null }; }
-function publicAnalysis(r) { return { id:r.id,project_id:r.project_id,revision_id:r.revision_id,status:r.status,risks:r.result?.risks||[],question_ids:r.question_ids,error_code:r.error_code,created_at:r.created_at,updated_at:r.updated_at,trace_id:r.result?.trace_id||null }; }
+function publicAnalysis(r) { return { id:r.id,project_id:r.project_id,revision_id:r.revision_id,status:r.status,risks:r.result?.risks||[],question_ids:r.question_ids,error_code:r.error_code,created_at:r.created_at,updated_at:r.updated_at,trace_id:r.result?.trace_id||null,uncertainty_mode:r.input_snapshot?.automation?.uncertainty_mode||'strict',temporary_decisions:r.result?.temporary_decisions||[],work_gaps:r.result?.work_gaps||[],feedback:r.input_snapshot?.feedback?{note_id:r.input_snapshot.feedback.note_id,note_version:r.input_snapshot.feedback.note_version,feedback_id:r.input_snapshot.feedback.feedback_id}:null }; }
 async function capabilities(provider,p,db=provider.pool) {
   const config=await settings(db,p), n=(await db.query('SELECT workspace_id,status,connector_id FROM project_nora_workspaces WHERE project_id=$1',[p])).rows[0];
   const base={risk_analysis:false,development:false,merge:false,blockers:[]};
@@ -36,11 +38,11 @@ async function capabilities(provider,p,db=provider.pool) {
   if(!repositoryReady)add('TASK_REPOSITORY_REQUIRED','Nora GitHub 연결로 기준 브랜치를 확인한 뒤 정책을 다시 분석하세요.');
   return {risk_analysis:Boolean(offered?.risk_analysis&&provider.analyzeRisk),development:Boolean(offered?.development&&provider.develop&&config.development_flow_slug&&n.connector_id&&config.preview_origins.length&&repositoryReady),merge:Boolean(offered?.merge&&provider.merge&&n.connector_id&&repositoryReady),blockers};
 }
-async function snapshot(db,p,rid,requestId) {
+async function snapshot(db,p,rid,requestId,{feedback=null,implementationNotes=[]}={}) {
   const row=(await db.query(`SELECT r.*,d.title,d.document_category FROM revisions r JOIN documents d ON d.id=r.document_id AND d.project_id=r.project_id WHERE r.project_id=$1 AND r.id=$2`,[p,id(rid)])).rows[0];
   if(!row)fail('TASK_SOURCE_NOT_FOUND','이 프로젝트의 문서를 선택하세요.',404);
   if(row.document_category!=='policy')fail('TASK_POLICY_REQUIRED','정책 문서만 자동 위험 분석 대상으로 선택할 수 있습니다.');
-  if(row.status!=='ready'||row.document_json?.extraction?.complete!==true||!Array.isArray(row.document_json.segments)||!row.document_json.segments.length||row.document_json.segments.some(s=>s.extraction_status!=='ok'))fail('TASK_SOURCE_NOT_READY','불완전한 문서 추출 또는 확인이 필요한 구간을 먼저 검토하세요.');
+  if(row.status!=='ready'||row.document_json?.project_id!==p||row.document_json?.revision_id!==row.id||row.document_json?.document_id!==row.document_id||row.document_json?.source?.sha256!==row.sha256||row.document_json?.extraction?.complete!==true||!Array.isArray(row.document_json.segments)||!row.document_json.segments.length||row.document_json.segments.some(s=>s.extraction_status!=='ok'))fail('TASK_SOURCE_NOT_READY','불완전한 문서 추출 또는 확인이 필요한 구간을 먼저 검토하세요.');
   const n=(await db.query('SELECT workspace_id FROM project_nora_workspaces WHERE project_id=$1',[p])).rows[0];
   if(!n)fail('TASK_CONNECTION_REQUIRED','프로젝트의 Nora 워크스페이스를 먼저 등록하세요.');
   const config=await settings(db,p);if(!config.enabled)fail('TASK_AUTOMATION_DISABLED','프로젝트 자동화를 설정에서 활성화하세요.');
@@ -49,41 +51,60 @@ async function snapshot(db,p,rid,requestId) {
   const records=(await db.query(`SELECT r.id,r.content_sha256,r.title,r.body FROM context_records r WHERE r.project_id=$1 AND NOT EXISTS(SELECT 1 FROM context_supersessions s WHERE s.project_id=r.project_id AND s.previous_id=r.id) ORDER BY r.context_version DESC LIMIT 201`,[p])).rows;
   if(records.length>200)fail('TASK_CONTEXT_TOO_LARGE','분석 범위를 나누어 주세요.',413);
   const value={schema_version:'1.0',project_id:p,request_id:requestId,source:{revision_id:row.id,document_id:row.document_id,title:row.title,category:row.document_category,sha256:row.sha256,segments:row.document_json.segments},context:{version:contextVersion,records},project:{name:project.name,goal:project.goal,settings_version:Number(project.version)},repository:{url:project.repository_url,base_branch:project.base_branch,head_sha:project.repository_check?.status==='ready'&&project.repository_check?.credential_source==='nora'?project.repository_check.head_sha:null},nora:{workspace_id:n.workspace_id},automation:{settings_version:config.version,risk_flow_slug:config.risk_flow_slug,development_flow_slug:config.development_flow_slug,preview_origins:config.preview_origins}};
+  if(config.uncertainty_mode==='provisional'||feedback){value.schema_version='2.0';value.automation.uncertainty_mode=config.uncertainty_mode||'strict';value.feedback=feedback;value.implementation_notes=implementationNotes;}
   if(Buffer.byteLength(JSON.stringify(value))>500000)fail('TASK_CONTEXT_TOO_LARGE','정책과 관련 기록의 분석 범위를 줄여 주세요.',413);
   return value;
 }
 async function assertFresh(db,p,value,expectedHash,{development=false}={}) {
   if(value.project_id!==p||hash(value)!==expectedHash)fail('TASK_SNAPSHOT_MISMATCH','작업의 고정된 근거를 확인할 수 없습니다.');
-  const current=await snapshot(db,p,value.source.revision_id,value.request_id);
+  const current=await snapshot(db,p,value.source.revision_id,value.request_id,{feedback:value.feedback||null,implementationNotes:value.implementation_notes||[]});
+  if(value.feedback){
+    const f=value.feedback,history=(await db.query(`SELECT n.version,n.status,h.detail,(SELECT jsonb_build_object('id',f.id,'version',f.version,'text',f.detail->>'text') FROM project_implementation_note_history f WHERE f.project_id=n.project_id AND f.note_id=n.id AND f.kind='feedback' ORDER BY f.version DESC LIMIT 1) latest_feedback FROM project_implementation_notes n JOIN project_implementation_note_history h ON h.project_id=n.project_id AND h.note_id=n.id AND h.version=$3 AND h.kind='followup_created' WHERE n.project_id=$1 AND n.id=$2 FOR SHARE OF n`,[p,f.note_id,f.note_version+1])).rows[0];
+    if(!history||history.latest_feedback?.id!==f.feedback_id||history.latest_feedback.version!==f.note_version||hash(history.latest_feedback.text)!==f.feedback_sha256||history.detail.analysis_id!==value.request_id||history.detail.feedback_id!==f.feedback_id||history.detail.feedback_sha256!==f.feedback_sha256)fail('TASK_FEEDBACK_STALE','새 피드백이 기록되었습니다. 최신 피드백으로 다시 분석하세요.');
+  }
   if(hash(current)!==expectedHash)fail('TASK_SOURCE_STALE','정책·프로젝트 기록·저장소 설정이 변경되었습니다. 최신 문서로 다시 분석하세요.');
   const latest=(await db.query('SELECT id FROM revisions WHERE project_id=$1 AND document_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1',[p,value.source.document_id])).rows[0];
   if(latest?.id!==value.source.revision_id)fail('TASK_SOURCE_STALE','정책의 새 버전이 등록되었습니다. 최신 문서로 다시 분석하세요.');
   if(development&&(!value.repository.url||!value.repository.base_branch||!SHA.test(value.repository.head_sha||'')))fail('TASK_REPOSITORY_REQUIRED','Nora GitHub 커넥터에서 기준 브랜치를 확인한 뒤 다시 분석하세요.');
 }
 function validateArtifact(output,row) {
-  if(output?.schema_version!=='1.0'||output.project_id!==row.project_id||output.task_id!==row.id||output.input_sha256!==row.input_sha256||typeof output.trace_id!=='string'||!output.trace_id)fail('TASK_DEVELOPMENT_SCOPE_MISMATCH','개발 결과의 프로젝트·작업 근거가 요청과 다릅니다.');
-  const a=output.artifact,s=row.input_snapshot,repo=repositoryCoordinates(s.repository.url).url.replace(/\.git$/,'');
+  if(output?.schema_version!==(row.input_snapshot.schema_version||'1.0')||output.project_id!==row.project_id||output.task_id!==row.id||output.input_sha256!==row.input_sha256||typeof output.trace_id!=='string'||!output.trace_id)fail('TASK_DEVELOPMENT_SCOPE_MISMATCH','개발 결과의 프로젝트·작업 근거가 요청과 다릅니다.');
+  const a=output.artifact,s=row.input_snapshot,report=s.schema_version==='2.0'?riskV2.validateDevelopmentNotes(output.implementation_report,s,{acceptanceCriteria:row.acceptance_criteria}):null;
+  if(report?.completion==='blocked'&&a===null)return {implementation_report:report,trace_id:output.trace_id};
+  const repo=repositoryCoordinates(s.repository.url).url.replace(/\.git$/,'');
   if(!a||!Number.isSafeInteger(a.pr_number)||a.pr_number<1||a.pr_url!==`${repo}/pull/${a.pr_number}`||!SHA.test(a.head_sha||'')||a.base_sha!==s.repository.head_sha||a.target_branch!==s.repository.base_branch||typeof a.diff!=='string'||!a.diff.trim()||Buffer.byteLength(a.diff)>1048576)fail('TASK_ARTIFACT_INVALID','검증된 PR·커밋·변경 내역이 필요합니다.');
   let preview;try{preview=new URL(a.preview_url);}catch{fail('TASK_PREVIEW_REQUIRED','검토 가능한 프리뷰 주소가 필요합니다.');}
   if(preview.protocol!=='https:'||preview.username||preview.password||!s.automation.preview_origins.includes(preview.origin))fail('TASK_PREVIEW_ORIGIN_INVALID','프로젝트에서 허용한 프리뷰 주소가 아닙니다.');
   if(!Array.isArray(a.checks)||!a.checks.length||a.checks.length>100||a.checks.some(c=>!c||typeof c.name!=='string'||!c.name.trim()||!['passed','failed','pending'].includes(c.status)))fail('TASK_CHECKS_REQUIRED','검증 실행 내역이 필요합니다.');
-  return {pr_number:a.pr_number,pr_url:a.pr_url,head_sha:a.head_sha,base_sha:a.base_sha,target_branch:a.target_branch,preview_url:preview.href,diff:a.diff,checks:a.checks.map(c=>({name:c.name.slice(0,200),status:c.status})),trace_id:output.trace_id};
+  return {...(report?{implementation_report:report}:{}),pr_number:a.pr_number,pr_url:a.pr_url,head_sha:a.head_sha,base_sha:a.base_sha,target_branch:a.target_branch,preview_url:preview.href,diff:a.diff,checks:a.checks.map(c=>({name:c.name.slice(0,200),status:c.status})),trace_id:output.trace_id};
 }
 function validateMerge(result,row) {
   const a=row.artifact;
   if(result?.project_id!==row.project_id||result.task_id!==row.id||result.input_sha256!==row.input_sha256||result.head_sha!==a.head_sha||result.target_branch!==a.target_branch||result.pr_number!==a.pr_number||result.merged!==true||!SHA.test(result.merge_commit_sha||''))fail('TASK_MERGE_NOT_CONFIRMED','승인한 커밋의 기준 브랜치 병합을 확인하지 못했습니다.');
   return {project_id:row.project_id,task_id:row.id,input_sha256:row.input_sha256,head_sha:a.head_sha,target_branch:a.target_branch,pr_number:a.pr_number,merged:true,merge_commit_sha:result.merge_commit_sha};
 }
+async function queueAnalysis(db,p,u,value,input,fingerprint) {
+  const sha=hash(input),{request_id:ignored,...evidence}=input,dedup=hash(evidence);
+  let row=(await db.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND dedup_sha256=$2',[p,dedup])).rows[0];
+  if(!row){
+    row=(await db.query('INSERT INTO task_automation_analyses(id,project_id,revision_id,request_sha256,input_snapshot,input_sha256,dedup_sha256,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[value.request_id,p,value.revision_id,fingerprint,input,sha,dedup,u])).rows[0];
+    await db.query("INSERT INTO task_automation_jobs(project_id,kind,analysis_id,created_by) VALUES($1,'risk',$2,$3)",[p,row.id,u]);
+    await audit(db,p,u,'analysis_requested',row.id,{revision_id:value.revision_id,input_sha256:sha,...(input.feedback?{feedback_id:input.feedback.feedback_id,note_id:input.feedback.note_id}:{})});
+  }
+  await db.query('INSERT INTO task_automation_requests(id,project_id,analysis_id,request_sha256,created_by) VALUES($1,$2,$3,$4,$5)',[value.request_id,p,row.id,fingerprint,u]);
+  return publicAnalysis(row);
+}
 function createTaskAutomation({pool,provider={}}) {
   return {
     async overview(p,u) { await membership(pool,p,u);const [a,t,c,s,i]=await Promise.all([pool.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 ORDER BY created_at DESC LIMIT 100',[p]),pool.query('SELECT * FROM automation_tasks WHERE project_id=$1 ORDER BY created_at DESC LIMIT 200',[p]),capabilities(provider,p,pool),settings(pool,p),pool.query('SELECT revision_id,status,error_code,created_at FROM task_automation_intake WHERE project_id=$1 ORDER BY created_at DESC LIMIT 100',[p])]);return {analyses:a.rows.map(publicAnalysis),tasks:t.rows.map(r=>publicTask(r)),settings:s,capabilities:c,intake:i.rows}; },
     async getTask(p,u,tid) { await membership(pool,p,u);return publicTask(await task(pool,p,tid),true); },
     async saveSettings(p,u,value) {
-      object(value,['expected_version','enabled','risk_flow_slug','development_flow_slug','preview_origins']);version(value.expected_version);
+      object(value,['expected_version','enabled','risk_flow_slug','development_flow_slug','preview_origins','uncertainty_mode']);version(value.expected_version);
       if(typeof value.enabled!=='boolean'||!Array.isArray(value.preview_origins)||value.preview_origins.length>10)fail('TASK_SETTINGS_INVALID','자동화 설정 형식을 확인하세요.',400);
+      if(value.uncertainty_mode!==undefined&&!['strict','provisional'].includes(value.uncertainty_mode))fail('TASK_SETTINGS_INVALID','불확실성 처리 모드를 확인하세요.',400);
       const slug=v=>{if(v===null||v===undefined||v==='')return null;if(typeof v!=='string'||!/^[-a-zA-Z0-9_]{1,150}$/.test(v))fail('TASK_FLOW_INVALID','게시된 Nora 흐름 식별자를 확인하세요.',400);return v;};
       const risk=slug(value.risk_flow_slug),dev=slug(value.development_flow_slug),origins=[...new Set(value.preview_origins.map(v=>{let url;try{url=new URL(v);}catch{fail('TASK_PREVIEW_ORIGIN_INVALID','HTTPS 프리뷰 원점을 입력하세요.',400);}if(url.protocol!=='https:'||url.origin!==v||url.username||url.password)fail('TASK_PREVIEW_ORIGIN_INVALID','경로 없이 HTTPS 프리뷰 원점을 입력하세요.',400);return url.origin;}))];
-      return transaction(pool,async db=>{await membership(db,p,u,['owner']);await lock(db,p);const s=await settings(db,p);if(s.version!==value.expected_version)fail('TASK_VERSION_CONFLICT','자동화 설정이 변경되었습니다.');const r=(await db.query('UPDATE task_automation_settings SET enabled=$2,risk_flow_slug=$3,development_flow_slug=$4,preview_origins=$5,version=version+1,updated_by=$6,updated_at=now() WHERE project_id=$1 RETURNING *',[p,value.enabled,risk,dev,JSON.stringify(origins),u])).rows[0];await audit(db,p,u,'settings_updated',p,{version:r.version});return r;});
+      return transaction(pool,async db=>{await membership(db,p,u,['owner']);await lock(db,p);const s=await settings(db,p);if(s.version!==value.expected_version)fail('TASK_VERSION_CONFLICT','자동화 설정이 변경되었습니다.');const r=(await db.query('UPDATE task_automation_settings SET enabled=$2,risk_flow_slug=$3,development_flow_slug=$4,preview_origins=$5,uncertainty_mode=$7,version=version+1,updated_by=$6,updated_at=now() WHERE project_id=$1 RETURNING *',[p,value.enabled,risk,dev,JSON.stringify(origins),u,value.uncertainty_mode||s.uncertainty_mode||'strict'])).rows[0];await audit(db,p,u,'settings_updated',p,{version:r.version});return r;});
     },
     async analyze(p,u,value) {
       object(value,['revision_id','request_id']);id(value.revision_id);id(value.request_id);const fingerprint=hash(value);
@@ -97,18 +118,23 @@ function createTaskAutomation({pool,provider={}}) {
           if(old.project_id!==p||old.created_by!==u||old.request_sha256!==fingerprint)fail('TASK_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.');
           return publicAnalysis((await db.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND id=$2',[p,old.analysis_id])).rows[0]);
         }
-        const input=await snapshot(db,p,value.revision_id,value.request_id),sha=hash(input);
-        // Transport request identity is not new policy evidence. Repeated clicks and
-        // automatic/manual requests must share the same analysis and resulting tasks.
-        const {request_id:ignored,...evidence}=input,dedup=hash(evidence);
-        let row=(await db.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND dedup_sha256=$2',[p,dedup])).rows[0];
-        if(!row){
-          row=(await db.query('INSERT INTO task_automation_analyses(id,project_id,revision_id,request_sha256,input_snapshot,input_sha256,dedup_sha256,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[value.request_id,p,value.revision_id,fingerprint,input,sha,dedup,u])).rows[0];
-          await db.query("INSERT INTO task_automation_jobs(project_id,kind,analysis_id,created_by) VALUES($1,'risk',$2,$3)",[p,row.id,u]);
-          await audit(db,p,u,'analysis_requested',row.id,{revision_id:value.revision_id,input_sha256:sha});
-        }
-        await db.query('INSERT INTO task_automation_requests(id,project_id,analysis_id,request_sha256,created_by) VALUES($1,$2,$3,$4,$5)',[value.request_id,p,row.id,fingerprint,u]);
-        return publicAnalysis(row);
+        return queueAnalysis(db,p,u,value,await snapshot(db,p,value.revision_id,value.request_id),fingerprint);
+      });
+    },
+    async analyzeFeedback(p,u,value) {
+      object(value,['note_id','expected_version','request_id']);id(value.note_id);id(value.request_id);version(value.expected_version);const fingerprint=hash({kind:'feedback',...value});
+      return transaction(pool,async db=>{
+        await membership(db,p,u,WRITERS);
+        await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-task-request:' || $1,0))",[value.request_id]);
+        await lock(db,p);await db.query("SELECT pg_advisory_xact_lock(hashtextextended('ains-context:' || $1,0))",[p]);
+        const old=(await db.query('SELECT * FROM task_automation_requests WHERE id=$1',[value.request_id])).rows[0];
+        if(old){if(old.project_id!==p||old.created_by!==u||old.request_sha256!==fingerprint)fail('TASK_REQUEST_CONFLICT','다른 분석에 사용한 요청 ID입니다.');return publicAnalysis((await db.query('SELECT * FROM task_automation_analyses WHERE project_id=$1 AND id=$2',[p,old.analysis_id])).rows[0]);}
+        const frozen=await notes.getFollowupInput(db,{projectId:p,noteId:value.note_id,actorId:u,expectedVersion:value.expected_version});
+        const input=await snapshot(db,p,frozen.sourceRevisionId,value.request_id,{feedback:frozen.feedback});
+        riskV2.validateRiskRequest(input,{projectId:p,workspaceId:input.nora.workspace_id});
+        const result=await queueAnalysis(db,p,u,{...value,revision_id:frozen.sourceRevisionId},input,fingerprint);
+        await notes.recordFollowup(db,{projectId:p,noteId:value.note_id,requestId:value.request_id,actorId:u,expectedVersion:value.expected_version,analysisId:result.id});
+        return result;
       });
     },
     async transition(p,u,tid,value) {

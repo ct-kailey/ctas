@@ -89,6 +89,10 @@ test('temporary shared links authorize only selected read projections and preser
     assert.equal(projects.projects[0].role, 'viewer');
     assert.equal((await call('/api/projects/selected-one/dashboard', { headers })).status, 200);
     assert.equal((await call('/api/projects/selected-one/settings', { headers })).status, 200);
+    const notes = await call('/api/projects/selected-one/implementation-notes', { headers });
+    assert.equal(notes.status, 200);
+    assert.deepEqual((await notes.json()).notes, []);
+    assert.equal((await call('/api/projects/private/implementation-notes', { headers })).status, 404);
     assert.equal((await call('/api/projects/private/overview', { headers })).status, 404);
     assert.equal((await call('/api/projects/selected-two/documents', { headers })).status, 404);
     assert.equal((await call('/api/projects/%70rivate/overview', { headers })).status, 404);
@@ -103,6 +107,9 @@ test('temporary shared links authorize only selected read projections and preser
     const headers = { Cookie: adminLogin.cookie + '; ' + anonymous.cookie, Origin: origin, 'Content-Type': 'application/json', 'X-CSRF-Token': anonymous.data.csrfToken };
     const paths = ['/api/projects', '/api/shared-views', '/api/projects/selected-one/documents', '/api/projects/selected-one/reviews/' + randomUUID() + '/decision', '/api/implementation-runner/' + randomUUID() + '/claim'];
     for (const path of paths) assert.equal((await call(path, { method: 'POST', headers, body: '{}' })).status, 403, path);
+    for (const suffix of ['', '/' + randomUUID() + '/feedback', '/' + randomUUID() + '/review', '/' + randomUUID() + '/followup']) {
+      assert.equal((await call('/api/projects/selected-one/implementation-notes' + suffix, { method: 'POST', headers, body: '{}' })).status, 403);
+    }
     for (const path of ['context/semantic/search?q=hello', 'context/daily-brief', 'integrations', 'ai-provider', 'settings/repository-access', 'execution-agents', 'question-outbound', 'implementation-runner-script', 'revisions/' + randomUUID() + '/original', 'transcriptions/' + randomUUID() + '/audio', 'implementation-requests/' + randomUUID() + '/patch', 'commercial/documents/' + randomUUID() + '/revisions/' + randomUUID() + '/export', 'future-endpoint']) {
       assert.equal((await call('/api/projects/selected-one/' + path, { headers })).status, 403, path);
     }
